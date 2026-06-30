@@ -1,0 +1,42 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+dist/
+build/
+.venv/
+venv/
+env/
+
+# Entorno
+.env
+.env.local
+.env.*.local
+
+# Node / Next.js
+node_modules/
+.next/
+out/
+frontend/.next/
+frontend/node_modules/
+
+# Data — los CSVs fuente se suben al repo (son chicos)
+# Si algún dataset pesa >100MB, agregarlo acá:
+# data/raw/archivo_pesado.csv
+
+# Notebooks temporales
+*.ipynb_checkpoints/
+
+# IDEs
+.idea/
+.vscode/
+*.swp
+
+# OS
+.DS_Store
+desktop.ini
+Thumbs.db
+
+# Logs
+*.log
+logs/
