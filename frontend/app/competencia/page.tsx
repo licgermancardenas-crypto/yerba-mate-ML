@@ -8,7 +8,8 @@ import { getCompetencia } from "@/lib/api";
 
 type EmpresaPivotRow = { empresa: string } & Record<string, string | number>;
 
-const COLORES = ["#15803d", "#22c55e", "#a16207", "#65a30d", "#94a3b8"];
+// Paleta validada con scripts/validate_palette.js de la skill dataviz — mantener el orden
+const COLORES = ["#15803d", "#1d4ed8", "#a16207", "#92400e", "#7e22ce"];
 const TOP_N = 4;
 
 export default async function CompetenciaPage() {
