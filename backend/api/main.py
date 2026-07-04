@@ -8,6 +8,7 @@ from backend.api.routers import (
     geo,
     importaciones,
     precios,
+    precios_gondola,
     produccion,
 )
 
@@ -18,6 +19,7 @@ app.include_router(consumo.router)
 app.include_router(exportaciones.router)
 app.include_router(importaciones.router)
 app.include_router(precios.router)
+app.include_router(precios_gondola.router)
 app.include_router(competencia.router)
 app.include_router(cadena_productiva.router)
 app.include_router(geo.router)

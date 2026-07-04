@@ -453,3 +453,32 @@ CREATE TABLE IF NOT EXISTS ym.inym_salida_molino (
     PRIMARY KEY (anio, mes, destino)
 );
 CREATE INDEX IF NOT EXISTS idx_inym_salida_molino_anio ON ym.inym_salida_molino (anio, mes);
+
+-- ----------------------------------------------------------------------------
+-- 13) precios_gondola — precio de góndola por marca, agregado desde SEPA
+-- ----------------------------------------------------------------------------
+-- Fuente: dump diario público de SEPA (datos.produccion.gob.ar/dataset/sepa-precios,
+-- Res. 678/2020). El portal solo mantiene 7 archivos rotativos (uno por día de
+-- semana, se pisan cada semana) — NO hay backfill histórico posible, cada carga
+-- es una FOTO del momento (fecha_snapshot). Para tener serie temporal hay que
+-- correr el ETL de nuevo en sesiones futuras y acumular snapshots.
+-- El dump viene por sucursal (mismo producto repetido por cada sucursal de la
+-- cadena) y sin columna de categoría — se filtra por texto "yerba" en la
+-- descripción libre y se agrega por marca/presentación antes de cargar, para
+-- no meter cientos de miles de filas crudas a la base.
+-- `empresa_ym` mapea la marca de góndola (nombre comercial) a la empresa de
+-- `ym.competencia` SOLO cuando la atribución está citada en
+-- docs/fuentes_competencia.md — si no hay fuente, queda NULL (no se inventa).
+CREATE TABLE IF NOT EXISTS ym.precios_gondola (
+    fecha_snapshot          DATE NOT NULL,
+    marca_gondola           TEXT NOT NULL,      -- marca tal como aparece en la descripción SEPA (ej. 'ROSAMONTE')
+    empresa_ym              TEXT,               -- referencia informal a ym.competencia.empresa, NULL si no está confirmada
+    presentacion_kg         NUMERIC(6,3) NOT NULL,
+    precio_ars_kg_promedio  NUMERIC(10,2) NOT NULL,
+    precio_ars_kg_min       NUMERIC(10,2) NOT NULL,
+    precio_ars_kg_max       NUMERIC(10,2) NOT NULL,
+    n_observaciones         INTEGER NOT NULL,   -- cantidad de filas sucursal-producto agregadas
+    n_comercios             INTEGER NOT NULL,   -- cantidad de cadenas distintas con ese producto
+    PRIMARY KEY (fecha_snapshot, marca_gondola, presentacion_kg)
+);
+CREATE INDEX IF NOT EXISTS idx_precios_gondola_fecha ON ym.precios_gondola (fecha_snapshot);

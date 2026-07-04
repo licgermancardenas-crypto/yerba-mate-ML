@@ -178,7 +178,7 @@ Stack: Next.js (Vercel) · FastAPI (Render/Railway) · Postgres+PostGIS (Supabas
 - [x] **Tab Consumo**: evolución per cápita, mix de envases (stacked bar) — conectado a `/consumo` real
 - [x] **Tab Exportaciones**: serie mensual + tabla de distribución por destino — conectado a `/exportaciones` real. Treemap/mapa de burbujas pendiente (mejora visual, no bloqueante)
 - [x] **Tab Importaciones** (módulo aparte, 2026-07-04): vivía como sección dentro de Exportaciones, se separó a `/importaciones` con su propio ítem de sidebar — KPI de volumen + balanza comercial (cruza con `/exportaciones`), chart mensual, tabla histórica Anual/Mensual
-- [x] **Tab Precios**: serie precios hoja verde y canchada — conectado a `/precios` real. Relación con IPC pendiente (no hay endpoint todavía para `ym.indec_series`)
+- [x] **Tab Precios**: serie precios hoja verde y canchada — conectado a `/precios` real. **Relación con IPC agregada 2026-07-04**: `/precios` suma `ipc_nacional`/`ipc_yerba_mate` (LEFT JOIN con `ym.indec_series`, ya cargada desde Fase 3a pero sin usar) — precio real deflactado + índice relativo yerba mate vs. inflación general (ambos con base dic-2016=100). **Precio de góndola (SEPA) agregado 2026-07-04**: nueva tabla `ym.precios_gondola` + `backend/etl/etl_sepa_gondola.py` + endpoint `/precios-gondola` — snapshot único (SEPA solo mantiene 7 archivos rotativos, no hay backfill; para serie histórica hay que re-correr el ETL en sesiones futuras). 62 marca/presentación cargadas del snapshot 2026-07-04, con `empresa_ym` mapeado solo cuando la atribución marca→empresa está citada en `docs/fuentes_competencia.md`
 - [x] **Tab Competencia**: evolución cuotas de mercado (top 4 + "Otras") — conectado a `/competencia` real
 - [x] **Tab Cadena Productiva** (nueva, 2026-07-04): ingreso de hoja verde a secadero por zona + salida de molino interno/externo — conectado a `/cadena-productiva/*`. Datos que estaban cargados desde Fase 3c pero sin ningún endpoint ni vista
 - [x] **Tablas históricas tipo Excel** en todos los módulos (2026-07-04): toggle Anual/Mensual, formato profesional (sticky header, zebra rows, `Intl.NumberFormat`), desde el primer año disponible hasta el más reciente
@@ -254,7 +254,7 @@ Según Plan B Misiones (2025): *"Yerbatera Misiones SRL (Puerta) elabora a fazó
 
 ### Fase siguiente (no arrancar sin confirmación aparte)
 
-Precios de góndola vía SEPA (precio promedio por marca/presentación, índice relativo, scatter precio×share).
+Precios de góndola vía SEPA — **snapshot inicial cargado 2026-07-04** (ver Fase 6, Tab Precios). Pendiente si se quiere profundizar: scatter precio×cuota de mercado cruzando `ym.precios_gondola.empresa_ym` con `ym.competencia`, o acumular más snapshots en el tiempo para tener evolución.
 
 ---
 

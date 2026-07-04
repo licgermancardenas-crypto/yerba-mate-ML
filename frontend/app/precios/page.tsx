@@ -6,7 +6,7 @@ import { SerieMensualChart } from "@/components/charts/serie-mensual-chart";
 import { HistoricalTable } from "@/components/historical-table";
 import type { ColumnaTabla } from "@/components/data-table";
 import { formatNumero } from "@/lib/format";
-import { getPrecios } from "@/lib/api";
+import { getPrecios, getPreciosGondola } from "@/lib/api";
 import { agregarPreciosAnual, type PrecioAnualRow } from "@/lib/agregaciones";
 import type { PrecioRow } from "@/lib/types";
 
@@ -41,8 +41,12 @@ export default async function PreciosPage({
   const anioDesde = Number(sp.anio_desde) || undefined;
   const anioHasta = Number(sp.anio_hasta) || undefined;
 
-  const filasCompletas = await getPrecios();
+  const [filasCompletas, gondola] = await Promise.all([getPrecios(), getPreciosGondola()]);
   const todosLosAnios = Array.from(new Set(filasCompletas.map((f) => f.anio))).sort((a, b) => a - b);
+  const gondolaOrdenada = [...gondola].sort(
+    (a, b) => (a.empresa_ym ?? a.marca_gondola).localeCompare(b.empresa_ym ?? b.marca_gondola) || a.presentacion_kg - b.presentacion_kg
+  );
+  const fechaSnapshotGondola = gondola[0]?.fecha_snapshot;
 
   const filas = filasCompletas.filter(
     (f) => (!anioDesde || f.anio >= anioDesde) && (!anioHasta || f.anio <= anioHasta)
@@ -220,6 +224,52 @@ export default async function PreciosPage({
           <SerieMensualChart data={serieIpcYerbaMate} color="#7e22ce" numberFormat={{ maximumFractionDigits: 0 }} />
         </div>
       </div>
+
+      {gondolaOrdenada.length > 0 && (
+        <>
+          <div className="mt-8 mb-4">
+            <h2 className="text-lg font-semibold text-foreground">Precio de góndola (SEPA)</h2>
+            <p className="text-sm text-muted-foreground mt-0.5">
+              Foto del {fechaSnapshotGondola} — no es serie histórica (el portal SEPA no permite backfill), precio de venta al público relevado en supermercados adheridos.
+            </p>
+          </div>
+
+          <div className="rounded-xl border border-border bg-card p-4 overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="text-left text-xs text-muted-foreground border-b border-border">
+                  <th className="font-medium py-2 pr-3">Marca</th>
+                  <th className="font-medium py-2 pr-3">Empresa</th>
+                  <th className="font-medium py-2 pr-3 text-right">Presentación</th>
+                  <th className="font-medium py-2 pr-3 text-right">Precio prom. $/kg</th>
+                  <th className="font-medium py-2 pr-3 text-right">Rango</th>
+                  <th className="font-medium py-2 text-right">Sucursales relevadas</th>
+                </tr>
+              </thead>
+              <tbody>
+                {gondolaOrdenada.map((f) => (
+                  <tr key={`${f.marca_gondola}-${f.presentacion_kg}`} className="border-b border-border last:border-0">
+                    <td className="py-2 pr-3 text-card-foreground font-medium">{f.marca_gondola}</td>
+                    <td className="py-2 pr-3 text-muted-foreground">
+                      {f.empresa_ym ?? <span className="italic">sin confirmar</span>}
+                    </td>
+                    <td className="py-2 pr-3 text-right tabular-nums">{formatNumero(f.presentacion_kg, 2)} kg</td>
+                    <td className="py-2 pr-3 text-right tabular-nums font-medium text-card-foreground">
+                      {formatArsKg(f.precio_ars_kg_promedio)}
+                    </td>
+                    <td className="py-2 pr-3 text-right tabular-nums text-muted-foreground">
+                      {formatArsKg(f.precio_ars_kg_min)} – {formatArsKg(f.precio_ars_kg_max)}
+                    </td>
+                    <td className="py-2 text-right tabular-nums text-muted-foreground">
+                      {f.n_observaciones} ({f.n_comercios} {f.n_comercios === 1 ? "cadena" : "cadenas"})
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </>
+      )}
 
       <div className="mt-4 rounded-xl border border-border bg-card p-4">
         <h2 className="text-sm font-semibold text-card-foreground mb-1">Histórico completo</h2>

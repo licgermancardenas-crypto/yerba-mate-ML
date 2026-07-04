@@ -48,6 +48,19 @@ export interface PrecioRow {
   ipc_yerba_mate: number | null;
 }
 
+export interface PrecioGondolaRow {
+  fecha_snapshot: string;
+  marca_gondola: string;
+  /** Referencia informal a CompetenciaRow.empresa — null si la atribución no está confirmada. */
+  empresa_ym: string | null;
+  presentacion_kg: number;
+  precio_ars_kg_promedio: number;
+  precio_ars_kg_min: number;
+  precio_ars_kg_max: number;
+  n_observaciones: number;
+  n_comercios: number;
+}
+
 export interface CompetenciaRow {
   anio: number;
   empresa: string;

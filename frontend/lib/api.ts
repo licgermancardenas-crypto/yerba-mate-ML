@@ -6,6 +6,7 @@ import type {
   GeoFeatureCollection,
   HojaVerdeRow,
   ImportacionRow,
+  PrecioGondolaRow,
   PrecioRow,
   ProduccionRow,
   SalidaMolinoRow,
@@ -60,6 +61,10 @@ export function getPrecios(params?: { anioDesde?: number; anioHasta?: number }) 
   if (params?.anioHasta) qs.set("anio_hasta", String(params.anioHasta));
   const query = qs.toString();
   return apiFetch<PrecioRow[]>(`/precios${query ? `?${query}` : ""}`);
+}
+
+export function getPreciosGondola() {
+  return apiFetch<PrecioGondolaRow[]>("/precios-gondola");
 }
 
 export function getCompetencia(params?: { anioDesde?: number; anioHasta?: number; empresa?: string }) {
