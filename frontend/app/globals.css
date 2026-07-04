@@ -1,0 +1,50 @@
+@import "tailwindcss";
+
+:root {
+  --color-primary: #15803d;
+  --color-on-primary: #ffffff;
+  --color-secondary: #22c55e;
+  --color-on-secondary: #0f172a;
+  --color-accent: #a16207;
+  --color-on-accent: #ffffff;
+  --color-background: #f0fdf4;
+  --color-foreground: #14532d;
+  --color-card: #ffffff;
+  --color-card-foreground: #14532d;
+  --color-muted: #e8f0f1;
+  --color-muted-foreground: #64748b;
+  --color-border: #bbf7d0;
+  --color-destructive: #dc2626;
+  --color-on-destructive: #ffffff;
+  --color-ring: #15803d;
+}
+
+@theme inline {
+  --color-primary: var(--color-primary);
+  --color-on-primary: var(--color-on-primary);
+  --color-secondary: var(--color-secondary);
+  --color-on-secondary: var(--color-on-secondary);
+  --color-accent: var(--color-accent);
+  --color-on-accent: var(--color-on-accent);
+  --color-background: var(--color-background);
+  --color-foreground: var(--color-foreground);
+  --color-card: var(--color-card);
+  --color-card-foreground: var(--color-card-foreground);
+  --color-muted: var(--color-muted);
+  --color-muted-foreground: var(--color-muted-foreground);
+  --color-border: var(--color-border);
+  --color-destructive: var(--color-destructive);
+  --color-on-destructive: var(--color-on-destructive);
+  --color-ring: var(--color-ring);
+  --font-sans: var(--font-fira-sans);
+  --font-mono: var(--font-fira-code);
+}
+
+body {
+  background: var(--color-background);
+  color: var(--color-foreground);
+}
+
+* {
+  scrollbar-color: var(--color-border) transparent;
+}

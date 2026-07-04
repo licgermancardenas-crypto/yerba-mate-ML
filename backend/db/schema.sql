@@ -134,3 +134,257 @@ CREATE INDEX IF NOT EXISTS idx_dim_municipios_geom ON inym_gis.dim_municipios US
 CREATE INDEX IF NOT EXISTS idx_dim_departamentos_geom ON inym_gis.dim_departamentos USING GIST (geom);
 CREATE INDEX IF NOT EXISTS idx_dim_provincias_geom ON inym_gis.dim_provincias USING GIST (geom);
 CREATE INDEX IF NOT EXISTS idx_dim_zonas_geom ON inym_gis.dim_zonas USING GIST (geom);
+
+
+-- ============================================================================
+-- ESQUEMA YM — SERIES TEMPORALES YERBATERAS (7 CSVs históricos INYM)
+-- ============================================================================
+-- Nota de calidad de datos: varios CSV fuente repiten el mismo valor en los
+-- 12 meses de un año (consumo per cápita, precios, importaciones). Se
+-- confirmó que SÍ varían de año a año (ej. precio USD/kg: 1,80 en 2011 →
+-- 2,50 en 2023; importaciones: 83.333 kg/mes solo en 2011, después cambia).
+-- Conclusión: son datos anuales publicados con cadencia mensual (mismo
+-- valor los 12 meses de cada año), no placeholders. Ver TODO.md.
+-- ============================================================================
+
+CREATE SCHEMA IF NOT EXISTS ym;
+
+-- ----------------------------------------------------------------------------
+-- 1) dataset_principal — producción/consumo/exportaciones/precio por
+--    provincia y ciudad productora, mensual (2011–presente)
+-- ----------------------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS ym.dataset_principal (
+    anio                SMALLINT NOT NULL,
+    mes                 SMALLINT NOT NULL CHECK (mes BETWEEN 1 AND 12),
+    mes_nombre          TEXT NOT NULL,
+    provincia           TEXT NOT NULL,
+    ciudad              TEXT NOT NULL,
+    produccion_kg       NUMERIC(14,2) NOT NULL,
+    consumo_interno_kg  NUMERIC(14,2) NOT NULL,
+    exportaciones_kg    NUMERIC(14,2) NOT NULL,
+    precio_usd_kg       NUMERIC(8,2) NOT NULL,
+    valor_fob_usd       NUMERIC(14,2) NOT NULL,
+    PRIMARY KEY (anio, mes, provincia, ciudad)
+);
+CREATE INDEX IF NOT EXISTS idx_dataset_principal_anio ON ym.dataset_principal (anio);
+
+-- ----------------------------------------------------------------------------
+-- 2) consumo_interno — consumo per cápita nacional y mix de envases, mensual
+-- ----------------------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS ym.consumo_interno (
+    anio                        SMALLINT NOT NULL,
+    mes                         SMALLINT NOT NULL CHECK (mes BETWEEN 1 AND 12),
+    mes_nombre                  TEXT NOT NULL,
+    consumo_per_capita_kg       NUMERIC(6,2) NOT NULL,
+    envase_05kg_pct             NUMERIC(5,2) NOT NULL,
+    envase_1kg_pct              NUMERIC(5,2) NOT NULL,
+    envase_2kg_pct              NUMERIC(5,2) NOT NULL,
+    envase_025kg_pct            NUMERIC(5,2) NOT NULL,
+    otros_envases_pct           NUMERIC(5,2) NOT NULL,
+    sin_estampillas_pct         NUMERIC(5,2) NOT NULL,
+    PRIMARY KEY (anio, mes)
+);
+CREATE INDEX IF NOT EXISTS idx_consumo_interno_anio ON ym.consumo_interno (anio);
+
+-- ----------------------------------------------------------------------------
+-- 3) exportaciones — volumen y valor FOB por país destino, mensual
+-- ----------------------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS ym.exportaciones (
+    anio                SMALLINT NOT NULL,
+    mes                 SMALLINT NOT NULL CHECK (mes BETWEEN 1 AND 12),
+    mes_nombre          TEXT NOT NULL,
+    destino             TEXT NOT NULL,     -- incluye 'Others' como categoría agregada
+    volumen_kg          NUMERIC(14,2) NOT NULL,
+    valor_fob_usd       NUMERIC(14,2) NOT NULL,
+    precio_fob_usd_kg   NUMERIC(8,2) NOT NULL,
+    PRIMARY KEY (anio, mes, destino)
+);
+CREATE INDEX IF NOT EXISTS idx_exportaciones_anio ON ym.exportaciones (anio);
+CREATE INDEX IF NOT EXISTS idx_exportaciones_destino ON ym.exportaciones (destino);
+
+-- ----------------------------------------------------------------------------
+-- 4) importaciones — volumen mensual, sin desagregar por origen
+-- ----------------------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS ym.importaciones (
+    anio                SMALLINT NOT NULL,
+    mes                 SMALLINT NOT NULL CHECK (mes BETWEEN 1 AND 12),
+    mes_nombre          TEXT NOT NULL,
+    volumen_kg          NUMERIC(14,2) NOT NULL,
+    PRIMARY KEY (anio, mes)
+);
+CREATE INDEX IF NOT EXISTS idx_importaciones_anio ON ym.importaciones (anio);
+
+-- ----------------------------------------------------------------------------
+-- 5) precios — precio de hoja verde y canchada (ARS/kg), mensual (2017–)
+-- ----------------------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS ym.precios (
+    anio                    SMALLINT NOT NULL,
+    mes                     SMALLINT NOT NULL CHECK (mes BETWEEN 1 AND 12),
+    mes_nombre              TEXT NOT NULL,
+    precio_hoja_verde_ars   NUMERIC(10,2),      -- NULL: mes sin precio publicado por el INYM (ej. 2020-10)
+    precio_canchada_ars     NUMERIC(10,2),
+    PRIMARY KEY (anio, mes)
+);
+CREATE INDEX IF NOT EXISTS idx_precios_anio ON ym.precios (anio);
+
+-- ----------------------------------------------------------------------------
+-- 6) competencia — cuota de mercado y volumen anual por empresa
+-- ----------------------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS ym.competencia (
+    anio                SMALLINT NOT NULL,
+    empresa             TEXT NOT NULL,     -- incluye 'Others' como categoría agregada
+    cuota_mercado_pct   NUMERIC(5,2) NOT NULL,
+    volumen_kg          NUMERIC(14,2) NOT NULL,
+    PRIMARY KEY (anio, empresa)
+);
+CREATE INDEX IF NOT EXISTS idx_competencia_anio ON ym.competencia (anio);
+
+-- ----------------------------------------------------------------------------
+-- 7) superficie_productores — cantidad de productores y hectáreas cultivadas,
+--    por provincia y ciudad, mensual (2010–presente)
+-- ----------------------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS ym.superficie_productores (
+    anio                SMALLINT NOT NULL,
+    mes                 SMALLINT NOT NULL CHECK (mes BETWEEN 1 AND 12),
+    mes_nombre          TEXT NOT NULL,
+    provincia           TEXT NOT NULL,
+    ciudad              TEXT NOT NULL,
+    productores         INTEGER NOT NULL,
+    superficie_ha       NUMERIC(12,2) NOT NULL,
+    PRIMARY KEY (anio, mes, provincia, ciudad)
+);
+CREATE INDEX IF NOT EXISTS idx_superficie_productores_anio ON ym.superficie_productores (anio);
+
+-- ----------------------------------------------------------------------------
+-- 8) clima_mensual — precipitación y temperatura por ciudad productora
+--    (fuente: NASA POWER, community=AG, mensual)
+-- ----------------------------------------------------------------------------
+-- OJO unidades: precipitacion_mm_dia es el promedio DIARIO de precipitación
+-- del mes (parámetro PRECTOTCORR de NASA POWER viene en mm/day, no mm/mes).
+-- Para un total mensual aproximado: precipitacion_mm_dia * días del mes.
+-- ----------------------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS ym.clima_mensual (
+    ubicacion               TEXT NOT NULL,      -- misma granularidad que dataset_principal.ciudad
+    provincia               TEXT NOT NULL,
+    latitud                 DOUBLE PRECISION NOT NULL,
+    longitud                DOUBLE PRECISION NOT NULL,
+    anio                    SMALLINT NOT NULL,
+    mes                     SMALLINT NOT NULL CHECK (mes BETWEEN 1 AND 12),
+    precipitacion_mm_dia    NUMERIC(6,2),       -- NULL si NASA POWER reporta fill_value (-999.0)
+    temperatura_media_c     NUMERIC(5,2),
+    PRIMARY KEY (ubicacion, anio, mes)
+);
+CREATE INDEX IF NOT EXISTS idx_clima_mensual_anio ON ym.clima_mensual (anio);
+
+-- Variables rezagadas (lag 6/12/18/24 meses): la cosecha que se consume/exporta
+-- hoy se cosechó 6-24 meses atrás, por eso el clima relevante para producción
+-- no es el del mes corriente. Se calculan en una vista (no se materializan)
+-- para no duplicar datos ni tener que re-cargar si cambia el horizonte de lag.
+CREATE OR REPLACE VIEW ym.v_clima_con_lags AS
+SELECT
+    ubicacion,
+    provincia,
+    anio,
+    mes,
+    precipitacion_mm_dia,
+    temperatura_media_c,
+    LAG(precipitacion_mm_dia, 6)  OVER w AS precip_lag_6m,
+    LAG(precipitacion_mm_dia, 12) OVER w AS precip_lag_12m,
+    LAG(precipitacion_mm_dia, 18) OVER w AS precip_lag_18m,
+    LAG(precipitacion_mm_dia, 24) OVER w AS precip_lag_24m,
+    LAG(temperatura_media_c, 6)   OVER w AS temp_lag_6m,
+    LAG(temperatura_media_c, 12)  OVER w AS temp_lag_12m,
+    LAG(temperatura_media_c, 18)  OVER w AS temp_lag_18m,
+    LAG(temperatura_media_c, 24)  OVER w AS temp_lag_24m
+FROM ym.clima_mensual
+WINDOW w AS (PARTITION BY ubicacion ORDER BY anio, mes);
+
+-- ----------------------------------------------------------------------------
+-- 9) indec_series — series macro de INDEC (IPC, EMAE, etc.), formato genérico
+-- ----------------------------------------------------------------------------
+-- Tabla genérica (serie_id + serie_nombre + valor) en vez de una columna por
+-- indicador: cada serie de la API de series de tiempo tiene su propia base,
+-- unidad y cobertura temporal, y se espera sumar más series con el tiempo
+-- (ver docs/indec_series.md) sin tener que migrar el schema cada vez.
+-- ----------------------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS ym.indec_series (
+    serie_id        TEXT NOT NULL,      -- id oficial en apis.datos.gob.ar (ej. '148.3_INIVELNAL_DICI_M_26')
+    serie_nombre    TEXT NOT NULL,      -- nombre corto interno (ej. 'ipc_nacional_nivel_general')
+    anio            SMALLINT NOT NULL,
+    mes             SMALLINT NOT NULL CHECK (mes BETWEEN 1 AND 12),
+    valor           NUMERIC(14,4) NOT NULL,
+    unidad          TEXT,               -- 'índice', 'variación %', etc.
+    PRIMARY KEY (serie_id, anio, mes)
+);
+CREATE INDEX IF NOT EXISTS idx_indec_series_nombre ON ym.indec_series (serie_nombre, anio, mes);
+
+-- ----------------------------------------------------------------------------
+-- 10) bcra_rem — Relevamiento de Expectativas de Mercado (BCRA), por informe
+-- ----------------------------------------------------------------------------
+-- Fuente: API JSON de ArgentinaDatos (mirror del REM del BCRA), NO el Excel
+-- crudo del BCRA. Estructura calcada de la fuente porque cada fila ya es una
+-- observación bien definida (indicador x horizonte x informe), no hace falta
+-- normalizar más. Ver docs/bcra_rem.md — la ventana de datos disponible en
+-- esta API es corta (solo ~14 meses a la fecha), no el histórico completo.
+-- ----------------------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS ym.bcra_rem (
+    informe             TEXT NOT NULL,      -- período del informe publicado, 'YYYY-MM'
+    fecha               DATE NOT NULL,
+    muestra             TEXT NOT NULL,      -- ej. 'todos'
+    indicador           TEXT NOT NULL,      -- ej. 'Precios minoristas (IPC nivel general-Nacional; INDEC)'
+    periodo             TEXT NOT NULL,      -- etiqueta del horizonte pronosticado, ej. 'Trim. I-26', '2026'
+    periodo_tipo        TEXT NOT NULL,      -- 'mensual' | 'trimestral' | 'anual'
+    periodo_desde       DATE,
+    periodo_hasta       DATE,
+    referencia          TEXT,
+    referencia_fecha    DATE,
+    unidad              TEXT,
+    mediana             NUMERIC(14,4),
+    promedio            NUMERIC(14,4),
+    desvio              NUMERIC(14,4),
+    maximo              NUMERIC(14,4),
+    minimo              NUMERIC(14,4),
+    percentil90         NUMERIC(14,4),
+    percentil75         NUMERIC(14,4),
+    percentil25         NUMERIC(14,4),
+    percentil10         NUMERIC(14,4),
+    participantes       INTEGER,
+    publicacion_url     TEXT,
+    xlsx_url            TEXT,               -- Excel original del BCRA, por si hace falta ir a la fuente primaria
+    PRIMARY KEY (informe, indicador, muestra, periodo, periodo_tipo)
+);
+CREATE INDEX IF NOT EXISTS idx_bcra_rem_indicador ON ym.bcra_rem (indicador, periodo_desde);
+
+-- ----------------------------------------------------------------------------
+-- 11) inym_hoja_verde_zona — ingreso de hoja verde a secadero, por zona (INYM PDF)
+-- ----------------------------------------------------------------------------
+-- Fuente: PDFs mensuales/anuales de inym.org.ar (Cuadro "Ingreso de Hoja
+-- Verde por Zona"), extraídos con tablas estructuradas (PyMuPDF find_tables),
+-- NO regex sobre texto plano. Ver docs/inym_scraper.md.
+-- ----------------------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS ym.inym_hoja_verde_zona (
+    anio            SMALLINT NOT NULL,
+    mes             SMALLINT NOT NULL CHECK (mes BETWEEN 1 AND 12),
+    zona            TEXT NOT NULL,      -- 'ZONA CENTRO' | 'ZONA NOROESTE' | 'ZONA NORESTE' | 'ZONA OESTE' | 'ZONA SUR' | 'CORRIENTES' | 'TOTAL'
+    hoja_verde_kg   NUMERIC(16,2) NOT NULL,
+    PRIMARY KEY (anio, mes, zona)
+);
+CREATE INDEX IF NOT EXISTS idx_inym_hoja_verde_anio ON ym.inym_hoja_verde_zona (anio, mes);
+
+-- ----------------------------------------------------------------------------
+-- 12) inym_salida_molino — salida de yerba mate elaborada a molino, por destino
+-- ----------------------------------------------------------------------------
+-- OJO: distinto de ym.dataset_principal (consumo_interno_kg/exportaciones_kg
+-- del CSV histórico) — son mediciones en puntos distintos de la cadena
+-- (declaraciones juradas a salida de molino vs producción/consumo estimados).
+-- Confirmado con datos reales que NO coinciden (enero 2025: 22,04M kg salida
+-- de molino interno vs 20,13M kg consumo_interno del CSV) — no son duplicados.
+-- ----------------------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS ym.inym_salida_molino (
+    anio            SMALLINT NOT NULL,
+    mes             SMALLINT NOT NULL CHECK (mes BETWEEN 1 AND 12),
+    destino         TEXT NOT NULL CHECK (destino IN ('interno', 'externo')),
+    volumen_kg      NUMERIC(16,2) NOT NULL,
+    PRIMARY KEY (anio, mes, destino)
+);
+CREATE INDEX IF NOT EXISTS idx_inym_salida_molino_anio ON ym.inym_salida_molino (anio, mes);

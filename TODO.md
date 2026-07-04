@@ -6,10 +6,10 @@ Stack: Next.js (Vercel) · FastAPI (Render/Railway) · Postgres+PostGIS (Supabas
 ---
 
 ## FASE 0 — Scaffolding del repositorio
-**Estado: PENDIENTE**
+**Estado: COMPLETA**
 
-- [ ] Clonar repo `yerba-mate-ML` en el escritorio
-- [ ] Definir estructura de carpetas definitiva:
+- [x] Clonar repo `yerba-mate-ML` en el escritorio
+- [x] Definir estructura de carpetas definitiva:
   ```
   yerba-mate-ML/
   ├── backend/
@@ -21,50 +21,53 @@ Stack: Next.js (Vercel) · FastAPI (Render/Railway) · Postgres+PostGIS (Supabas
   ├── docs/             # inventario de fuentes, decisiones de diseño
   └── .github/workflows/# cron jobs CI/CD
   ```
-- [ ] Copiar archivos existentes a sus rutas destino:
+- [x] Copiar archivos existentes a sus rutas destino:
   - `schema.sql` → `backend/db/schema.sql`
   - `etl_inym_gis.py` → `backend/etl/etl_inym_gis.py`
   - `geo server inym.txt` → `docs/inym_geoserver_layers.md`
   - CSVs → `data/raw/`
-- [ ] Primer commit: estructura base + archivos existentes
-- [ ] `pyproject.toml` o `requirements.txt` para backend
-- [ ] `.env.example` con variables esperadas (`DATABASE_URL`, etc.)
+- [x] Primer commit: estructura base + archivos existentes
+- [x] `pyproject.toml` o `requirements.txt` para backend
+- [x] `.env.example` con variables esperadas (`DATABASE_URL`, etc.)
 
 ---
 
 ## FASE 1 — Backend: DB + FastAPI skeleton
-**Estado: PENDIENTE** · Dependencias: Fase 0
+**Estado: COMPLETA** (2026-07-03)
 
-- [ ] Ejecutar `schema.sql` en Supabase (schema `inym_gis` + PostGIS)
-- [ ] Ampliar schema para datos históricos (tablas de series temporales):
-  - `ym.produccion_mensual` (año, mes, provincia, ciudad, kg)
+- [x] Ejecutar `schema.sql` en Supabase (schema `inym_gis` + PostGIS) — corrido contra la instancia real, 19 tablas creadas. El rol `postgres` tenía un bug de plataforma (reset de password no propagaba); se resolvió conectando con un rol nuevo (`ym_app`) creado por SQL con los permisos necesarios
+- [x] Ampliar schema para datos históricos (tablas de series temporales, sección "ESQUEMA YM" en `backend/db/schema.sql`):
+  - `ym.dataset_principal` (año, mes, provincia, ciudad, producción/consumo/exportaciones kg, precio USD, valor FOB) — reemplaza el `ym.produccion_mensual` planeado: el CSV real trae estas 5 métricas juntas por provincia/ciudad
   - `ym.consumo_interno` (año, mes, per_cápita, mix_envases)
-  - `ym.exportaciones` (año, mes, destino, volumen_kg, valor_fob_usd)
+  - `ym.exportaciones` (año, mes, destino, volumen_kg, valor_fob_usd, precio_fob_usd_kg)
   - `ym.importaciones` (año, mes, volumen_kg)
   - `ym.competencia` (año, empresa, cuota_mercado, volumen_kg)
   - `ym.superficie_productores` (año, mes, provincia, ciudad, productores, superficie_ha)
   - `ym.precios` (año, mes, precio_hoja_verde_ars, precio_canchada_ars)
-- [ ] FastAPI skeleton: `main.py`, routers por dominio (`/produccion`, `/consumo`, `/exportaciones`, `/geo`)
-- [ ] Conexión a Supabase con SQLAlchemy async
-- [ ] Health check endpoint + docs OpenAPI funcionando
+- [x] FastAPI skeleton: `backend/api/main.py`, routers por dominio (`/produccion`, `/consumo`, `/exportaciones`, `/precios`, `/competencia`, `/geo/{layer}`) — queries reales contra `ym.*`, sin paginación/auth/cache todavía (eso es Fase 4)
+- [x] Conexión a Supabase con SQLAlchemy async (`backend/api/db.py`, driver `asyncpg`)
+- [x] Health check endpoint (`/health`) — confirmado contra la DB real
+- [x] Los 6 routers (`produccion`, `consumo`, `exportaciones`, `precios`, `competencia`, `geo/{layer}`) probados en vivo contra Supabase real. Se encontró y arregló un bug real presente en los 5 routers con filtros opcionales: `asyncpg` no puede inferir el tipo de un parámetro cuando aparece primero en `:param IS NULL` (`AmbiguousParameterError`) — se resolvió con `CAST(:param AS TIPO)` explícito. También se agregó el caso especial de `geo/{layer}` para los 203 secaderos (viven en `inym_gis.secaderos`, no en `raw_features` como las otras 19 capas)
 - [ ] Tests de integración básicos (pytest + testcontainers o Supabase test project)
 
 ---
 
 ## FASE 2 — ETL: Datos ya disponibles (CSVs + GeoServer INYM)
-**Estado: PENDIENTE** · Dependencias: Fase 1
+**Estado: COMPLETA** (2026-07-03) · Dependencias: Fase 1
 
 ### 2a — Carga de CSVs históricos
-- [ ] Script `etl_csv_historicos.py`: lee los 7 CSVs, normaliza separadores (`;`), limpia símbolos `$` y `.` de los números, y carga a las tablas `ym.*` del schema
-- [ ] Validar rangos: producción 2011–presente, precios 2017–presente, superficies 2010–presente
-- [ ] Documentar limitaciones conocidas: consumo interno parece constante por año (mismo valor repetido en los 12 meses) — revisar si es dato anual distribuido uniformemente
+- [x] Script `backend/etl/etl_csv_historicos.py`: lee los 7 CSVs, normaliza separadores (`;`), parsea números en formato argentino (`$`, `.` miles, `,` decimal — formato varía por archivo, el parser detecta el caso), y hace upsert idempotente a las tablas `ym.*`. Validado con `--dry-run` real: 1260+180+1080+180+104+225+1316 filas parseadas sin errores
+- [x] Validar rangos: producción 2011–2025, precios 2017–2025, superficies 2010–2025 (confirmado en los CSV reales)
+- [x] Documentar limitaciones conocidas: **resuelto** — consumo per cápita, precio USD/kg e importaciones se repiten los 12 meses de cada año pero SÍ cambian de año a año (ej. precio USD/kg 1,80 en 2011 → 2,50 en 2023; importaciones 83.333 kg/mes solo en 2011). Son datos anuales publicados con cadencia mensual, no placeholders — no bloquea el ETL ni el modelado
+- [x] Correr el ETL contra la instancia Supabase real — cargado con éxito. Se encontró y arregló un problema real de datos: `precios_historicos.csv` tiene un mes (2020-10) sin precio publicado por el INYM (hueco real de la fuente); se cambiaron `precio_hoja_verde_ars`/`precio_canchada_ars` de NOT NULL a nullable en vez de inventar un valor
 
 ### 2b — GeoServer INYM
-- [ ] Correr `etl_inym_gis.py --dry-run` contra la API real (`gis.inym.org.ar/geoserver_disabled/wfs`)
-- [ ] Registrar esquemas reales de columnas de capas de polígono (edad/densidad/consociado) — probablemente difieren de los supuestos
-- [ ] Corregir ETL según lo que devuelva el dry-run
-- [ ] Carga completa a `inym_gis.raw_features` + tabla especializada `inym_gis.secaderos`
-- [ ] Documentar: URL, frecuencia sugerida (mensual/semanal), capas no disponibles
+- [x] Correr `etl_inym_gis.py --dry-run` contra la API real (`gis.inym.org.ar/geoserver_disabled/wfs`) — **API viva**, las 20 capas responden con datos
+- [x] Registrar esquemas reales de columnas de capas de polígono (edad/densidad/consociado) — ver `docs/inym_geoserver_layers.md`. Los de "límites" coincidían con lo asumido; edad/densidad/consociado tienen columnas base normalizadas + 1 campo TEXT que empaqueta la serie histórica/desglose como string delimitado (no en filas separadas)
+- [x] Corregir ETL según lo que devuelva el dry-run — **no hizo falta corregir nada**: el diseño de `raw_features` con `properties JSONB` genérico ya soporta cualquier esquema de columnas sin cambios de código
+- [x] Carga completa a `inym_gis.raw_features` (513 features, 19 capas) + tabla especializada `inym_gis.secaderos` (203 puntos)
+- [x] Documentar: URL, frecuencia sugerida (mensual/semanal — estos datos cambian poco), capas no disponibles (Cob. de Árboles, Mapas de Calor) — ver `docs/inym_geoserver_layers.md`
+- [ ] Construir parser para explotar los campos empaquetados `anio`/`densidad`/`consociado` en filas normalizadas (no urgente — no bloquea la carga cruda, sólo hace falta antes de usarlos como series temporales en Fase 5)
 
 ---
 
@@ -72,31 +75,47 @@ Stack: Next.js (Vercel) · FastAPI (Render/Railway) · Postgres+PostGIS (Supabas
 **Estado: PENDIENTE** · Dependencias: Fase 1
 
 ### 3a — INDEC
-- [ ] **IPC mensual**: API INDEC (`apis.datos.gob.ar`) — serie IPC Nacional, base 2016=100
-- [ ] **EMAE**: API INDEC — Estimador Mensual de Actividad Económica
-- [ ] **Comercio exterior HS 0903**: exportaciones e importaciones de yerba mate por NCM
-- [ ] **Proyecciones de población**: Censo 2022 + proyecciones por provincia
-- [ ] Documentar: endpoints, lag de publicación (~30 días), series históricas disponibles
+**Estado: PARCIAL** (2026-07-01) — ver `docs/indec_series.md` para el detalle completo
+
+- [x] **IPC mensual**: API INDEC (`apis.datos.gob.ar/series/api/series`) — serie IPC Nacional nivel general, base dic-2016=100, id `148.3_INIVELNAL_DICI_M_26`. Dry-run real: 114 valores, 2016-12 → 2026-05
+- [x] **EMAE**: id `143.3_NO_PR_2004_A_21` (índice original, base 2004). Dry-run real: 268 valores, 2004-01 → 2026-04
+- [x] **Bonus no planeado**: IPC específico de yerba mate (GBA), id `105.1_I2YM_2016_M_19` — más útil que un IPC genérico de "infusiones" para Modelo 2. Dry-run real: 122 valores, 2016-04 → 2026-05
+- [x] Script `backend/etl/etl_indec_series.py` + tabla genérica `ym.indec_series` (serie_id, serie_nombre, anio, mes, valor, unidad) — permite sumar series nuevas sin migrar el schema
+- [~] **Comercio exterior HS 0903**: investigado y **descartado** — la única serie disponible en esta API viene agregada como "café, té, yerba mate y especias" (NCM combinado), no aísla yerba mate. Los datos de `ym.exportaciones` (INYM, ya cargados) son mejores: yerba mate pura por destino. No implementar esto.
+- [ ] **Proyecciones de población**: no hay serie nacional limpia con Censo 2022 en esta API (solo proyecciones viejas post-Censo 2010, catálogo distinto). Pendiente, baja prioridad — iría directo a INDEC/portalgeoestadistico si hace falta, no bloquea los modelos actuales (consumo ya viene per cápita)
+- [x] Documentar: endpoints, lag de publicación (~1-2 meses, no 30 días fijos), series históricas disponibles — ver `docs/indec_series.md`
+- [x] Correr el ETL real contra Supabase (2026-07-03) — 504 valores cargados en `ym.indec_series` (3 series)
 
 ### 3b — BCRA
-- [ ] **REM (Relevamiento de Expectativas de Mercado)**: inflación y PBI esperados — disponible como Excel en BCRA, frecuencia mensual
-- [ ] Documentar: URL descarga, formato (Excel con múltiples sheets), variables a extraer
+**Estado: COMPLETA** (2026-07-01) — ver `docs/bcra_rem.md`
+
+- [x] **REM (Relevamiento de Expectativas de Mercado)**: inflación y PBI esperados — **cambio de plan**: en vez de parsear el Excel multi-hoja del BCRA, se usó la API JSON de ArgentinaDatos (`api.argentinadatos.com/v1/rems/{año}/{mes}`, mismo dato, ya normalizado, cero parsing). Trae 9 indicadores (IPC nivel general y núcleo, PBI, tipo de cambio, TAMAR, desocupación, exportaciones, importaciones, resultado fiscal) x horizonte (mensual/trimestral/anual), con mediana/percentiles/participantes
+- [x] Script `backend/etl/etl_bcra_rem.py` + tabla `ym.bcra_rem` (estructura calcada de la fuente). Dry-run real: 132 filas/informe, 14 informes disponibles (2025-04 → 2026-05) = 1848 filas totales, sin duplicados
+- [x] Documentar: URL, formato — **OJO limitación importante**: esta API solo tiene los últimos 14 meses, NO el histórico completo del REM (que en BCRA arranca ~2004). Sirve como insumo de expectativas para el horizonte de pronóstico de Fase 5, no como regresor histórico 2011-2024. Si hace falta el histórico completo habría que parsear el Excel original del BCRA (no implementado, cada fila trae el link `xlsxUrl` por si hace falta ir a la fuente)
+- [x] Correr el ETL real contra Supabase (2026-07-03) — 1848 filas cargadas en `ym.bcra_rem`
 
 ### 3c — INYM (scraper PDF/HTML)
-- [ ] Mapear estructura de `inym.org.ar/noticias/estadisticas/` — qué PDFs/tablas HTML hay disponibles
-- [ ] Scraper/parser para:
-  - Salida de molino (mercado interno + externo), mensual
-  - Mezcla de envases (% por tamaño)
-  - Ingreso de hoja verde a secadero (kg)
-- [ ] Documentar: frecuencia de publicación, lag, formato (PDF vs HTML)
+**Estado: COMPLETA** (2026-07-01, sitio volvió a responder y se terminó el mapeo + scraper) — ver `docs/inym_scraper.md` para el detalle completo
+
+- [x] Mapear estructura de `inym.org.ar/noticias/estadisticas/` — esa ruta es solo noticias de prensa con acumulados irregulares, NO usar. La fuente correcta es `/descargar/publicaciones/estadisticas/{año}.html` (2019-2026, un PDF por mes) + `2018-a-2011.html` (2011-2018, un PDF por año con el detalle de los 12 meses adentro)
+- [x] Confirmar formato real de archivo: **PDF** (~1.3MB), con tablas REALES extraíbles vía `PyMuPDF.find_tables()` (no imágenes, no hace falta regex sobre texto plano)
+- [x] Script `backend/etl/etl_inym_pdf.py` + tablas `ym.inym_hoja_verde_zona` y `ym.inym_salida_molino`:
+  - **Ingreso de hoja verde a secadero (kg), por zona** — confirmado que "Avance de Cosecha" = esto. Dry-run real completo (94 PDFs descubiertos, 2011-2026): 4044 filas, 92/94 archivos OK
+  - **Salida de molino (mercado interno + externo), mensual (kg)** — confirmado que NO coincide con `consumo_interno`/`exportaciones` de `ym.dataset_principal` (miden puntos distintos de la cadena: declaración jurada a salida de molino vs producción/consumo estimado) — se cargan en tabla separada, no se pisan. Dry-run real: 9575 filas
+  - **Mezcla de envases**: NO se scrapea — es un gráfico circular en el PDF (no una tabla real), y ya está cubierto por `ym.consumo_interno` desde los CSV históricos. No vale la pena parsear un gráfico para dato redundante
+- [x] Documentar: frecuencia mensual, formato PDF con tablas estructuradas, 2 archivos con 0 filas (2011 anual con layout distinto/más simple — es el primer año publicado; y un duplicado roto de 2023-01) y 1 con datos parciales (junio 2025, título y encabezado de tabla fusionados por un bug de layout del PDF) — ver `docs/inym_scraper.md` para el detalle completo de cada anomalía
+- [x] Correr el ETL real (no dry-run) contra Supabase — cargado: 1033 filas hoja_verde_zona, 370 filas salida_molino (deduplicadas de las 4044/9575 procesadas porque los reportes mensuales del INYM son acumulativos del año, el upsert idempotente resuelve bien la deduplicación)
 
 ### 3d — Clima (NASA POWER)
-- [ ] ETL contra API NASA POWER (`power.larc.nasa.gov/api/`) para Misiones y Corrientes:
-  - Precipitación mensual (PRECTOTCORR)
-  - Temperatura media mensual (T2M)
-  - Coordenadas clave: Apóstoles (~-27.9, -55.8), Oberá, Montecarlo, Virasoro
-- [ ] Crear variables rezagadas (lag 6, 12, 18, 24 meses) — la cosecha que se consume hoy se cosechó 6-24 meses atrás
-- [ ] Documentar: API gratuita sin auth, resolución espacial (~0.5°x0.5°), cobertura histórica
+**Estado: COMPLETA** (carga real contra Supabase confirmada 2026-07-03: 1152 filas, 6 ciudades × 192 meses)
+
+- [x] ETL contra API NASA POWER (`power.larc.nasa.gov/api/temporal/monthly/point`) — `backend/etl/etl_nasa_power.py`, para las 6 ciudades reales de `dataset_principal.csv` (se agregaron Colonia Liebig y Santo Pipó a las 4 "clave" del plan original, para que el clima quede a la misma granularidad que producción — se excluye 'Otros' por no tener ubicación puntual):
+  - Precipitación mensual (`PRECTOTCORR`) — **OJO: viene en mm/día promedio del mes, NO mm totales del mes**. Para total aproximado: multiplicar por días del mes.
+  - Temperatura media mensual (`T2M`, °C)
+  - Coordenadas usadas: Colonia Liebig (-27.53,-55.72), Gob. Virasoro (-28.07,-56.03), Apóstoles (-27.90,-55.75), Montecarlo (-26.57,-54.77), Oberá (-27.49,-55.12), Santo Pipó (-27.20,-55.05)
+- [x] Crear variables rezagadas (lag 6, 12, 18, 24 meses) — implementado como vista SQL `ym.v_clima_con_lags` (window functions `LAG(...)`), no materializada, para no duplicar datos
+- [x] Documentar: API gratuita sin auth, resolución espacial nativa ~0.5°x0.5° (MERRA-2), cobertura histórica desde 1981. Validado 2010–2025 para las 6 ciudades: 192 filas cada una (16 años × 12 meses), **0 valores faltantes** (NASA reporta huecos como fill_value -999.0, se mapean a NULL en el ETL). La respuesta trae una clave extra `YYYY13` con el promedio/total anual — el ETL la descarta, solo carga meses 01-12.
+- **OJO al correr en 2026+**: el default de `--end-year` es el año actual, pero la API todavía no tiene datos de 2026 completo (da 422) — pasar `--end-year 2025` explícito hasta que la API lo publique.
 
 ### 3e — Opcionales (post-MVP)
 - [ ] UN Comtrade / OEC: comercio bilateral por país destino
@@ -178,11 +197,11 @@ Stack: Next.js (Vercel) · FastAPI (Render/Railway) · Postgres+PostGIS (Supabas
 
 ## NOTAS Y SUPUESTOS A VERIFICAR
 
-1. **Datos mensuales vs anuales**: varios CSVs repiten el mismo valor en los 12 meses de un año (consumo per cápita, precios, superficies). Confirmar si son datos anuales interpolados o datos reales mensuales antes de usarlos en series temporales.
-2. **GeoServer INYM**: la URL base tiene `/geoserver_disabled/` — verificar si sigue activa o si cambió.
+1. ~~**Datos mensuales vs anuales**~~ **RESUELTO** (2026-07-01): se repiten dentro del año pero varían año a año en los 3 CSVs marcados (consumo per cápita 5,59–6,27 kg/persona; precio USD/kg 1,80–2,50; importaciones 83.333–3.222.222 kg/mes). Son series anuales publicadas con cadencia mensual (valor constante los 12 meses de cada año), consistente con la fuente (INYM/aduana suele publicar así). No son placeholders — se pueden usar en el ETL y en los modelos tal cual, documentando la granularidad real (anual, no mensual) al construir features de Fase 5.
+2. ~~**GeoServer INYM**~~ **RESUELTO** (2026-07-01): la URL sigue activa pese al `/geoserver_disabled/` en el path (probablemente resto de una migración vieja del INYM, nunca actualizado) — dry-run real contra las 20 capas confirmó que todas responden.
 3. **Siria como principal exportador**: dato que va contra la intuición económica pura, está documentado y es correcto — dummy de diáspora es crítica en el modelo gravitacional.
-4. **Importaciones**: el CSV muestra 83.333 kg/mes constante (= 1.000.000 kg/año) — confirmar si es el valor real o un placeholder.
-5. **Precio FOB**: aparece como `$ 1,80` constante en 2011 en todos los registros del dataset principal — revisar si es un supuesto inicial o dato real.
+4. ~~**Importaciones**~~ ver punto 1 — variable año a año, no placeholder.
+5. ~~**Precio FOB**~~ ver punto 1 — variable año a año, no placeholder.
 
 ---
 
