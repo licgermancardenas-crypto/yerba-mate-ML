@@ -2,6 +2,17 @@ export function formatKg(valor: number): string {
   return `${new Intl.NumberFormat("es-AR", { maximumFractionDigits: 0 }).format(valor)} kg`;
 }
 
+export function formatToneladas(valor: number): string {
+  return `${new Intl.NumberFormat("es-AR", { maximumFractionDigits: 1 }).format(valor / 1000)} t`;
+}
+
+export type UnidadMasa = "kg" | "t";
+
+/** Elige kg o toneladas según el toggle de la página (ver FilterBar `mostrarUnidad`). */
+export function formatMasa(valorKg: number, unidad: UnidadMasa): string {
+  return unidad === "t" ? formatToneladas(valorKg) : formatKg(valorKg);
+}
+
 export function formatNumero(valor: number, decimales = 0): string {
   return new Intl.NumberFormat("es-AR", {
     minimumFractionDigits: decimales,

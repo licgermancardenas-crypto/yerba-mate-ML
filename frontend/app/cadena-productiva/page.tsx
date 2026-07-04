@@ -6,7 +6,7 @@ import { SerieChartConFiltro } from "@/components/charts/serie-chart-con-filtro"
 import { AnnualChartConFiltro } from "@/components/charts/annual-chart-con-filtro";
 import { HistoricalTable } from "@/components/historical-table";
 import { DataTable, type ColumnaTabla } from "@/components/data-table";
-import { formatKg, formatPct } from "@/lib/format";
+import { formatMasa, formatPct, type UnidadMasa } from "@/lib/format";
 import { getHojaVerde, getSalidaMolino } from "@/lib/api";
 import {
   agregarHojaVerdeAnual,
@@ -59,6 +59,9 @@ export default async function CadenaProductivaPage({
   const sp = await searchParams;
   const anioDesde = Number(sp.anio_desde) || undefined;
   const anioHasta = Number(sp.anio_hasta) || undefined;
+  const unidad: UnidadMasa = sp.unidad === "t" ? "t" : "kg";
+  const sufijoUnidad = unidad === "t" ? " t" : " kg";
+  const factorUnidad = unidad === "t" ? 1 / 1000 : 1;
 
   const [filasHojaVerdeCompletas, filasMolinoCompletas] = await Promise.all([getHojaVerde(), getSalidaMolino()]);
   const todosLosAnios = Array.from(new Set(filasHojaVerdeCompletas.map((f) => f.anio))).sort((a, b) => a - b);
@@ -77,7 +80,7 @@ export default async function CadenaProductivaPage({
           title="Cadena Productiva"
           description="Ingreso de hoja verde a secadero por zona y salida de molino (interno/externo) — fuente: reportes mensuales del INYM."
         />
-        <FilterBar anios={todosLosAnios} />
+        <FilterBar anios={todosLosAnios} mostrarUnidad />
         <p className="text-sm text-muted-foreground">Sin datos para los filtros seleccionados.</p>
       </main>
     );
@@ -106,7 +109,7 @@ export default async function CadenaProductivaPage({
   const molinoStackedData = molinoAnual
     .slice()
     .reverse()
-    .map((f) => ({ anio: String(f.anio), Interno: f.interno_kg, Externo: f.externo_kg }));
+    .map((f) => ({ anio: String(f.anio), Interno: f.interno_kg * factorUnidad, Externo: f.externo_kg * factorUnidad }));
 
   const zonas = Array.from(new Set(filasHojaVerde.filter((f) => f.zona !== "TOTAL").map((f) => f.zona))).sort();
   const anios = Array.from(new Set(filasHojaVerde.map((f) => f.anio))).sort((a, b) => b - a);
@@ -132,31 +135,36 @@ export default async function CadenaProductivaPage({
         description="Ingreso de hoja verde a secadero por zona y salida de molino (interno/externo) — fuente: reportes mensuales del INYM."
       />
 
-      <FilterBar anios={todosLosAnios} />
+      <FilterBar anios={todosLosAnios} mostrarUnidad />
 
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
         <KpiCard
           label={`Hoja verde ${ultimoAnio}`}
-          value={formatKg(hojaVerdeUltimo)}
+          value={formatMasa(hojaVerdeUltimo, unidad)}
           icon={Leaf}
           deltaPct={deltaHojaVerde}
           deltaLabel={`vs. ${penultimoAnio}`}
         />
-        <KpiCard label={`Salida molino interno ${ultimoAnio}`} value={formatKg(molinoUltimoAnio?.interno_kg ?? 0)} icon={Factory} />
-        <KpiCard label={`Salida molino externo ${ultimoAnio}`} value={formatKg(molinoUltimoAnio?.externo_kg ?? 0)} icon={Globe2} />
+        <KpiCard label={`Salida molino interno ${ultimoAnio}`} value={formatMasa(molinoUltimoAnio?.interno_kg ?? 0, unidad)} icon={Factory} />
+        <KpiCard label={`Salida molino externo ${ultimoAnio}`} value={formatMasa(molinoUltimoAnio?.externo_kg ?? 0, unidad)} icon={Globe2} />
         <KpiCard label="% externo de la salida de molino" value={formatPct(pctExterno)} icon={Percent} />
       </div>
 
       <div className="rounded-xl border border-border bg-card p-4 mb-4">
         <h2 className="text-sm font-semibold text-card-foreground mb-1">Ingreso de hoja verde a secadero</h2>
-        <p className="text-xs text-muted-foreground mb-3">Total nacional, en kilogramos</p>
-        <SerieChartConFiltro data={serieHojaVerdeMensual} color="#15803d" numberFormat={{ notation: "compact" }} suffix=" kg" />
+        <p className="text-xs text-muted-foreground mb-3">Total nacional, en {unidad === "t" ? "toneladas" : "kilogramos"}</p>
+        <SerieChartConFiltro
+          data={serieHojaVerdeMensual.map((p) => ({ ...p, valor: p.valor * factorUnidad }))}
+          color="#15803d"
+          numberFormat={{ notation: "compact" }}
+          suffix={sufijoUnidad}
+        />
       </div>
 
       <div className="rounded-xl border border-border bg-card p-4 mb-4">
         <h2 className="text-sm font-semibold text-card-foreground mb-1">Salida de molino por año</h2>
         <p className="text-xs text-muted-foreground mb-3">
-          Mercado interno vs. externo, en kg. No coincide con consumo_interno_kg/exportaciones_kg de Producción — miden puntos distintos de la cadena.
+          Mercado interno vs. externo, en {unidad === "t" ? "t" : "kg"}. No coincide con consumo_interno_kg/exportaciones_kg de Producción — miden puntos distintos de la cadena.
         </p>
         <AnnualChartConFiltro
           tipo="cuotas"

@@ -5,7 +5,7 @@ import { FilterBar } from "@/components/filter-bar";
 import { SerieChartConFiltro } from "@/components/charts/serie-chart-con-filtro";
 import { HistoricalTable } from "@/components/historical-table";
 import type { ColumnaTabla } from "@/components/data-table";
-import { formatKg, formatNumero, formatPct, formatUsd } from "@/lib/format";
+import { formatMasa, formatNumero, formatPct, formatUsd, type UnidadMasa } from "@/lib/format";
 import { getProduccion } from "@/lib/api";
 import {
   agregarProduccionMensual,
@@ -44,6 +44,9 @@ export default async function ProduccionPage({
   const anioDesde = Number(sp.anio_desde) || undefined;
   const anioHasta = Number(sp.anio_hasta) || undefined;
   const provinciaFiltro = typeof sp.provincia === "string" ? sp.provincia : undefined;
+  const unidad: UnidadMasa = sp.unidad === "t" ? "t" : "kg";
+  const sufijoUnidad = unidad === "t" ? " t" : " kg";
+  const factorUnidad = unidad === "t" ? 1 / 1000 : 1;
 
   const filasCompletas = await getProduccion();
   const todosLosAnios = Array.from(new Set(filasCompletas.map((f) => f.anio))).sort((a, b) => a - b);
@@ -84,15 +87,19 @@ export default async function ProduccionPage({
         description="Serie mensual y distribución geográfica de la producción de yerba mate elaborada."
       />
 
-      <FilterBar anios={todosLosAnios} dimension={{ param: "provincia", label: "Provincia", opciones: todasLasProvincias }} />
+      <FilterBar
+        anios={todosLosAnios}
+        dimension={{ param: "provincia", label: "Provincia", opciones: todasLasProvincias }}
+        mostrarUnidad
+      />
 
       {filas.length === 0 ? (
         <p className="text-sm text-muted-foreground">Sin datos para los filtros seleccionados.</p>
       ) : (
         <>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
-            <KpiCard label={`Producción ${ultimoAnio}`} value={formatKg(totalUltimo)} icon={Sprout} deltaPct={deltaAnual} deltaLabel={`vs. ${penultimoAnio}`} />
-            <KpiCard label={`Exportado ${ultimoAnio}`} value={formatKg(exportadoUltimo)} icon={Wheat} />
+            <KpiCard label={`Producción ${ultimoAnio}`} value={formatMasa(totalUltimo, unidad)} icon={Sprout} deltaPct={deltaAnual} deltaLabel={`vs. ${penultimoAnio}`} />
+            <KpiCard label={`Exportado ${ultimoAnio}`} value={formatMasa(exportadoUltimo, unidad)} icon={Wheat} />
             <KpiCard label="Precio promedio USD/kg" value={formatNumero(precioPromedioUltimo, 2)} icon={TrendingUp} />
             <KpiCard label={`Valor FOB exportado ${ultimoAnio}`} value={formatUsd(valorFobUltimo)} icon={DollarSign} />
           </div>
@@ -100,11 +107,11 @@ export default async function ProduccionPage({
           <div className="grid grid-cols-1 xl:grid-cols-3 gap-4">
             <div className="xl:col-span-2 rounded-xl border border-border bg-card p-4">
               <h2 className="text-sm font-semibold text-card-foreground mb-1">Producción nacional mensual</h2>
-              <p className="text-xs text-muted-foreground mb-3">Suma de las ciudades productoras, en kilogramos</p>
+              <p className="text-xs text-muted-foreground mb-3">Suma de las ciudades productoras, en {unidad === "t" ? "toneladas" : "kilogramos"}</p>
               <SerieChartConFiltro
-                data={serieMensual.map((p) => ({ anio: p.anio, etiqueta: p.etiqueta, valor: p.produccion_kg }))}
+                data={serieMensual.map((p) => ({ anio: p.anio, etiqueta: p.etiqueta, valor: p.produccion_kg * factorUnidad }))}
                 numberFormat={{ notation: "compact" }}
-                suffix=" kg"
+                suffix={sufijoUnidad}
               />
             </div>
 

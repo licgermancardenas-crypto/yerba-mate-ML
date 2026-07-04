@@ -5,7 +5,7 @@ import { FilterBar } from "@/components/filter-bar";
 import { SerieChartConFiltro } from "@/components/charts/serie-chart-con-filtro";
 import { HistoricalTable } from "@/components/historical-table";
 import type { ColumnaTabla } from "@/components/data-table";
-import { formatKg, formatNumero, formatPct, formatUsd } from "@/lib/format";
+import { formatMasa, formatNumero, formatPct, formatUsd, type UnidadMasa } from "@/lib/format";
 import { getExportaciones } from "@/lib/api";
 import {
   agregarExportacionesAnual,
@@ -43,6 +43,9 @@ export default async function ExportacionesPage({
   const anioDesde = Number(sp.anio_desde) || undefined;
   const anioHasta = Number(sp.anio_hasta) || undefined;
   const destinoFiltro = typeof sp.destino === "string" ? sp.destino : undefined;
+  const unidad: UnidadMasa = sp.unidad === "t" ? "t" : "kg";
+  const sufijoUnidad = unidad === "t" ? " t" : " kg";
+  const factorUnidad = unidad === "t" ? 1 / 1000 : 1;
 
   const filasCompletas = await getExportaciones();
   const todosLosAnios = Array.from(new Set(filasCompletas.map((f) => f.anio))).sort((a, b) => a - b);
@@ -97,14 +100,14 @@ export default async function ExportacionesPage({
         description="Volumen y valor FOB por país destino, evolución histórica."
       />
 
-      <FilterBar anios={todosLosAnios} dimension={{ param: "destino", label: "Destino", opciones: todosLosDestinos }} />
+      <FilterBar anios={todosLosAnios} dimension={{ param: "destino", label: "Destino", opciones: todosLosDestinos }} mostrarUnidad />
 
       {filas.length === 0 ? (
         <p className="text-sm text-muted-foreground">Sin datos para los filtros seleccionados.</p>
       ) : (
         <>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
-            <KpiCard label={`Volumen exportado ${ultimoAnio}`} value={formatKg(volumenUltimo)} icon={Ship} deltaPct={deltaVolumen} deltaLabel={`vs. ${penultimoAnio}`} />
+            <KpiCard label={`Volumen exportado ${ultimoAnio}`} value={formatMasa(volumenUltimo, unidad)} icon={Ship} deltaPct={deltaVolumen} deltaLabel={`vs. ${penultimoAnio}`} />
             <KpiCard label={`Valor FOB ${ultimoAnio}`} value={formatUsd(valorFobUltimo)} icon={DollarSign} />
             <KpiCard label="Precio FOB promedio USD/kg" value={formatNumero(precioPromedioUltimo, 2)} icon={TrendingUp} />
             <KpiCard label="Países destino" value={String(destinos.length)} icon={Globe2} />
@@ -113,11 +116,13 @@ export default async function ExportacionesPage({
           <div className="grid grid-cols-1 xl:grid-cols-3 gap-4">
             <div className="xl:col-span-2 rounded-xl border border-border bg-card p-4">
               <h2 className="text-sm font-semibold text-card-foreground mb-1">Volumen exportado mensual</h2>
-              <p className="text-xs text-muted-foreground mb-3">Suma de {destinoFiltro ?? "todos los destinos"}, en kilogramos</p>
+              <p className="text-xs text-muted-foreground mb-3">
+                Suma de {destinoFiltro ?? "todos los destinos"}, en {unidad === "t" ? "toneladas" : "kilogramos"}
+              </p>
               <SerieChartConFiltro
-                data={serieMensual}
+                data={serieMensual.map((p) => ({ ...p, valor: p.valor * factorUnidad }))}
                 numberFormat={{ notation: "compact" }}
-                suffix=" kg"
+                suffix={sufijoUnidad}
               />
             </div>
 

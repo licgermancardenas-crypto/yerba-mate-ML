@@ -14,6 +14,7 @@ export function FilterBar({
   dimension,
   anioUnico = false,
   anioDesdeDefault,
+  mostrarUnidad = false,
 }: {
   anios: number[];
   dimension?: DimensionFilter;
@@ -21,6 +22,8 @@ export function FilterBar({
   anioUnico?: boolean;
   /** Valor por defecto de "Desde" cuando no hay query param — para módulos donde los años más viejos no tienen dato real. */
   anioDesdeDefault?: number;
+  /** Suma un toggle kg/t que se guarda en `?unidad=` — para módulos con volúmenes grandes en kg. */
+  mostrarUnidad?: boolean;
 }) {
   const router = useRouter();
   const pathname = usePathname();
@@ -29,6 +32,7 @@ export function FilterBar({
   const anioDesde = searchParams.get("anio_desde") ?? String(anioDesdeDefault ?? anios[0] ?? "");
   const anioHasta = searchParams.get("anio_hasta") ?? String(anios[anios.length - 1] ?? "");
   const valorDimension = dimension ? searchParams.get(dimension.param) ?? "" : "";
+  const unidad = searchParams.get("unidad") === "t" ? "t" : "kg";
   const hayFiltrosActivos = searchParams.toString().length > 0;
 
   function actualizar(param: string, valor: string) {
@@ -129,6 +133,26 @@ export function FilterBar({
               </option>
             ))}
           </select>
+        </div>
+      )}
+
+      {mostrarUnidad && (
+        <div className="flex flex-col gap-1">
+          <span className="text-xs text-muted-foreground">Unidad</span>
+          <div className="flex items-center rounded-lg border border-border bg-background p-0.5">
+            {(["kg", "t"] as const).map((u) => (
+              <button
+                key={u}
+                type="button"
+                onClick={() => actualizar("unidad", u === "kg" ? "" : u)}
+                className={`px-2.5 py-1 text-sm rounded-md transition-colors ${
+                  unidad === u ? "bg-primary text-on-primary" : "text-foreground/70 hover:text-foreground"
+                }`}
+              >
+                {u}
+              </button>
+            ))}
+          </div>
         </div>
       )}
 
