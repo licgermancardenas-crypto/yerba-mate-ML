@@ -4,10 +4,10 @@ import { KpiCard } from "@/components/kpi-card";
 import { SerieMensualChart } from "@/components/charts/serie-mensual-chart";
 import { EnvasesStackedChart, type EnvasesPunto } from "@/components/charts/envases-stacked-chart";
 import { formatNumero } from "@/lib/format";
-import { getConsumoMock } from "@/lib/mock-data";
+import { getConsumo } from "@/lib/api";
 
-export default function ConsumoPage() {
-  const filas = getConsumoMock();
+export default async function ConsumoPage() {
+  const filas = await getConsumo();
 
   const porAnio = new Map<number, (typeof filas)[number]>();
   for (const fila of filas) {
@@ -39,11 +39,20 @@ export default function ConsumoPage() {
   const consumoPenultimo = porAnio.get(penultimoAnio)!.consumo_per_capita_kg;
   const deltaConsumo = ((consumoUltimo - consumoPenultimo) / consumoPenultimo) * 100;
 
+  const filaUltimoAnio = porAnio.get(ultimoAnio)!;
+  const envasesConLabel: [string, number][] = [
+    ["1/4 kg", filaUltimoAnio.envase_025kg_pct],
+    ["1/2 kg", filaUltimoAnio.envase_05kg_pct],
+    ["1 kg", filaUltimoAnio.envase_1kg_pct],
+    ["2 kg", filaUltimoAnio.envase_2kg_pct],
+  ];
+  const formatoPreferido = envasesConLabel.reduce((max, actual) => (actual[1] > max[1] ? actual : max))[0];
+
   return (
     <main className="p-6 md:p-8">
       <PageHeader
         title="Consumo"
-        description="Consumo per cápita y mix de envases en el mercado interno. Datos de muestra — se conecta a la API real cuando la base esté cargada."
+        description="Consumo per cápita y mix de envases en el mercado interno."
       />
 
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
@@ -56,12 +65,12 @@ export default function ConsumoPage() {
         />
         <KpiCard
           label="Formato preferido"
-          value="Medio kilo"
+          value={formatoPreferido}
           icon={Package}
         />
         <KpiCard
           label="Sin estampilla"
-          value={`${formatNumero(porAnio.get(ultimoAnio)!.sin_estampillas_pct, 1)}%`}
+          value={`${formatNumero(filaUltimoAnio.sin_estampillas_pct, 1)}%`}
           icon={ScrollText}
         />
       </div>
@@ -72,7 +81,8 @@ export default function ConsumoPage() {
           <p className="text-xs text-muted-foreground mb-3">Kilogramos por persona por año</p>
           <SerieMensualChart
             data={serieAnual}
-            formatValor={(v) => `${v.toFixed(1)}`}
+            numberFormat={{ minimumFractionDigits: 1, maximumFractionDigits: 1 }}
+            suffix=" kg"
           />
         </div>
 

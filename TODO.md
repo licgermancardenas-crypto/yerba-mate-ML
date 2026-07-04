@@ -167,19 +167,20 @@ Stack: Next.js (Vercel) · FastAPI (Render/Railway) · Postgres+PostGIS (Supabas
 ---
 
 ## FASE 6 — Frontend: Dashboard Next.js
-**Estado: PENDIENTE** · Dependencias: Fase 4
+**Estado: EN PROGRESO** (2026-07-04, 5 de 7 secciones conectadas a la API real) · Dependencias: Fase 4
 
-- [ ] Setup Next.js 14+ con TypeScript, Tailwind CSS
-- [ ] Layout principal: sidebar de navegación + área de contenido
-- [ ] **Tab Producción**: gráfico de serie temporal (Recharts/Nivo), mapa coroplético por departamento (deck.gl/Mapbox GL), tabla AG Grid
-- [ ] **Tab Consumo**: evolución per cápita, mix de envases (stacked bar)
-- [ ] **Tab Exportaciones**: treemap/mapa de burbujas por destino, evolución FOB
-- [ ] **Tab Precios**: serie precios hoja verde y canchada, relación con IPC
-- [ ] **Tab Competencia**: evolución cuotas de mercado
-- [ ] **Tab ML/Predicciones**: selector de modelo, horizonte (1-2 años), intervalos de confianza
-- [ ] **Tab Mapa GIS**: capas del INYM (superficie, edad, densidad, secaderos)
+- [x] Setup Next.js 16 con TypeScript, Tailwind CSS 4
+- [x] Layout principal: sidebar de navegación + área de contenido
+- [x] **Tab Producción**: gráfico de serie temporal (Recharts) + tabla de distribución por ciudad — conectado a `/produccion` real. Mapa coroplético pendiente (ver Mapa GIS)
+- [x] **Tab Consumo**: evolución per cápita, mix de envases (stacked bar) — conectado a `/consumo` real
+- [x] **Tab Exportaciones**: serie mensual + tabla de distribución por destino — conectado a `/exportaciones` real. Treemap/mapa de burbujas pendiente (mejora visual, no bloqueante)
+- [x] **Tab Precios**: serie precios hoja verde y canchada — conectado a `/precios` real. Relación con IPC pendiente (no hay endpoint todavía para `ym.indec_series`)
+- [x] **Tab Competencia**: evolución cuotas de mercado (top 4 + "Otras") — conectado a `/competencia` real
+- [ ] **Tab ML/Predicciones**: sigue "Coming Soon" — depende de Fase 5 (no implementar sin discutir primero)
+- [ ] **Tab Mapa GIS**: sigue "Coming Soon" — capas del INYM ya disponibles en `/geo/{layer}`, falta elegir librería de mapas (deck.gl/Mapbox/Leaflet) e implementar
 - [ ] Auth (next-auth o Clerk) si se publica con acceso restringido
 - [ ] i18n: español argentino por defecto
+- **Bugs reales encontrados y corregidos al correr `next build` por primera vez** (nunca se había corrido): `recharts` y `lucide-react` estaban en `node_modules` pero no declarados en `package.json` (build limpio los hubiera roto); y las 5 páginas conectadas pasaban funciones (`formatValor`) desde Server Components a Client Components (`"use client"` charts) — React Server Components no permite serializar funciones a través de ese límite. Se resolvió reemplazando por `Intl.NumberFormatOptions` + prefijo/sufijo serializables
 
 ---
 

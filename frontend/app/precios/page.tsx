@@ -1,15 +1,91 @@
-import { DollarSign } from "lucide-react";
+import { DollarSign, Leaf, Factory } from "lucide-react";
 import { PageHeader } from "@/components/page-header";
-import { ComingSoon } from "@/components/coming-soon";
+import { KpiCard } from "@/components/kpi-card";
+import { SerieMensualChart } from "@/components/charts/serie-mensual-chart";
+import { formatNumero } from "@/lib/format";
+import { getPrecios } from "@/lib/api";
 
-export default function PreciosPage() {
+const MESES = [
+  "Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio",
+  "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre",
+];
+
+function formatArsKg(valor: number): string {
+  return `$${formatNumero(valor, 2)}/kg`;
+}
+
+export default async function PreciosPage() {
+  const filas = await getPrecios();
+  const ordenadas = [...filas].sort((a, b) => a.anio - b.anio || a.mes - b.mes);
+
+  const ultima = ordenadas[ordenadas.length - 1];
+  const haceUnAnio = ordenadas.find((f) => f.anio === ultima.anio - 1 && f.mes === ultima.mes);
+
+  const deltaHojaVerde =
+    ultima.precio_hoja_verde_ars != null && haceUnAnio?.precio_hoja_verde_ars
+      ? ((ultima.precio_hoja_verde_ars - haceUnAnio.precio_hoja_verde_ars) / haceUnAnio.precio_hoja_verde_ars) * 100
+      : undefined;
+  const deltaCanchada =
+    ultima.precio_canchada_ars != null && haceUnAnio?.precio_canchada_ars
+      ? ((ultima.precio_canchada_ars - haceUnAnio.precio_canchada_ars) / haceUnAnio.precio_canchada_ars) * 100
+      : undefined;
+
+  const relacion =
+    ultima.precio_canchada_ars && ultima.precio_hoja_verde_ars
+      ? ultima.precio_canchada_ars / ultima.precio_hoja_verde_ars
+      : null;
+
+  const etiqueta = (f: (typeof ordenadas)[number]) => `${MESES[f.mes - 1].slice(0, 3)} ${String(f.anio).slice(2)}`;
+
+  const serieHojaVerde = ordenadas
+    .filter((f) => f.precio_hoja_verde_ars != null)
+    .map((f) => ({ etiqueta: etiqueta(f), valor: f.precio_hoja_verde_ars as number }));
+  const serieCanchada = ordenadas
+    .filter((f) => f.precio_canchada_ars != null)
+    .map((f) => ({ etiqueta: etiqueta(f), valor: f.precio_canchada_ars as number }));
+
   return (
     <main className="p-6 md:p-8">
       <PageHeader
         title="Precios"
-        description="Serie histórica de precio de hoja verde y canchada, relación con el IPC."
+        description="Serie histórica de precio de hoja verde y canchada (ARS/kg)."
       />
-      <ComingSoon icon={DollarSign} label="Precios" />
+
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
+        <KpiCard
+          label={`Hoja verde ${MESES[ultima.mes - 1]} ${ultima.anio}`}
+          value={ultima.precio_hoja_verde_ars != null ? formatArsKg(ultima.precio_hoja_verde_ars) : "Sin dato"}
+          icon={Leaf}
+          deltaPct={deltaHojaVerde}
+          deltaLabel="vs. año anterior"
+        />
+        <KpiCard
+          label={`Canchada ${MESES[ultima.mes - 1]} ${ultima.anio}`}
+          value={ultima.precio_canchada_ars != null ? formatArsKg(ultima.precio_canchada_ars) : "Sin dato"}
+          icon={Factory}
+          deltaPct={deltaCanchada}
+          deltaLabel="vs. año anterior"
+        />
+        <KpiCard
+          label="Relación canchada / hoja verde"
+          value={relacion != null ? `${formatNumero(relacion, 2)}x` : "Sin dato"}
+          icon={DollarSign}
+        />
+      </div>
+
+      <div className="grid grid-cols-1 xl:grid-cols-2 gap-4">
+        <div className="rounded-xl border border-border bg-card p-4">
+          <h2 className="text-sm font-semibold text-card-foreground mb-1">Precio hoja verde</h2>
+          <p className="text-xs text-muted-foreground mb-3">ARS/kg, serie completa</p>
+          <SerieMensualChart data={serieHojaVerde} color="#15803d" prefix="$" suffix="/kg" numberFormat={{ minimumFractionDigits: 2, maximumFractionDigits: 2 }} />
+        </div>
+
+        <div className="rounded-xl border border-border bg-card p-4">
+          <h2 className="text-sm font-semibold text-card-foreground mb-1">Precio canchada</h2>
+          <p className="text-xs text-muted-foreground mb-3">ARS/kg, serie completa</p>
+          <SerieMensualChart data={serieCanchada} color="#a16207" prefix="$" suffix="/kg" numberFormat={{ minimumFractionDigits: 2, maximumFractionDigits: 2 }} />
+        </div>
+      </div>
     </main>
   );
 }
