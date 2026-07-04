@@ -13,6 +13,7 @@ import {
 } from "lucide-react";
 import { PageHeader } from "@/components/page-header";
 import { KpiCard } from "@/components/kpi-card";
+import { FilterBar } from "@/components/filter-bar";
 import { formatKg, formatNumero } from "@/lib/format";
 import { getProduccion, getConsumo } from "@/lib/api";
 import { agregarProduccionPorCiudad } from "@/lib/agregaciones";
@@ -34,17 +35,24 @@ const SECCIONES: {
   { href: "/mapa-gis", label: "Mapa GIS", descripcion: "Capas geoespaciales del INYM", icon: Map, disponible: true },
 ];
 
-export default async function ResumenPage() {
+export default async function ResumenPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ [key: string]: string | string[] | undefined }>;
+}) {
+  const sp = await searchParams;
   const [produccion, consumo] = await Promise.all([getProduccion(), getConsumo()]);
 
-  const ultimoAnio = Math.max(...produccion.map((f) => f.anio));
-  const produccionUltimoAnio = produccion.filter((f) => f.anio === ultimoAnio);
+  const todosLosAnios = Array.from(new Set(produccion.map((f) => f.anio))).sort((a, b) => a - b);
+  const anioSeleccionado = Number(sp.anio_hasta) || Math.max(...todosLosAnios);
+
+  const produccionUltimoAnio = produccion.filter((f) => f.anio === anioSeleccionado);
   const totalProduccionUltimoAnio = produccionUltimoAnio.reduce((acc, f) => acc + f.produccion_kg, 0);
   const totalExportadoUltimoAnio = produccionUltimoAnio.reduce((acc, f) => acc + f.exportaciones_kg, 0);
   const precioPromedioUltimoAnio =
-    produccionUltimoAnio.reduce((acc, f) => acc + f.precio_usd_kg, 0) / produccionUltimoAnio.length;
-  const ciudadLider = agregarProduccionPorCiudad(produccion, ultimoAnio)[0];
-  const consumoPerCapitaUltimoAnio = consumo.find((f) => f.anio === ultimoAnio)?.consumo_per_capita_kg;
+    produccionUltimoAnio.length ? produccionUltimoAnio.reduce((acc, f) => acc + f.precio_usd_kg, 0) / produccionUltimoAnio.length : 0;
+  const ciudadLider = agregarProduccionPorCiudad(produccion, anioSeleccionado)[0];
+  const consumoPerCapitaUltimoAnio = consumo.find((f) => f.anio === anioSeleccionado)?.consumo_per_capita_kg;
 
   return (
     <main className="p-6 md:p-8">
@@ -53,20 +61,24 @@ export default async function ResumenPage() {
         description="Plataforma de inteligencia de datos sobre la industria yerbatera argentina."
       />
 
+      <FilterBar anios={todosLosAnios} anioUnico />
+
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
-        <KpiCard label={`Producción ${ultimoAnio}`} value={formatKg(totalProduccionUltimoAnio)} icon={Sprout} />
+        <KpiCard label={`Producción ${anioSeleccionado}`} value={formatKg(totalProduccionUltimoAnio)} icon={Sprout} />
         <KpiCard
-          label={`Consumo per cápita ${ultimoAnio}`}
+          label={`Consumo per cápita ${anioSeleccionado}`}
           value={consumoPerCapitaUltimoAnio != null ? `${formatNumero(consumoPerCapitaUltimoAnio, 2)} kg` : "Sin dato"}
           icon={Coffee}
         />
-        <KpiCard label={`Exportado ${ultimoAnio}`} value={formatKg(totalExportadoUltimoAnio)} icon={Ship} />
+        <KpiCard label={`Exportado ${anioSeleccionado}`} value={formatKg(totalExportadoUltimoAnio)} icon={Ship} />
         <KpiCard label="Precio promedio USD/kg" value={formatNumero(precioPromedioUltimoAnio, 2)} icon={DollarSign} />
       </div>
 
-      <p className="text-sm text-muted-foreground mb-3">
-        Principal zona productora: <span className="font-medium text-foreground">{ciudadLider.ciudad}</span> ({ciudadLider.provincia})
-      </p>
+      {ciudadLider && (
+        <p className="text-sm text-muted-foreground mb-3">
+          Principal zona productora: <span className="font-medium text-foreground">{ciudadLider.ciudad}</span> ({ciudadLider.provincia})
+        </p>
+      )}
 
       <h2 className="text-sm font-semibold text-foreground mt-8 mb-3">Secciones</h2>
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">

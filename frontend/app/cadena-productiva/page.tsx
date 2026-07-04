@@ -1,6 +1,7 @@
 import { Leaf, Factory, Globe2, Percent } from "lucide-react";
 import { PageHeader } from "@/components/page-header";
 import { KpiCard } from "@/components/kpi-card";
+import { FilterBar } from "@/components/filter-bar";
 import { SerieMensualChart } from "@/components/charts/serie-mensual-chart";
 import { CuotasStackedChart } from "@/components/charts/cuotas-stacked-chart";
 import { HistoricalTable } from "@/components/historical-table";
@@ -50,8 +51,37 @@ const COLUMNAS_MOLINO_MENSUAL: ColumnaTabla<SalidaMolinoMensualRow>[] = [
 
 type ZonaPivotRow = { zona: string } & Record<string, string | number>;
 
-export default async function CadenaProductivaPage() {
-  const [filasHojaVerde, filasMolino] = await Promise.all([getHojaVerde(), getSalidaMolino()]);
+export default async function CadenaProductivaPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ [key: string]: string | string[] | undefined }>;
+}) {
+  const sp = await searchParams;
+  const anioDesde = Number(sp.anio_desde) || undefined;
+  const anioHasta = Number(sp.anio_hasta) || undefined;
+
+  const [filasHojaVerdeCompletas, filasMolinoCompletas] = await Promise.all([getHojaVerde(), getSalidaMolino()]);
+  const todosLosAnios = Array.from(new Set(filasHojaVerdeCompletas.map((f) => f.anio))).sort((a, b) => a - b);
+
+  const filasHojaVerde = filasHojaVerdeCompletas.filter(
+    (f) => (!anioDesde || f.anio >= anioDesde) && (!anioHasta || f.anio <= anioHasta)
+  );
+  const filasMolino = filasMolinoCompletas.filter(
+    (f) => (!anioDesde || f.anio >= anioDesde) && (!anioHasta || f.anio <= anioHasta)
+  );
+
+  if (filasHojaVerde.length === 0) {
+    return (
+      <main className="p-6 md:p-8">
+        <PageHeader
+          title="Cadena Productiva"
+          description="Ingreso de hoja verde a secadero por zona y salida de molino (interno/externo) — fuente: reportes mensuales del INYM."
+        />
+        <FilterBar anios={todosLosAnios} />
+        <p className="text-sm text-muted-foreground">Sin datos para los filtros seleccionados.</p>
+      </main>
+    );
+  }
 
   const hojaVerdeAnual = agregarHojaVerdeAnual(filasHojaVerde);
   const hojaVerdeMensualNacional = [...filasHojaVerde]
@@ -71,7 +101,6 @@ export default async function CadenaProductivaPage() {
 
   const serieHojaVerdeMensual = [...hojaVerdeMensualNacional]
     .sort((a, b) => a.anio - b.anio || a.mes - b.mes)
-    .slice(-24)
     .map((f) => ({ etiqueta: `${MESES[f.mes - 1].slice(0, 3)} ${String(f.anio).slice(2)}`, valor: f.hoja_verde_kg }));
 
   const molinoStackedData = molinoAnual
@@ -103,6 +132,8 @@ export default async function CadenaProductivaPage() {
         description="Ingreso de hoja verde a secadero por zona y salida de molino (interno/externo) — fuente: reportes mensuales del INYM."
       />
 
+      <FilterBar anios={todosLosAnios} />
+
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
         <KpiCard
           label={`Hoja verde ${ultimoAnio}`}
@@ -117,7 +148,7 @@ export default async function CadenaProductivaPage() {
       </div>
 
       <div className="rounded-xl border border-border bg-card p-4 mb-4">
-        <h2 className="text-sm font-semibold text-card-foreground mb-1">Ingreso de hoja verde a secadero (últimos 24 meses)</h2>
+        <h2 className="text-sm font-semibold text-card-foreground mb-1">Ingreso de hoja verde a secadero</h2>
         <p className="text-xs text-muted-foreground mb-3">Total nacional, en kilogramos</p>
         <SerieMensualChart data={serieHojaVerdeMensual} color="#15803d" numberFormat={{ notation: "compact" }} suffix=" kg" />
       </div>

@@ -1,6 +1,7 @@
 import { Users, Crown, Building2 } from "lucide-react";
 import { PageHeader } from "@/components/page-header";
 import { KpiCard } from "@/components/kpi-card";
+import { FilterBar } from "@/components/filter-bar";
 import { CuotasStackedChart } from "@/components/charts/cuotas-stacked-chart";
 import { DataTable, type ColumnaTabla } from "@/components/data-table";
 import { formatPct } from "@/lib/format";
@@ -12,8 +13,37 @@ type EmpresaPivotRow = { empresa: string } & Record<string, string | number>;
 const COLORES = ["#15803d", "#1d4ed8", "#a16207", "#92400e", "#7e22ce"];
 const TOP_N = 4;
 
-export default async function CompetenciaPage() {
-  const filas = await getCompetencia();
+export default async function CompetenciaPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ [key: string]: string | string[] | undefined }>;
+}) {
+  const sp = await searchParams;
+  const anioDesde = Number(sp.anio_desde) || undefined;
+  const anioHasta = Number(sp.anio_hasta) || undefined;
+  const empresaFiltro = typeof sp.empresa === "string" ? sp.empresa : undefined;
+
+  const filasCompletas = await getCompetencia();
+  const todosLosAnios = Array.from(new Set(filasCompletas.map((f) => f.anio))).sort((a, b) => a - b);
+  const todasLasEmpresas = Array.from(new Set(filasCompletas.map((f) => f.empresa))).sort();
+
+  const filas = filasCompletas.filter(
+    (f) =>
+      (!anioDesde || f.anio >= anioDesde) &&
+      (!anioHasta || f.anio <= anioHasta) &&
+      (!empresaFiltro || f.empresa === empresaFiltro)
+  );
+
+  if (filas.length === 0) {
+    return (
+      <main className="p-6 md:p-8">
+        <PageHeader title="Competencia" description="Evolución de cuotas de mercado por empresa yerbatera." />
+        <FilterBar anios={todosLosAnios} dimension={{ param: "empresa", label: "Empresa", opciones: todasLasEmpresas }} />
+        <p className="text-sm text-muted-foreground">Sin datos para los filtros seleccionados.</p>
+      </main>
+    );
+  }
+
   const anios = Array.from(new Set(filas.map((f) => f.anio))).sort((a, b) => a - b);
   const ultimoAnio = anios[anios.length - 1];
 
@@ -70,6 +100,8 @@ export default async function CompetenciaPage() {
         title="Competencia"
         description="Evolución de cuotas de mercado por empresa yerbatera."
       />
+
+      <FilterBar anios={todosLosAnios} dimension={{ param: "empresa", label: "Empresa", opciones: todasLasEmpresas }} />
 
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
         <KpiCard label={`Líder de mercado ${ultimoAnio}`} value={`${lider.empresa} (${formatPct(lider.cuota_mercado_pct)})`} icon={Crown} />

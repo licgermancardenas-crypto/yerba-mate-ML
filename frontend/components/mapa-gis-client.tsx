@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { GisMap } from "@/components/gis-map";
 import type { CapaCatalogo, GeoFeatureCollection } from "@/lib/types";
 
@@ -29,6 +30,10 @@ export function MapaGisClient({
   capaInicial: CapaCatalogo;
   datosIniciales: GeoFeatureCollection;
 }) {
+  const router = useRouter();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
+
   const [capaActual, setCapaActual] = useState(capaInicial);
   const [datos, setDatos] = useState(datosIniciales);
   const [cargando, setCargando] = useState(false);
@@ -40,6 +45,11 @@ export function MapaGisClient({
     setCapaActual(capa);
     setCargando(true);
     setError(null);
+
+    const params = new URLSearchParams(searchParams.toString());
+    params.set("capa", layerName);
+    router.replace(`${pathname}?${params.toString()}`, { scroll: false });
+
     try {
       const res = await fetch(`/api/geo/${layerName}`);
       if (!res.ok) throw new Error("Sin datos cargados para esta capa todavía");

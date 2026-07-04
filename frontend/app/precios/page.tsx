@@ -1,6 +1,7 @@
 import { DollarSign, Leaf, Factory } from "lucide-react";
 import { PageHeader } from "@/components/page-header";
 import { KpiCard } from "@/components/kpi-card";
+import { FilterBar } from "@/components/filter-bar";
 import { SerieMensualChart } from "@/components/charts/serie-mensual-chart";
 import { HistoricalTable } from "@/components/historical-table";
 import type { ColumnaTabla } from "@/components/data-table";
@@ -31,9 +32,32 @@ function formatArsKg(valor: number): string {
   return `$${formatNumero(valor, 2)}/kg`;
 }
 
-export default async function PreciosPage() {
-  const filas = await getPrecios();
+export default async function PreciosPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ [key: string]: string | string[] | undefined }>;
+}) {
+  const sp = await searchParams;
+  const anioDesde = Number(sp.anio_desde) || undefined;
+  const anioHasta = Number(sp.anio_hasta) || undefined;
+
+  const filasCompletas = await getPrecios();
+  const todosLosAnios = Array.from(new Set(filasCompletas.map((f) => f.anio))).sort((a, b) => a - b);
+
+  const filas = filasCompletas.filter(
+    (f) => (!anioDesde || f.anio >= anioDesde) && (!anioHasta || f.anio <= anioHasta)
+  );
   const ordenadas = [...filas].sort((a, b) => a.anio - b.anio || a.mes - b.mes);
+
+  if (ordenadas.length === 0) {
+    return (
+      <main className="p-6 md:p-8">
+        <PageHeader title="Precios" description="Serie histórica de precio de hoja verde y canchada (ARS/kg)." />
+        <FilterBar anios={todosLosAnios} />
+        <p className="text-sm text-muted-foreground">Sin datos para los filtros seleccionados.</p>
+      </main>
+    );
+  }
 
   const ultima = ordenadas[ordenadas.length - 1];
   const haceUnAnio = ordenadas.find((f) => f.anio === ultima.anio - 1 && f.mes === ultima.mes);
@@ -70,6 +94,8 @@ export default async function PreciosPage() {
         title="Precios"
         description="Serie histórica de precio de hoja verde y canchada (ARS/kg)."
       />
+
+      <FilterBar anios={todosLosAnios} />
 
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
         <KpiCard

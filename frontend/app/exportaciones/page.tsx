@@ -1,6 +1,7 @@
 import { Ship, Globe2, DollarSign, TrendingUp, Package } from "lucide-react";
 import { PageHeader } from "@/components/page-header";
 import { KpiCard } from "@/components/kpi-card";
+import { FilterBar } from "@/components/filter-bar";
 import { SerieMensualChart } from "@/components/charts/serie-mensual-chart";
 import { HistoricalTable } from "@/components/historical-table";
 import type { ColumnaTabla } from "@/components/data-table";
@@ -47,8 +48,30 @@ const MESES = [
   "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre",
 ];
 
-export default async function ExportacionesPage() {
-  const [filas, filasImportaciones] = await Promise.all([getExportaciones(), getImportaciones()]);
+export default async function ExportacionesPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ [key: string]: string | string[] | undefined }>;
+}) {
+  const sp = await searchParams;
+  const anioDesde = Number(sp.anio_desde) || undefined;
+  const anioHasta = Number(sp.anio_hasta) || undefined;
+  const destinoFiltro = typeof sp.destino === "string" ? sp.destino : undefined;
+
+  const [filasCompletas, filasImportacionesCompletas] = await Promise.all([getExportaciones(), getImportaciones()]);
+  const todosLosAnios = Array.from(new Set(filasCompletas.map((f) => f.anio))).sort((a, b) => a - b);
+  const todosLosDestinos = Array.from(new Set(filasCompletas.map((f) => f.destino))).sort();
+
+  const filas = filasCompletas.filter(
+    (f) =>
+      (!anioDesde || f.anio >= anioDesde) &&
+      (!anioHasta || f.anio <= anioHasta) &&
+      (!destinoFiltro || f.destino === destinoFiltro)
+  );
+  const filasImportaciones = filasImportacionesCompletas.filter(
+    (f) => (!anioDesde || f.anio >= anioDesde) && (!anioHasta || f.anio <= anioHasta)
+  );
+
   const anios = Array.from(new Set(filas.map((f) => f.anio))).sort((a, b) => a - b);
   const ultimoAnio = anios[anios.length - 1];
   const penultimoAnio = anios[anios.length - 2];
@@ -57,7 +80,7 @@ export default async function ExportacionesPage() {
   const filasPenultimoAnio = filas.filter((f) => f.anio === penultimoAnio);
   const volumenUltimo = filasUltimoAnio.reduce((acc, f) => acc + f.volumen_kg, 0);
   const volumenPenultimo = filasPenultimoAnio.reduce((acc, f) => acc + f.volumen_kg, 0);
-  const deltaVolumen = ((volumenUltimo - volumenPenultimo) / volumenPenultimo) * 100;
+  const deltaVolumen = volumenPenultimo ? ((volumenUltimo - volumenPenultimo) / volumenPenultimo) * 100 : undefined;
   const valorFobUltimo = filasUltimoAnio.reduce((acc, f) => acc + f.valor_fob_usd, 0);
   const precioPromedioUltimo = valorFobUltimo / volumenUltimo;
 
@@ -79,8 +102,7 @@ export default async function ExportacionesPage() {
     .map(([clave, volumen_kg]) => {
       const [anio, mes] = clave.split("-");
       return { etiqueta: `${MESES[Number(mes) - 1].slice(0, 3)} ${anio.slice(2)}`, valor: volumen_kg };
-    })
-    .slice(-24);
+    });
 
   const anualHistorico = agregarExportacionesAnual(filas);
   const mensualHistorico = agregarExportacionesMensual(filas);
@@ -99,95 +121,100 @@ export default async function ExportacionesPage() {
         description="Volumen y valor FOB por país destino, evolución histórica."
       />
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
-        <KpiCard label={`Volumen exportado ${ultimoAnio}`} value={formatKg(volumenUltimo)} icon={Ship} deltaPct={deltaVolumen} deltaLabel={`vs. ${penultimoAnio}`} />
-        <KpiCard label={`Valor FOB ${ultimoAnio}`} value={formatUsd(valorFobUltimo)} icon={DollarSign} />
-        <KpiCard label="Precio FOB promedio USD/kg" value={formatNumero(precioPromedioUltimo, 2)} icon={TrendingUp} />
-        <KpiCard label="Países destino" value={String(destinos.length)} icon={Globe2} />
-      </div>
+      <FilterBar anios={todosLosAnios} dimension={{ param: "destino", label: "Destino", opciones: todosLosDestinos }} />
 
-      <div className="grid grid-cols-1 xl:grid-cols-3 gap-4">
-        <div className="xl:col-span-2 rounded-xl border border-border bg-card p-4">
-          <h2 className="text-sm font-semibold text-card-foreground mb-1">Volumen exportado mensual (últimos 24 meses)</h2>
-          <p className="text-xs text-muted-foreground mb-3">Suma de todos los destinos, en kilogramos</p>
-          <SerieMensualChart
-            data={serieMensual}
-            numberFormat={{ notation: "compact" }}
-            suffix=" kg"
-          />
-        </div>
+      {filas.length === 0 ? (
+        <p className="text-sm text-muted-foreground">Sin datos para los filtros seleccionados.</p>
+      ) : (
+        <>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+            <KpiCard label={`Volumen exportado ${ultimoAnio}`} value={formatKg(volumenUltimo)} icon={Ship} deltaPct={deltaVolumen} deltaLabel={`vs. ${penultimoAnio}`} />
+            <KpiCard label={`Valor FOB ${ultimoAnio}`} value={formatUsd(valorFobUltimo)} icon={DollarSign} />
+            <KpiCard label="Precio FOB promedio USD/kg" value={formatNumero(precioPromedioUltimo, 2)} icon={TrendingUp} />
+            <KpiCard label="Países destino" value={String(destinos.length)} icon={Globe2} />
+          </div>
 
-        <div className="rounded-xl border border-border bg-card p-4">
-          <h2 className="text-sm font-semibold text-card-foreground mb-1">Distribución por destino ({ultimoAnio})</h2>
-          <p className="text-xs text-muted-foreground mb-3">% del volumen total exportado</p>
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="text-left text-xs text-muted-foreground border-b border-border">
-                <th className="font-medium py-2">Destino</th>
-                <th className="font-medium py-2 text-right">%</th>
-              </tr>
-            </thead>
-            <tbody>
-              {destinos.map((fila) => (
-                <tr key={fila.destino} className="border-b border-border last:border-0">
-                  <td className="py-2 text-card-foreground">{fila.destino}</td>
-                  <td className="py-2 text-right tabular-nums font-medium text-card-foreground">
-                    {formatPct(fila.porcentaje)}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      </div>
+          <div className="grid grid-cols-1 xl:grid-cols-3 gap-4">
+            <div className="xl:col-span-2 rounded-xl border border-border bg-card p-4">
+              <h2 className="text-sm font-semibold text-card-foreground mb-1">Volumen exportado mensual</h2>
+              <p className="text-xs text-muted-foreground mb-3">Suma de {destinoFiltro ?? "todos los destinos"}, en kilogramos</p>
+              <SerieMensualChart
+                data={serieMensual}
+                numberFormat={{ notation: "compact" }}
+                suffix=" kg"
+              />
+            </div>
 
-      <div className="mt-4 rounded-xl border border-border bg-card p-4">
-        <h2 className="text-sm font-semibold text-card-foreground mb-1">Histórico completo</h2>
-        <p className="text-xs text-muted-foreground mb-3">
-          Total nacional (suma de todos los destinos), desde {anualHistorico[anualHistorico.length - 1]?.anio} hasta {ultimoAnio}
-        </p>
-        <HistoricalTable
-          columnasAnual={COLUMNAS_ANUAL}
-          filasAnual={anualHistorico}
-          columnasMensual={COLUMNAS_MENSUAL}
-          filasMensual={mensualHistorico}
-        />
-      </div>
+            <div className="rounded-xl border border-border bg-card p-4">
+              <h2 className="text-sm font-semibold text-card-foreground mb-1">Distribución por destino ({ultimoAnio})</h2>
+              <p className="text-xs text-muted-foreground mb-3">% del volumen total exportado</p>
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="text-left text-xs text-muted-foreground border-b border-border">
+                    <th className="font-medium py-2">Destino</th>
+                    <th className="font-medium py-2 text-right">%</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {destinos.map((fila) => (
+                    <tr key={fila.destino} className="border-b border-border last:border-0">
+                      <td className="py-2 text-card-foreground">{fila.destino}</td>
+                      <td className="py-2 text-right tabular-nums font-medium text-card-foreground">
+                        {formatPct(fila.porcentaje)}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
 
-      <div className="mt-8 mb-4">
-        <h2 className="text-lg font-semibold text-foreground">Importaciones</h2>
-        <p className="text-sm text-muted-foreground mt-0.5">Volumen mensual importado, sin desagregar por origen.</p>
-      </div>
+          <div className="mt-4 rounded-xl border border-border bg-card p-4">
+            <h2 className="text-sm font-semibold text-card-foreground mb-1">Histórico completo</h2>
+            <p className="text-xs text-muted-foreground mb-3">
+              Total {destinoFiltro ?? "nacional (todos los destinos)"}, desde {anualHistorico[anualHistorico.length - 1]?.anio} hasta {ultimoAnio}
+            </p>
+            <HistoricalTable
+              columnasAnual={COLUMNAS_ANUAL}
+              filasAnual={anualHistorico}
+              columnasMensual={COLUMNAS_MENSUAL}
+              filasMensual={mensualHistorico}
+            />
+          </div>
 
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
-        <KpiCard
-          label={`Importado ${ultimoAnio}`}
-          value={formatKg(importadoUltimo)}
-          icon={Package}
-          deltaPct={deltaImportado}
-          deltaLabel={`vs. ${penultimoAnio}`}
-        />
-        <KpiCard
-          label={`Balanza comercial ${ultimoAnio}`}
-          value={formatKg(balanzaUltimo)}
-          icon={Ship}
-        />
-        <KpiCard label="Años con datos" value={String(importacionesAnualHistorico.length)} icon={Globe2} />
-      </div>
+          <div className="mt-8 mb-4">
+            <h2 className="text-lg font-semibold text-foreground">Importaciones</h2>
+            <p className="text-sm text-muted-foreground mt-0.5">Volumen mensual importado, sin desagregar por origen.</p>
+          </div>
 
-      <div className="rounded-xl border border-border bg-card p-4 mb-4">
-        <h3 className="text-sm font-semibold text-card-foreground mb-1">Volumen importado mensual (últimos 24 meses)</h3>
-        <p className="text-xs text-muted-foreground mb-3">Kilogramos</p>
-        <SerieMensualChart
-          data={[...importacionesMensualHistorico]
-            .sort((a, b) => a.anio - b.anio || a.mes - b.mes)
-            .slice(-24)
-            .map((f) => ({ etiqueta: `${f.mes_nombre.slice(0, 3)} ${String(f.anio).slice(2)}`, valor: f.volumen_kg }))}
-          color="#1d4ed8"
-          numberFormat={{ notation: "compact" }}
-          suffix=" kg"
-        />
-      </div>
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
+            <KpiCard
+              label={`Importado ${ultimoAnio}`}
+              value={formatKg(importadoUltimo)}
+              icon={Package}
+              deltaPct={deltaImportado}
+              deltaLabel={`vs. ${penultimoAnio}`}
+            />
+            <KpiCard
+              label={`Balanza comercial ${ultimoAnio}`}
+              value={formatKg(balanzaUltimo)}
+              icon={Ship}
+            />
+            <KpiCard label="Años con datos" value={String(importacionesAnualHistorico.length)} icon={Globe2} />
+          </div>
+
+          <div className="rounded-xl border border-border bg-card p-4 mb-4">
+            <h3 className="text-sm font-semibold text-card-foreground mb-1">Volumen importado mensual</h3>
+            <p className="text-xs text-muted-foreground mb-3">Kilogramos</p>
+            <SerieMensualChart
+              data={[...importacionesMensualHistorico]
+                .sort((a, b) => a.anio - b.anio || a.mes - b.mes)
+                .map((f) => ({ etiqueta: `${f.mes_nombre.slice(0, 3)} ${String(f.anio).slice(2)}`, valor: f.volumen_kg }))}
+              color="#1d4ed8"
+              numberFormat={{ notation: "compact" }}
+              suffix=" kg"
+            />
+          </div>
 
       <div className="rounded-xl border border-border bg-card p-4">
         <h3 className="text-sm font-semibold text-card-foreground mb-1">Histórico completo</h3>
@@ -195,12 +222,14 @@ export default async function ExportacionesPage() {
           Desde {importacionesAnualHistorico[importacionesAnualHistorico.length - 1]?.anio} hasta {ultimoAnio}
         </p>
         <HistoricalTable
-          columnasAnual={COLUMNAS_IMPORTACIONES_ANUAL}
-          filasAnual={importacionesAnualHistorico}
-          columnasMensual={COLUMNAS_IMPORTACIONES_MENSUAL}
-          filasMensual={importacionesMensualHistorico}
-        />
-      </div>
+              columnasAnual={COLUMNAS_IMPORTACIONES_ANUAL}
+              filasAnual={importacionesAnualHistorico}
+              columnasMensual={COLUMNAS_IMPORTACIONES_MENSUAL}
+              filasMensual={importacionesMensualHistorico}
+            />
+          </div>
+        </>
+      )}
     </main>
   );
 }
