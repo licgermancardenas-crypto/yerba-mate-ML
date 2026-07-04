@@ -10,6 +10,20 @@ router = APIRouter(prefix="/geo", tags=["geo"])
 SECADEROS_LAYER = "view_mat_gis_marketing_puntos_secaderos"
 
 
+@router.get("")
+async def listar_capas(session: AsyncSession = Depends(get_session)):
+    """Catálogo de capas GIS disponibles (`inym_gis.catalogo_capas`)."""
+    stmt = text(
+        """
+        SELECT layer_name, categoria, nivel_espacial, geom_type, activa, descripcion
+        FROM inym_gis.catalogo_capas
+        ORDER BY categoria, nivel_espacial
+        """
+    )
+    result = await session.execute(stmt)
+    return [dict(row._mapping) for row in result]
+
+
 @router.get("/{layer}")
 async def obtener_capa(layer: str, session: AsyncSession = Depends(get_session)):
     """Devuelve las features de una capa GIS del INYM como GeoJSON.
@@ -54,10 +68,11 @@ async def obtener_capa(layer: str, session: AsyncSession = Depends(get_session))
 
     stmt = text(
         """
-        SELECT feature_gid, ST_AsGeoJSON(geom_4326)::json AS geometry, properties
+        SELECT DISTINCT ON (feature_gid)
+               feature_gid, ST_AsGeoJSON(geom_4326)::json AS geometry, properties
         FROM inym_gis.v_features_4326
         WHERE layer_name = :layer
-        ORDER BY snapshot_date DESC
+        ORDER BY feature_gid, snapshot_date DESC
         """
     )
     result = await session.execute(stmt, {"layer": layer})

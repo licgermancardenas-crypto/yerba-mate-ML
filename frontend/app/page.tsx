@@ -29,7 +29,7 @@ const SECCIONES: {
   { href: "/precios", label: "Precios", descripcion: "Hoja verde y canchada", icon: DollarSign, disponible: true },
   { href: "/competencia", label: "Competencia", descripcion: "Cuotas de mercado por empresa", icon: Users, disponible: true },
   { href: "/predicciones", label: "ML / Predicciones", descripcion: "Modelos y horizonte de pronóstico", icon: Brain, disponible: false },
-  { href: "/mapa-gis", label: "Mapa GIS", descripcion: "Capas geoespaciales del INYM", icon: Map, disponible: false },
+  { href: "/mapa-gis", label: "Mapa GIS", descripcion: "Capas geoespaciales del INYM", icon: Map, disponible: true },
 ];
 
 export default async function ResumenPage() {

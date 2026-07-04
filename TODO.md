@@ -167,7 +167,7 @@ Stack: Next.js (Vercel) · FastAPI (Render/Railway) · Postgres+PostGIS (Supabas
 ---
 
 ## FASE 6 — Frontend: Dashboard Next.js
-**Estado: EN PROGRESO** (2026-07-04, 5 de 7 secciones conectadas a la API real) · Dependencias: Fase 4
+**Estado: EN PROGRESO** (2026-07-04, 6 de 7 secciones conectadas a la API real) · Dependencias: Fase 4
 
 - [x] Setup Next.js 16 con TypeScript, Tailwind CSS 4
 - [x] Layout principal: sidebar de navegación + área de contenido
@@ -177,7 +177,7 @@ Stack: Next.js (Vercel) · FastAPI (Render/Railway) · Postgres+PostGIS (Supabas
 - [x] **Tab Precios**: serie precios hoja verde y canchada — conectado a `/precios` real. Relación con IPC pendiente (no hay endpoint todavía para `ym.indec_series`)
 - [x] **Tab Competencia**: evolución cuotas de mercado (top 4 + "Otras") — conectado a `/competencia` real
 - [ ] **Tab ML/Predicciones**: sigue "Coming Soon" — depende de Fase 5 (no implementar sin discutir primero)
-- [ ] **Tab Mapa GIS**: sigue "Coming Soon" — capas del INYM ya disponibles en `/geo/{layer}`, falta elegir librería de mapas (deck.gl/Mapbox/Leaflet) e implementar
+- [x] **Tab Mapa GIS**: implementado con MapLibre GL (basemap gratuito CARTO Positron, sin necesitar token de Mapbox) — selector de capa agrupado por categoría (límites/edad/densidad/consociado/secaderos), popup con propiedades al hacer click, fit bounds automático. Se agregó `GET /geo` al backend (catálogo desde `inym_gis.catalogo_capas`) y un route handler proxy en Next.js (`/api/geo/[layer]`) para que el cliente cambie de capa sin problemas de CORS. De paso se arregló un bug real en `/geo/{layer}`: la query de polígonos no dedupeaba por snapshot más reciente (`DISTINCT ON` agregado) — hubiera acumulado features duplicados en cada corrida futura del ETL
 - [ ] Auth (next-auth o Clerk) si se publica con acceso restringido
 - [ ] i18n: español argentino por defecto
 - **Bugs reales encontrados y corregidos al correr `next build` por primera vez** (nunca se había corrido): `recharts` y `lucide-react` estaban en `node_modules` pero no declarados en `package.json` (build limpio los hubiera roto); y las 5 páginas conectadas pasaban funciones (`formatValor`) desde Server Components a Client Components (`"use client"` charts) — React Server Components no permite serializar funciones a través de ese límite. Se resolvió reemplazando por `Intl.NumberFormatOptions` + prefijo/sufijo serializables

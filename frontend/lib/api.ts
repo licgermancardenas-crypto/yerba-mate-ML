@@ -1,4 +1,5 @@
 import type {
+  CapaCatalogo,
   CompetenciaRow,
   ConsumoRow,
   ExportacionRow,
@@ -69,4 +70,8 @@ export function getCompetencia(params?: { anioDesde?: number; anioHasta?: number
 
 export function getGeoLayer(layer: string) {
   return apiFetch<GeoFeatureCollection>(`/geo/${layer}`);
+}
+
+export function getGeoCatalogo() {
+  return apiFetch<CapaCatalogo[]>("/geo");
 }

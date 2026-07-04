@@ -51,6 +51,15 @@ export interface CompetenciaRow {
   volumen_kg: number;
 }
 
+export interface CapaCatalogo {
+  layer_name: string;
+  categoria: "limites" | "edad" | "densidad" | "consociado" | "secaderos";
+  nivel_espacial: "municipio" | "departamento" | "provincia" | "zona" | "punto";
+  geom_type: "MultiPolygon" | "Point";
+  activa: boolean;
+  descripcion: string;
+}
+
 export interface GeoFeatureCollection {
   type: "FeatureCollection";
   features: {
