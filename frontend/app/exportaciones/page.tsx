@@ -2,8 +2,31 @@ import { Ship, Globe2, DollarSign, TrendingUp } from "lucide-react";
 import { PageHeader } from "@/components/page-header";
 import { KpiCard } from "@/components/kpi-card";
 import { SerieMensualChart } from "@/components/charts/serie-mensual-chart";
+import { HistoricalTable } from "@/components/historical-table";
+import type { ColumnaTabla } from "@/components/data-table";
 import { formatKg, formatNumero, formatPct, formatUsd } from "@/lib/format";
 import { getExportaciones } from "@/lib/api";
+import {
+  agregarExportacionesAnual,
+  agregarExportacionesMensual,
+  type ExportacionAnualRow,
+  type ExportacionMensualRow,
+} from "@/lib/agregaciones";
+
+const COLUMNAS_ANUAL: ColumnaTabla<ExportacionAnualRow>[] = [
+  { key: "anio", label: "Año", align: "left" },
+  { key: "volumen_kg", label: "Volumen (kg)", align: "right", format: "entero" },
+  { key: "valor_fob_usd", label: "Valor FOB", align: "right", format: "usd" },
+  { key: "precio_fob_usd_kg_promedio", label: "Precio prom. FOB USD/kg", align: "right", format: "decimal2" },
+];
+
+const COLUMNAS_MENSUAL: ColumnaTabla<ExportacionMensualRow>[] = [
+  { key: "anio", label: "Año", align: "left" },
+  { key: "mes_nombre", label: "Mes", align: "left" },
+  { key: "volumen_kg", label: "Volumen (kg)", align: "right", format: "entero" },
+  { key: "valor_fob_usd", label: "Valor FOB", align: "right", format: "usd" },
+  { key: "precio_fob_usd_kg_promedio", label: "Precio prom. FOB USD/kg", align: "right", format: "decimal2" },
+];
 
 const MESES = [
   "Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio",
@@ -44,6 +67,9 @@ export default async function ExportacionesPage() {
       return { etiqueta: `${MESES[Number(mes) - 1].slice(0, 3)} ${anio.slice(2)}`, valor: volumen_kg };
     })
     .slice(-24);
+
+  const anualHistorico = agregarExportacionesAnual(filas);
+  const mensualHistorico = agregarExportacionesMensual(filas);
 
   return (
     <main className="p-6 md:p-8">
@@ -92,6 +118,19 @@ export default async function ExportacionesPage() {
             </tbody>
           </table>
         </div>
+      </div>
+
+      <div className="mt-4 rounded-xl border border-border bg-card p-4">
+        <h2 className="text-sm font-semibold text-card-foreground mb-1">Histórico completo</h2>
+        <p className="text-xs text-muted-foreground mb-3">
+          Total nacional (suma de todos los destinos), desde {anualHistorico[anualHistorico.length - 1]?.anio} hasta {ultimoAnio}
+        </p>
+        <HistoricalTable
+          columnasAnual={COLUMNAS_ANUAL}
+          filasAnual={anualHistorico}
+          columnasMensual={COLUMNAS_MENSUAL}
+          filasMensual={mensualHistorico}
+        />
       </div>
     </main>
   );

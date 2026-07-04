@@ -3,8 +3,35 @@ import { PageHeader } from "@/components/page-header";
 import { KpiCard } from "@/components/kpi-card";
 import { SerieMensualChart } from "@/components/charts/serie-mensual-chart";
 import { EnvasesStackedChart, type EnvasesPunto } from "@/components/charts/envases-stacked-chart";
+import { HistoricalTable } from "@/components/historical-table";
+import type { ColumnaTabla } from "@/components/data-table";
 import { formatNumero } from "@/lib/format";
 import { getConsumo } from "@/lib/api";
+import { agregarConsumoAnual, type ConsumoAnualRow } from "@/lib/agregaciones";
+import type { ConsumoRow } from "@/lib/types";
+
+const COLUMNAS_ANUAL: ColumnaTabla<ConsumoAnualRow>[] = [
+  { key: "anio", label: "Año", align: "left" },
+  { key: "consumo_per_capita_kg", label: "Per cápita (kg)", align: "right", format: "decimal2" },
+  { key: "envase_05kg_pct", label: "1/2 kg (%)", align: "right", format: "porcentaje" },
+  { key: "envase_1kg_pct", label: "1 kg (%)", align: "right", format: "porcentaje" },
+  { key: "envase_025kg_pct", label: "1/4 kg (%)", align: "right", format: "porcentaje" },
+  { key: "envase_2kg_pct", label: "2 kg (%)", align: "right", format: "porcentaje" },
+  { key: "otros_envases_pct", label: "Otros (%)", align: "right", format: "porcentaje" },
+  { key: "sin_estampillas_pct", label: "Sin estampilla (%)", align: "right", format: "porcentaje" },
+];
+
+const COLUMNAS_MENSUAL: ColumnaTabla<ConsumoRow>[] = [
+  { key: "anio", label: "Año", align: "left" },
+  { key: "mes_nombre", label: "Mes", align: "left" },
+  { key: "consumo_per_capita_kg", label: "Per cápita (kg)", align: "right", format: "decimal2" },
+  { key: "envase_05kg_pct", label: "1/2 kg (%)", align: "right", format: "porcentaje" },
+  { key: "envase_1kg_pct", label: "1 kg (%)", align: "right", format: "porcentaje" },
+  { key: "envase_025kg_pct", label: "1/4 kg (%)", align: "right", format: "porcentaje" },
+  { key: "envase_2kg_pct", label: "2 kg (%)", align: "right", format: "porcentaje" },
+  { key: "otros_envases_pct", label: "Otros (%)", align: "right", format: "porcentaje" },
+  { key: "sin_estampillas_pct", label: "Sin estampilla (%)", align: "right", format: "porcentaje" },
+];
 
 export default async function ConsumoPage() {
   const filas = await getConsumo();
@@ -47,6 +74,9 @@ export default async function ConsumoPage() {
     ["2 kg", filaUltimoAnio.envase_2kg_pct],
   ];
   const formatoPreferido = envasesConLabel.reduce((max, actual) => (actual[1] > max[1] ? actual : max))[0];
+
+  const anualHistorico = agregarConsumoAnual(filas);
+  const mensualHistorico = [...filas].sort((a, b) => b.anio - a.anio || b.mes - a.mes);
 
   return (
     <main className="p-6 md:p-8">
@@ -91,6 +121,19 @@ export default async function ConsumoPage() {
           <p className="text-xs text-muted-foreground mb-3">% de las salidas de molino al mercado interno</p>
           <EnvasesStackedChart data={envasesPorAnio} />
         </div>
+      </div>
+
+      <div className="mt-4 rounded-xl border border-border bg-card p-4">
+        <h2 className="text-sm font-semibold text-card-foreground mb-1">Histórico completo</h2>
+        <p className="text-xs text-muted-foreground mb-3">
+          Desde {anualHistorico[anualHistorico.length - 1]?.anio} hasta {ultimoAnio}. La fuente publica el mismo valor los 12 meses de cada año (cadencia de publicación anual, no mensual).
+        </p>
+        <HistoricalTable
+          columnasAnual={COLUMNAS_ANUAL}
+          filasAnual={anualHistorico}
+          columnasMensual={COLUMNAS_MENSUAL}
+          filasMensual={mensualHistorico}
+        />
       </div>
     </main>
   );

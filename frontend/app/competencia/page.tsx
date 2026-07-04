@@ -2,8 +2,11 @@ import { Users, Crown, Building2 } from "lucide-react";
 import { PageHeader } from "@/components/page-header";
 import { KpiCard } from "@/components/kpi-card";
 import { CuotasStackedChart } from "@/components/charts/cuotas-stacked-chart";
+import { DataTable, type ColumnaTabla } from "@/components/data-table";
 import { formatPct } from "@/lib/format";
 import { getCompetencia } from "@/lib/api";
+
+type EmpresaPivotRow = { empresa: string } & Record<string, string | number>;
 
 const COLORES = ["#15803d", "#22c55e", "#a16207", "#65a30d", "#94a3b8"];
 const TOP_N = 4;
@@ -42,6 +45,24 @@ export default async function CompetenciaPage() {
   );
   const cantidadEmpresas = new Set(filas.filter((f) => f.empresa !== "Others").map((f) => f.empresa)).size;
 
+  const empresas = Array.from(new Set(filas.map((f) => f.empresa))).sort((a, b) => {
+    const cuotaA = filasUltimoAnio.find((f) => f.empresa === a)?.cuota_mercado_pct ?? 0;
+    const cuotaB = filasUltimoAnio.find((f) => f.empresa === b)?.cuota_mercado_pct ?? 0;
+    return cuotaB - cuotaA;
+  });
+  const columnasPivot: ColumnaTabla<EmpresaPivotRow>[] = [
+    { key: "empresa", label: "Empresa", align: "left", format: "texto" },
+    ...anios.map((anio) => ({ key: String(anio), label: String(anio), align: "right" as const, format: "porcentaje" as const })),
+  ];
+  const filasPivot: EmpresaPivotRow[] = empresas.map((empresa) => {
+    const fila: EmpresaPivotRow = { empresa };
+    for (const anio of anios) {
+      const dato = filas.find((f) => f.anio === anio && f.empresa === empresa);
+      if (dato) fila[String(anio)] = dato.cuota_mercado_pct;
+    }
+    return fila;
+  });
+
   return (
     <main className="p-6 md:p-8">
       <PageHeader
@@ -61,6 +82,14 @@ export default async function CompetenciaPage() {
           Top {TOP_N} empresas por cuota en {ultimoAnio} + &quot;Otras&quot; (resto + categoría &quot;Others&quot; de la fuente)
         </p>
         <CuotasStackedChart data={data} series={series} />
+      </div>
+
+      <div className="mt-4 rounded-xl border border-border bg-card p-4">
+        <h2 className="text-sm font-semibold text-card-foreground mb-1">Histórico completo por empresa</h2>
+        <p className="text-xs text-muted-foreground mb-3">
+          Cuota de mercado (%) por año, desde {anios[0]} hasta {ultimoAnio}. La fuente solo publica granularidad anual (no mensual).
+        </p>
+        <DataTable columnas={columnasPivot} filas={filasPivot} maxHeightPx={480} />
       </div>
     </main>
   );

@@ -2,8 +2,25 @@ import { DollarSign, Leaf, Factory } from "lucide-react";
 import { PageHeader } from "@/components/page-header";
 import { KpiCard } from "@/components/kpi-card";
 import { SerieMensualChart } from "@/components/charts/serie-mensual-chart";
+import { HistoricalTable } from "@/components/historical-table";
+import type { ColumnaTabla } from "@/components/data-table";
 import { formatNumero } from "@/lib/format";
 import { getPrecios } from "@/lib/api";
+import { agregarPreciosAnual, type PrecioAnualRow } from "@/lib/agregaciones";
+import type { PrecioRow } from "@/lib/types";
+
+const COLUMNAS_ANUAL: ColumnaTabla<PrecioAnualRow>[] = [
+  { key: "anio", label: "Año", align: "left" },
+  { key: "precio_hoja_verde_ars_promedio", label: "Hoja verde prom. (ARS/kg)", align: "right", format: "ars" },
+  { key: "precio_canchada_ars_promedio", label: "Canchada prom. (ARS/kg)", align: "right", format: "ars" },
+];
+
+const COLUMNAS_MENSUAL: ColumnaTabla<PrecioRow>[] = [
+  { key: "anio", label: "Año", align: "left" },
+  { key: "mes_nombre", label: "Mes", align: "left" },
+  { key: "precio_hoja_verde_ars", label: "Hoja verde (ARS/kg)", align: "right", format: "ars" },
+  { key: "precio_canchada_ars", label: "Canchada (ARS/kg)", align: "right", format: "ars" },
+];
 
 const MESES = [
   "Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio",
@@ -43,6 +60,9 @@ export default async function PreciosPage() {
   const serieCanchada = ordenadas
     .filter((f) => f.precio_canchada_ars != null)
     .map((f) => ({ etiqueta: etiqueta(f), valor: f.precio_canchada_ars as number }));
+
+  const anualHistorico = agregarPreciosAnual(filas);
+  const mensualHistorico = [...ordenadas].reverse();
 
   return (
     <main className="p-6 md:p-8">
@@ -85,6 +105,19 @@ export default async function PreciosPage() {
           <p className="text-xs text-muted-foreground mb-3">ARS/kg, serie completa</p>
           <SerieMensualChart data={serieCanchada} color="#a16207" prefix="$" suffix="/kg" numberFormat={{ minimumFractionDigits: 2, maximumFractionDigits: 2 }} />
         </div>
+      </div>
+
+      <div className="mt-4 rounded-xl border border-border bg-card p-4">
+        <h2 className="text-sm font-semibold text-card-foreground mb-1">Histórico completo</h2>
+        <p className="text-xs text-muted-foreground mb-3">
+          Desde {anualHistorico[anualHistorico.length - 1]?.anio} hasta {ultima.anio}. El promedio anual ignora meses sin precio publicado por el INYM.
+        </p>
+        <HistoricalTable
+          columnasAnual={COLUMNAS_ANUAL}
+          filasAnual={anualHistorico}
+          columnasMensual={COLUMNAS_MENSUAL}
+          filasMensual={mensualHistorico}
+        />
       </div>
     </main>
   );

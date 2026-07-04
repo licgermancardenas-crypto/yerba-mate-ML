@@ -2,9 +2,37 @@ import { Sprout, Wheat, TrendingUp, DollarSign } from "lucide-react";
 import { PageHeader } from "@/components/page-header";
 import { KpiCard } from "@/components/kpi-card";
 import { SerieMensualChart } from "@/components/charts/serie-mensual-chart";
+import { HistoricalTable } from "@/components/historical-table";
+import type { ColumnaTabla } from "@/components/data-table";
 import { formatKg, formatNumero, formatPct, formatUsd } from "@/lib/format";
 import { getProduccion } from "@/lib/api";
-import { agregarProduccionMensual, agregarProduccionPorCiudad } from "@/lib/agregaciones";
+import {
+  agregarProduccionMensual,
+  agregarProduccionPorCiudad,
+  agregarProduccionAnual,
+  agregarProduccionMensualNacional,
+  type ProduccionAnualRow,
+  type ProduccionMensualNacionalRow,
+} from "@/lib/agregaciones";
+
+const COLUMNAS_ANUAL: ColumnaTabla<ProduccionAnualRow>[] = [
+  { key: "anio", label: "Año", align: "left" },
+  { key: "produccion_kg", label: "Producción (kg)", align: "right", format: "entero" },
+  { key: "consumo_interno_kg", label: "Consumo interno (kg)", align: "right", format: "entero" },
+  { key: "exportaciones_kg", label: "Exportado (kg)", align: "right", format: "entero" },
+  { key: "precio_usd_kg_promedio", label: "Precio prom. USD/kg", align: "right", format: "decimal2" },
+  { key: "valor_fob_usd", label: "Valor FOB", align: "right", format: "usd" },
+];
+
+const COLUMNAS_MENSUAL: ColumnaTabla<ProduccionMensualNacionalRow>[] = [
+  { key: "anio", label: "Año", align: "left" },
+  { key: "mes_nombre", label: "Mes", align: "left" },
+  { key: "produccion_kg", label: "Producción (kg)", align: "right", format: "entero" },
+  { key: "consumo_interno_kg", label: "Consumo interno (kg)", align: "right", format: "entero" },
+  { key: "exportaciones_kg", label: "Exportado (kg)", align: "right", format: "entero" },
+  { key: "precio_usd_kg_promedio", label: "Precio prom. USD/kg", align: "right", format: "decimal2" },
+  { key: "valor_fob_usd", label: "Valor FOB", align: "right", format: "usd" },
+];
 
 export default async function ProduccionPage() {
   const filas = await getProduccion();
@@ -25,6 +53,9 @@ export default async function ProduccionPage() {
   const valorFobUltimo = filasUltimoAnio.reduce((acc, f) => acc + f.valor_fob_usd, 0);
   const precioPromedioUltimo =
     filasUltimoAnio.reduce((acc, f) => acc + f.precio_usd_kg, 0) / filasUltimoAnio.length;
+
+  const anualHistorico = agregarProduccionAnual(filas);
+  const mensualHistorico = agregarProduccionMensualNacional(filas);
 
   return (
     <main className="p-6 md:p-8">
@@ -76,6 +107,19 @@ export default async function ProduccionPage() {
             </tbody>
           </table>
         </div>
+      </div>
+
+      <div className="mt-4 rounded-xl border border-border bg-card p-4">
+        <h2 className="text-sm font-semibold text-card-foreground mb-1">Histórico completo</h2>
+        <p className="text-xs text-muted-foreground mb-3">
+          Total nacional (suma de todas las ciudades productoras), desde {anualHistorico[anualHistorico.length - 1]?.anio} hasta {ultimoAnio}
+        </p>
+        <HistoricalTable
+          columnasAnual={COLUMNAS_ANUAL}
+          filasAnual={anualHistorico}
+          columnasMensual={COLUMNAS_MENSUAL}
+          filasMensual={mensualHistorico}
+        />
       </div>
     </main>
   );
