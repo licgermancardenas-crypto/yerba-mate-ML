@@ -1,4 +1,4 @@
-import { DollarSign, Leaf, Factory } from "lucide-react";
+import { DollarSign, Leaf, Factory, TrendingUp, Scale } from "lucide-react";
 import { PageHeader } from "@/components/page-header";
 import { KpiCard } from "@/components/kpi-card";
 import { FilterBar } from "@/components/filter-bar";
@@ -88,6 +88,44 @@ export default async function PreciosPage({
   const anualHistorico = agregarPreciosAnual(filas);
   const mensualHistorico = [...ordenadas].reverse();
 
+  // Precio real (deflactado por IPC Nacional, en pesos del último mes con dato) e
+  // índice relativo yerba mate vs. inflación general — ambas series de INDEC
+  // comparten la misma base (dic-2016=100), ver ym.indec_series / docs/indec_series.md.
+  const conIpcNacional = ordenadas.filter((f) => f.ipc_nacional != null);
+  const ipcNacionalUltimo = conIpcNacional[conIpcNacional.length - 1]?.ipc_nacional ?? null;
+
+  const serieHojaVerdeReal = conIpcNacional
+    .filter((f) => f.precio_hoja_verde_ars != null)
+    .map((f) => ({
+      etiqueta: etiqueta(f),
+      valor: (f.precio_hoja_verde_ars as number) * ((ipcNacionalUltimo as number) / (f.ipc_nacional as number)),
+    }));
+  const serieCanchadaReal = conIpcNacional
+    .filter((f) => f.precio_canchada_ars != null)
+    .map((f) => ({
+      etiqueta: etiqueta(f),
+      valor: (f.precio_canchada_ars as number) * ((ipcNacionalUltimo as number) / (f.ipc_nacional as number)),
+    }));
+
+  const haceUnAnioConIpc =
+    haceUnAnio?.ipc_nacional != null && haceUnAnio.precio_hoja_verde_ars != null
+      ? (haceUnAnio.precio_hoja_verde_ars as number) * ((ipcNacionalUltimo as number) / haceUnAnio.ipc_nacional)
+      : null;
+  const realHojaVerdeUltima = serieHojaVerdeReal[serieHojaVerdeReal.length - 1]?.valor ?? null;
+  const deltaRealHojaVerde =
+    realHojaVerdeUltima != null && haceUnAnioConIpc
+      ? ((realHojaVerdeUltima - haceUnAnioConIpc) / haceUnAnioConIpc) * 100
+      : undefined;
+
+  const conAmbosIpc = ordenadas.filter((f) => f.ipc_nacional != null && f.ipc_yerba_mate != null);
+  const ultimoConAmbosIpc = conAmbosIpc[conAmbosIpc.length - 1];
+  const indiceRelativoYerba = ultimoConAmbosIpc
+    ? (ultimoConAmbosIpc.ipc_yerba_mate! / ultimoConAmbosIpc.ipc_nacional!) * 100
+    : null;
+
+  const serieIpcNacional = conAmbosIpc.map((f) => ({ etiqueta: etiqueta(f), valor: f.ipc_nacional as number }));
+  const serieIpcYerbaMate = conAmbosIpc.map((f) => ({ etiqueta: etiqueta(f), valor: f.ipc_yerba_mate as number }));
+
   return (
     <main className="p-6 md:p-8">
       <PageHeader
@@ -130,6 +168,56 @@ export default async function PreciosPage({
           <h2 className="text-sm font-semibold text-card-foreground mb-1">Precio canchada</h2>
           <p className="text-xs text-muted-foreground mb-3">ARS/kg, serie completa</p>
           <SerieMensualChart data={serieCanchada} color="#a16207" prefix="$" suffix="/kg" numberFormat={{ minimumFractionDigits: 2, maximumFractionDigits: 2 }} />
+        </div>
+      </div>
+
+      <div className="mt-8 mb-4">
+        <h2 className="text-lg font-semibold text-foreground">Precio real y relación con la inflación</h2>
+        <p className="text-sm text-muted-foreground mt-0.5">
+          Deflactado con el IPC Nacional (INDEC) y comparado contra el IPC específico de yerba mate (GBA) — ambas series con base dic-2016=100.
+        </p>
+      </div>
+
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-6">
+        <KpiCard
+          label="Precio real hoja verde"
+          value={realHojaVerdeUltima != null ? formatArsKg(realHojaVerdeUltima) : "Sin dato"}
+          icon={TrendingUp}
+          deltaPct={deltaRealHojaVerde}
+          deltaLabel="real, vs. año anterior"
+        />
+        <KpiCard
+          label="Yerba mate vs. inflación general"
+          value={indiceRelativoYerba != null ? `${formatNumero(indiceRelativoYerba, 0)} pts` : "Sin dato"}
+          icon={Scale}
+          deltaPct={indiceRelativoYerba != null ? indiceRelativoYerba - 100 : undefined}
+          deltaLabel="acumulado desde dic-2016 vs. IPC general"
+        />
+      </div>
+
+      <div className="grid grid-cols-1 xl:grid-cols-2 gap-4">
+        <div className="rounded-xl border border-border bg-card p-4">
+          <h3 className="text-sm font-semibold text-card-foreground mb-1">Precio real hoja verde</h3>
+          <p className="text-xs text-muted-foreground mb-3">ARS/kg deflactado, en pesos del último mes con dato de IPC</p>
+          <SerieMensualChart data={serieHojaVerdeReal} color="#15803d" prefix="$" suffix="/kg" numberFormat={{ minimumFractionDigits: 2, maximumFractionDigits: 2 }} />
+        </div>
+        <div className="rounded-xl border border-border bg-card p-4">
+          <h3 className="text-sm font-semibold text-card-foreground mb-1">Precio real canchada</h3>
+          <p className="text-xs text-muted-foreground mb-3">ARS/kg deflactado, en pesos del último mes con dato de IPC</p>
+          <SerieMensualChart data={serieCanchadaReal} color="#a16207" prefix="$" suffix="/kg" numberFormat={{ minimumFractionDigits: 2, maximumFractionDigits: 2 }} />
+        </div>
+      </div>
+
+      <div className="grid grid-cols-1 xl:grid-cols-2 gap-4 mt-4">
+        <div className="rounded-xl border border-border bg-card p-4">
+          <h3 className="text-sm font-semibold text-card-foreground mb-1">IPC Nacional</h3>
+          <p className="text-xs text-muted-foreground mb-3">Índice, base dic-2016=100 (INDEC)</p>
+          <SerieMensualChart data={serieIpcNacional} color="#1d4ed8" numberFormat={{ maximumFractionDigits: 0 }} />
+        </div>
+        <div className="rounded-xl border border-border bg-card p-4">
+          <h3 className="text-sm font-semibold text-card-foreground mb-1">IPC yerba mate (GBA)</h3>
+          <p className="text-xs text-muted-foreground mb-3">Índice, base dic-2016=100 (INDEC) — precio al consumidor</p>
+          <SerieMensualChart data={serieIpcYerbaMate} color="#7e22ce" numberFormat={{ maximumFractionDigits: 0 }} />
         </div>
       </div>
 

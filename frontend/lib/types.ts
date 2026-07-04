@@ -42,6 +42,10 @@ export interface PrecioRow {
   mes_nombre: string;
   precio_hoja_verde_ars: number | null;
   precio_canchada_ars: number | null;
+  /** IPC Nacional nivel general, base dic-2016=100 (INDEC). */
+  ipc_nacional: number | null;
+  /** IPC-GBA específico de yerba mate, misma base dic-2016=100 (INDEC). */
+  ipc_yerba_mate: number | null;
 }
 
 export interface CompetenciaRow {
