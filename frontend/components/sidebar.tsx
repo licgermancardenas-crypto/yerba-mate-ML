@@ -15,6 +15,7 @@ import {
   Menu,
   X,
   Leaf,
+  Factory,
 } from "lucide-react";
 
 const NAV_ITEMS = [
@@ -24,6 +25,7 @@ const NAV_ITEMS = [
   { href: "/exportaciones", label: "Exportaciones", icon: Ship },
   { href: "/precios", label: "Precios", icon: DollarSign },
   { href: "/competencia", label: "Competencia", icon: Users },
+  { href: "/cadena-productiva", label: "Cadena Productiva", icon: Factory },
   { href: "/predicciones", label: "ML / Predicciones", icon: Brain },
   { href: "/mapa-gis", label: "Mapa GIS", icon: Map },
 ] as const;

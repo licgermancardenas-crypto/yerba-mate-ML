@@ -4,8 +4,11 @@ import type {
   ConsumoRow,
   ExportacionRow,
   GeoFeatureCollection,
+  HojaVerdeRow,
+  ImportacionRow,
   PrecioRow,
   ProduccionRow,
+  SalidaMolinoRow,
 } from "@/lib/types";
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000";
@@ -66,6 +69,31 @@ export function getCompetencia(params?: { anioDesde?: number; anioHasta?: number
   if (params?.empresa) qs.set("empresa", params.empresa);
   const query = qs.toString();
   return apiFetch<CompetenciaRow[]>(`/competencia${query ? `?${query}` : ""}`);
+}
+
+export function getImportaciones(params?: { anioDesde?: number; anioHasta?: number }) {
+  const qs = new URLSearchParams();
+  if (params?.anioDesde) qs.set("anio_desde", String(params.anioDesde));
+  if (params?.anioHasta) qs.set("anio_hasta", String(params.anioHasta));
+  const query = qs.toString();
+  return apiFetch<ImportacionRow[]>(`/importaciones${query ? `?${query}` : ""}`);
+}
+
+export function getHojaVerde(params?: { anioDesde?: number; anioHasta?: number; zona?: string }) {
+  const qs = new URLSearchParams();
+  if (params?.anioDesde) qs.set("anio_desde", String(params.anioDesde));
+  if (params?.anioHasta) qs.set("anio_hasta", String(params.anioHasta));
+  if (params?.zona) qs.set("zona", params.zona);
+  const query = qs.toString();
+  return apiFetch<HojaVerdeRow[]>(`/cadena-productiva/hoja-verde${query ? `?${query}` : ""}`);
+}
+
+export function getSalidaMolino(params?: { anioDesde?: number; anioHasta?: number }) {
+  const qs = new URLSearchParams();
+  if (params?.anioDesde) qs.set("anio_desde", String(params.anioDesde));
+  if (params?.anioHasta) qs.set("anio_hasta", String(params.anioHasta));
+  const query = qs.toString();
+  return apiFetch<SalidaMolinoRow[]>(`/cadena-productiva/salida-molino${query ? `?${query}` : ""}`);
 }
 
 export function getGeoLayer(layer: string) {

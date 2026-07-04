@@ -1,4 +1,12 @@
-import type { ConsumoRow, ExportacionRow, PrecioRow, ProduccionRow } from "@/lib/types";
+import type {
+  ConsumoRow,
+  ExportacionRow,
+  HojaVerdeRow,
+  ImportacionRow,
+  PrecioRow,
+  ProduccionRow,
+  SalidaMolinoRow,
+} from "@/lib/types";
 
 const MESES = [
   "Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio",
@@ -224,4 +232,99 @@ export function agregarPreciosAnual(filas: PrecioRow[]): PrecioAnualRow[] {
       precio_canchada_ars_promedio: promedio(a.canchada),
     }))
     .sort((a, b) => b.anio - a.anio);
+}
+
+// ----------------------------------------------------------------------------
+// Importaciones — igual que exportaciones/producción, cantidad sumable
+// ----------------------------------------------------------------------------
+
+export interface ImportacionAnualRow {
+  anio: number;
+  volumen_kg: number;
+}
+
+export function agregarImportacionesAnual(filas: ImportacionRow[]): ImportacionAnualRow[] {
+  const porAnio = new Map<number, number>();
+  for (const f of filas) {
+    porAnio.set(f.anio, (porAnio.get(f.anio) ?? 0) + f.volumen_kg);
+  }
+  return Array.from(porAnio.entries())
+    .map(([anio, volumen_kg]) => ({ anio, volumen_kg }))
+    .sort((a, b) => b.anio - a.anio);
+}
+
+// ----------------------------------------------------------------------------
+// Cadena productiva — hoja verde por zona (fuente: PDFs INYM)
+// ----------------------------------------------------------------------------
+// La zona 'TOTAL' es el agregado nacional que ya publica la fuente — se usa
+// directo para las vistas nacionales y se excluye del desglose por zona
+// (sino se contaría dos veces).
+
+export interface HojaVerdeAnualRow {
+  anio: number;
+  hoja_verde_kg: number;
+}
+
+export function agregarHojaVerdeAnual(filas: HojaVerdeRow[]): HojaVerdeAnualRow[] {
+  const porAnio = new Map<number, number>();
+  for (const f of filas.filter((f) => f.zona === "TOTAL")) {
+    porAnio.set(f.anio, (porAnio.get(f.anio) ?? 0) + f.hoja_verde_kg);
+  }
+  return Array.from(porAnio.entries())
+    .map(([anio, hoja_verde_kg]) => ({ anio, hoja_verde_kg }))
+    .sort((a, b) => b.anio - a.anio);
+}
+
+// ----------------------------------------------------------------------------
+// Cadena productiva — salida de molino (interno/externo, fuente: PDFs INYM)
+// ----------------------------------------------------------------------------
+
+export interface SalidaMolinoAnualRow {
+  anio: number;
+  interno_kg: number;
+  externo_kg: number;
+  total_kg: number;
+}
+
+export function agregarSalidaMolinoAnual(filas: SalidaMolinoRow[]): SalidaMolinoAnualRow[] {
+  const porAnio = new Map<number, { interno: number; externo: number }>();
+  for (const f of filas) {
+    const acc = porAnio.get(f.anio) ?? { interno: 0, externo: 0 };
+    if (f.destino === "interno") acc.interno += f.volumen_kg;
+    else acc.externo += f.volumen_kg;
+    porAnio.set(f.anio, acc);
+  }
+  return Array.from(porAnio.entries())
+    .map(([anio, a]) => ({ anio, interno_kg: a.interno, externo_kg: a.externo, total_kg: a.interno + a.externo }))
+    .sort((a, b) => b.anio - a.anio);
+}
+
+export interface SalidaMolinoMensualRow {
+  anio: number;
+  mes: number;
+  mes_nombre: string;
+  interno_kg: number;
+  externo_kg: number;
+  total_kg: number;
+}
+
+export function agregarSalidaMolinoMensual(filas: SalidaMolinoRow[]): SalidaMolinoMensualRow[] {
+  const porMes = new Map<string, { anio: number; mes: number; interno: number; externo: number }>();
+  for (const f of filas) {
+    const clave = `${f.anio}-${f.mes}`;
+    const acc = porMes.get(clave) ?? { anio: f.anio, mes: f.mes, interno: 0, externo: 0 };
+    if (f.destino === "interno") acc.interno += f.volumen_kg;
+    else acc.externo += f.volumen_kg;
+    porMes.set(clave, acc);
+  }
+  return Array.from(porMes.values())
+    .map((a) => ({
+      anio: a.anio,
+      mes: a.mes,
+      mes_nombre: MESES[a.mes - 1],
+      interno_kg: a.interno,
+      externo_kg: a.externo,
+      total_kg: a.interno + a.externo,
+    }))
+    .sort((a, b) => b.anio - a.anio || b.mes - a.mes);
 }

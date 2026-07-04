@@ -124,14 +124,17 @@ Stack: Next.js (Vercel) · FastAPI (Render/Railway) · Postgres+PostGIS (Supabas
 ---
 
 ## FASE 4 — API: Endpoints FastAPI
-**Estado: PENDIENTE** · Dependencias: Fases 1-3
+**Estado: EN PROGRESO** (2026-07-04) · Dependencias: Fases 1-3
 
-- [ ] GET `/produccion` — serie mensual agregada y por región, con filtros (año_desde, año_hasta, provincia)
-- [ ] GET `/consumo` — consumo per cápita + mix de envases
-- [ ] GET `/exportaciones` — volumen y valor FOB por destino y período
-- [ ] GET `/precios` — serie histórica precios hoja verde y canchada
-- [ ] GET `/competencia` — cuotas de mercado por empresa y año
-- [ ] GET `/geo/{layer}` — features geoespaciales (GeoJSON) del INYM
+- [x] GET `/produccion` — serie mensual agregada y por región, con filtros (año_desde, año_hasta, provincia)
+- [x] GET `/consumo` — consumo per cápita + mix de envases
+- [x] GET `/exportaciones` — volumen y valor FOB por destino y período
+- [x] GET `/importaciones` — volumen mensual (agregado 2026-07-04, tabla existía cargada sin endpoint)
+- [x] GET `/precios` — serie histórica precios hoja verde y canchada
+- [x] GET `/competencia` — cuotas de mercado por empresa y año
+- [x] GET `/cadena-productiva/hoja-verde` y `/cadena-productiva/salida-molino` (agregado 2026-07-04, mismo caso: tablas cargadas desde Fase 3c sin ningún endpoint)
+- [x] GET `/geo/{layer}` — features geoespaciales (GeoJSON) del INYM
+- [x] GET `/geo` — catálogo de capas (agregado junto con el Mapa GIS)
 - [ ] GET `/predicciones/{modelo}` — resultados pre-calculados de ML (sin entrenar en request)
 - [ ] Paginación, filtros de fecha, caching con Redis o `fastapi-cache`
 - [ ] Auth básica (API key o JWT) si se expone públicamente
@@ -167,15 +170,18 @@ Stack: Next.js (Vercel) · FastAPI (Render/Railway) · Postgres+PostGIS (Supabas
 ---
 
 ## FASE 6 — Frontend: Dashboard Next.js
-**Estado: EN PROGRESO** (2026-07-04, 6 de 7 secciones conectadas a la API real) · Dependencias: Fase 4
+**Estado: EN PROGRESO** (2026-07-04, 7 de 9 secciones conectadas a la API real) · Dependencias: Fase 4
 
 - [x] Setup Next.js 16 con TypeScript, Tailwind CSS 4
 - [x] Layout principal: sidebar de navegación + área de contenido
 - [x] **Tab Producción**: gráfico de serie temporal (Recharts) + tabla de distribución por ciudad — conectado a `/produccion` real. Mapa coroplético pendiente (ver Mapa GIS)
 - [x] **Tab Consumo**: evolución per cápita, mix de envases (stacked bar) — conectado a `/consumo` real
-- [x] **Tab Exportaciones**: serie mensual + tabla de distribución por destino — conectado a `/exportaciones` real. Treemap/mapa de burbujas pendiente (mejora visual, no bloqueante)
+- [x] **Tab Exportaciones**: serie mensual + tabla de distribución por destino — conectado a `/exportaciones` real. Suma sección de Importaciones (`/importaciones`, agregado 2026-07-04) dentro de la misma página. Treemap/mapa de burbujas pendiente (mejora visual, no bloqueante)
 - [x] **Tab Precios**: serie precios hoja verde y canchada — conectado a `/precios` real. Relación con IPC pendiente (no hay endpoint todavía para `ym.indec_series`)
 - [x] **Tab Competencia**: evolución cuotas de mercado (top 4 + "Otras") — conectado a `/competencia` real
+- [x] **Tab Cadena Productiva** (nueva, 2026-07-04): ingreso de hoja verde a secadero por zona + salida de molino interno/externo — conectado a `/cadena-productiva/*`. Datos que estaban cargados desde Fase 3c pero sin ningún endpoint ni vista
+- [x] **Tablas históricas tipo Excel** en todos los módulos (2026-07-04): toggle Anual/Mensual, formato profesional (sticky header, zebra rows, `Intl.NumberFormat`), desde el primer año disponible hasta el más reciente
+- [x] **Charts rediseñados** (2026-07-04): toggle Línea/Barra en los 4 charts de serie temporal, área con degradé, tooltip tipo tarjeta, grid sólido, paleta categórica revalidada con la skill `dataviz` (la anterior tenía un color bajo el piso de croma y dos verdes indistinguibles para daltonismo)
 - [ ] **Tab ML/Predicciones**: sigue "Coming Soon" — depende de Fase 5 (no implementar sin discutir primero)
 - [x] **Tab Mapa GIS**: implementado con MapLibre GL (basemap gratuito CARTO Positron, sin necesitar token de Mapbox) — selector de capa agrupado por categoría (límites/edad/densidad/consociado/secaderos), popup con propiedades al hacer click, fit bounds automático. Se agregó `GET /geo` al backend (catálogo desde `inym_gis.catalogo_capas`) y un route handler proxy en Next.js (`/api/geo/[layer]`) para que el cliente cambie de capa sin problemas de CORS. De paso se arregló un bug real en `/geo/{layer}`: la query de polígonos no dedupeaba por snapshot más reciente (`DISTINCT ON` agregado) — hubiera acumulado features duplicados en cada corrida futura del ETL
 - [ ] Auth (next-auth o Clerk) si se publica con acceso restringido

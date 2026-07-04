@@ -51,6 +51,27 @@ export interface CompetenciaRow {
   volumen_kg: number;
 }
 
+export interface ImportacionRow {
+  anio: number;
+  mes: number;
+  mes_nombre: string;
+  volumen_kg: number;
+}
+
+export interface HojaVerdeRow {
+  anio: number;
+  mes: number;
+  zona: string;
+  hoja_verde_kg: number;
+}
+
+export interface SalidaMolinoRow {
+  anio: number;
+  mes: number;
+  destino: "interno" | "externo";
+  volumen_kg: number;
+}
+
 export interface CapaCatalogo {
   layer_name: string;
   categoria: "limites" | "edad" | "densidad" | "consociado" | "secaderos";

@@ -7,6 +7,7 @@ import {
   Users,
   Brain,
   Map,
+  Factory,
   ArrowRight,
   type LucideIcon,
 } from "lucide-react";
@@ -28,6 +29,7 @@ const SECCIONES: {
   { href: "/exportaciones", label: "Exportaciones", descripcion: "Volumen y FOB por país destino", icon: Ship, disponible: true },
   { href: "/precios", label: "Precios", descripcion: "Hoja verde y canchada", icon: DollarSign, disponible: true },
   { href: "/competencia", label: "Competencia", descripcion: "Cuotas de mercado por empresa", icon: Users, disponible: true },
+  { href: "/cadena-productiva", label: "Cadena Productiva", descripcion: "Hoja verde por zona y salida de molino", icon: Factory, disponible: true },
   { href: "/predicciones", label: "ML / Predicciones", descripcion: "Modelos y horizonte de pronóstico", icon: Brain, disponible: false },
   { href: "/mapa-gis", label: "Mapa GIS", descripcion: "Capas geoespaciales del INYM", icon: Map, disponible: true },
 ];
