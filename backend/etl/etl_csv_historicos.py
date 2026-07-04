@@ -158,6 +158,13 @@ def transformar_precios(df: pd.DataFrame) -> list[tuple]:
     return filas
 
 
+def _texto_o_none(valor) -> str | None:
+    if valor is None or (isinstance(valor, float) and pd.isna(valor)):
+        return None
+    s = str(valor).strip()
+    return s if s else None
+
+
 def transformar_competencia(df: pd.DataFrame) -> list[tuple]:
     filas = []
     for _, r in df.iterrows():
@@ -167,6 +174,10 @@ def transformar_competencia(df: pd.DataFrame) -> list[tuple]:
                 r["Empresa"].strip(),
                 parse_numero_ar(r["Cuota de mercado (%)"]),
                 parse_numero_ar(r["Volumen (kg)"]),
+                _texto_o_none(r["Cobertura"]),
+                _texto_o_none(r["Fuente URL"]),
+                _texto_o_none(r["Fuente Medio"]),
+                _texto_o_none(r["Fuente Fecha"]),
             )
         )
     return filas
@@ -237,7 +248,10 @@ TABLAS = {
     ),
     "competencia.csv": (
         "ym.competencia",
-        ["anio", "empresa", "cuota_mercado_pct", "volumen_kg"],
+        [
+            "anio", "empresa", "cuota_mercado_pct", "volumen_kg",
+            "cobertura_ranking", "fuente_url", "fuente_medio", "fuente_fecha",
+        ],
         transformar_competencia,
         ["anio", "empresa"],
     ),

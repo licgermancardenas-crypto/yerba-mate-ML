@@ -176,7 +176,8 @@ Stack: Next.js (Vercel) · FastAPI (Render/Railway) · Postgres+PostGIS (Supabas
 - [x] Layout principal: sidebar de navegación + área de contenido
 - [x] **Tab Producción**: gráfico de serie temporal (Recharts) + tabla de distribución por ciudad — conectado a `/produccion` real. Mapa coroplético pendiente (ver Mapa GIS)
 - [x] **Tab Consumo**: evolución per cápita, mix de envases (stacked bar) — conectado a `/consumo` real
-- [x] **Tab Exportaciones**: serie mensual + tabla de distribución por destino — conectado a `/exportaciones` real. Suma sección de Importaciones (`/importaciones`, agregado 2026-07-04) dentro de la misma página. Treemap/mapa de burbujas pendiente (mejora visual, no bloqueante)
+- [x] **Tab Exportaciones**: serie mensual + tabla de distribución por destino — conectado a `/exportaciones` real. Treemap/mapa de burbujas pendiente (mejora visual, no bloqueante)
+- [x] **Tab Importaciones** (módulo aparte, 2026-07-04): vivía como sección dentro de Exportaciones, se separó a `/importaciones` con su propio ítem de sidebar — KPI de volumen + balanza comercial (cruza con `/exportaciones`), chart mensual, tabla histórica Anual/Mensual
 - [x] **Tab Precios**: serie precios hoja verde y canchada — conectado a `/precios` real. Relación con IPC pendiente (no hay endpoint todavía para `ym.indec_series`)
 - [x] **Tab Competencia**: evolución cuotas de mercado (top 4 + "Otras") — conectado a `/competencia` real
 - [x] **Tab Cadena Productiva** (nueva, 2026-07-04): ingreso de hoja verde a secadero por zona + salida de molino interno/externo — conectado a `/cadena-productiva/*`. Datos que estaban cargados desde Fase 3c pero sin ningún endpoint ni vista
@@ -200,6 +201,60 @@ Stack: Next.js (Vercel) · FastAPI (Render/Railway) · Postgres+PostGIS (Supabas
 - [ ] Variables de entorno: `DATABASE_URL`, `MAPBOX_TOKEN`, API keys INDEC/BCRA si aplica
 - [ ] Monitoreo básico: Sentry para errores frontend + backend
 - [ ] Rate limiting en FastAPI para evitar abusos
+
+---
+
+## FASE 8 — Auditoría y refactor: módulo Competencia
+**Estado: IMPLEMENTADO (2026-07-04)** — schema, ETL, datos, frontend (HHI) y tests hechos; research de 2022-2024 cerrado el mismo día. Falta correr el ETL nuevo contra Supabase real (solo corrió local) y commitear.
+
+### Hallazgo — origen del problema
+
+`data/raw/competencia.csv` (226 filas, 15 empresas × 15 años 2011-2025) está en el repo desde el commit de scaffolding inicial (`223741e`, antes de esta sesión). El ETL (`transformar_competencia` en `backend/etl/etl_csv_historicos.py`) es un passthrough sin lógica de relleno — **la fabricación está en el CSV fuente, no en el código**.
+
+Evidencia matemática de que 2011-2024 no es dato real:
+- Cada empresa tiene el **mismo valor exacto 2011→2021** (11 años idénticos al centésimo).
+- 2022→2025 es una **interpolación lineal perfecta** hacia el valor de 2025 (ej. Playadito: +1.91 pp/año exacto los 4 años; Cbse: −0.2 pp/año exacto).
+- Las cuotas suman **exactamente 100,00% los 15 años** — un dataset real de 15 filas independientes casi nunca cierra así de limpio por redondeo.
+
+**Buena noticia parcial**: los dos extremos (2021 y 2025) SÍ coinciden con rankings reales publicados:
+- 2021: Agrofy News (11/2022, cita INYM) — Top10 = 72,7% del mercado, Top3 ≈ 41%, J. Llorente #10 con 2,8% (7,9M kg). Nuestro CSV 2021: Las Marías 19,1 + Playadito 14,4 + Cbse 7,8 = 41,3% ✓ y J. Llorente 2,8% ✓ — coincide.
+- 2025: Plan B Misiones (10/03/2025, cita INYM), ranking de 65 empresas — Playadito 22,04%, Las Marías 18,4%, La Cachuera 8,9%, Cbse 7%, Rosamonte 5,4%, Montecarlo/Aguantadora 3,4%, Yerbatera Misiones SRL 3,2%, Piporé 3,1%, Cordeiro 3,1%, Gerula 2% — coincide con nuestro CSV 2025 número por número.
+
+Conclusión: alguien tomó 2 rankings reales (2021 y 2025) y (a) extendió el de 2021 hacia atrás como valor plano 2011-2020, y (b) interpoló linealmente 2022-2024 entre ambos extremos, sin buscar los rankings reales de esos años intermedios. **13 de 15 años son inventados; 2 son reales pero sin cita documentada en el repo.**
+
+⚠️ Pendiente de confirmar antes de implementar: si el "2021" y "2025" de las notas de prensa son año calendario completo o un corte a una fecha de publicación (los medios a veces mezclan datos YTD con anuales) — hay que verificarlo contra la fuente primaria de INYM antes de cargarlo como "dato anual real".
+
+### Rankings reales encontrados (parciales, hace falta completar antes de implementar)
+
+| Año | Fuente | Qué se pudo confirmar |
+|---|---|---|
+| 2021 | Agrofy News, 11/2022, cita INYM | Top10 = 72,7%, Top3 ≈ 41%, J. Llorente #10 = 2,8% (7,9M kg). Cargado (parcial, 2 empresas). |
+| 2022 | Sin ranking anual completo encontrado (research cerrado 2026-07-04) | Solo fragmentos de posición sin %: Cooperativa Montecarlo #8, Andresito #14 (6,39M kg), La Cachuera #4, J. Llorente #9. Sigue NULL. |
+| 2023 | Sin ranking anual completo encontrado (research cerrado 2026-07-04) | Total mercado interno confirmado (285,43M kg, INYM) pero sin desglose por empresa verificable. Sigue NULL. |
+| 2024 | Plan B Misiones, 25/02/2026 (comparación interanual dentro de la retrospectiva 2025), cita INYM | Las Marías 50M kg (19,32%) y Playadito 47,1M kg (18,20%). Cargado (parcial, 2 empresas). |
+| 2025 | Infobae, 06/03/2026, "El ranking de las 20 yerbas más vendidas...", cita INYM vía Plan B Misiones | Ranking completo top 20 (de 65 empresas totales) con %. Cargado. Denominador (267M) reverificado contra cierre oficial INYM — confirmado. |
+
+**Research 2022-2024 cerrado 2026-07-04**: se reintentó `noticiasdelmate.com` (sigue con timeout DNS) y se verificó Wayback Machine (sin snapshot útil). Se revisaron 3 notas de Plan B Misiones que por fecha de publicación parecían rankings anuales cerrados y las 3 resultaron ser cortes mensuales/YTD al leer el texto completo (jun-2024, ene-2025 x2) — no calificican como año calendario. Detalle completo en `docs/fuentes_competencia.md`. Sin fuente primaria nueva, 2022/2023 quedan `NULL` indefinidamente salvo que `noticiasdelmate.com` vuelva a estar disponible (tiene artículos dedicados a esos años, pendiente confirmar período exacto de cada uno).
+
+**Hallazgo adicional que valida el Problema 4 (mejoras)**: la fuente real tiene **65 empresas**; nuestro dataset solo modela 14 + "Others". El "Others" actual mezcla ~51 empresas reales en una sola categoría — correcto como simplificación, pero el label debería aclararlo.
+
+### Problema 3 — nota importante, matiza la hipótesis del usuario
+
+Según Plan B Misiones (2025): *"Yerbatera Misiones SRL (Puerta) elabora a fazón para Molinos Río de la Plata las marcas Nobleza Gaucha y Cruz de Malta"* — es decir, Ramón Puerta (ex gobernador de Misiones) es dueño de la planta de Apóstoles y la alquila a Molinos, que fabrica ahí sus marcas. Esto **no confirma automáticamente** que "Molinos" y "Yerbatera Misiones SRL" sean la misma operación comercial en el ranking — puede ser que INYM atribuya el volumen a quien fabrica físicamente (Yerbatera Misiones SRL, maquila) en vez de a quien es dueño de la marca (Molinos), lo cual sería un cambio de **metodología de declaración**, no necesariamente un traspaso de negocio. No encontré una fuente que confirme el año exacto de ese cambio de atribución — y como el quiebre en nuestro CSV empieza justo en 2022 (mismo año donde arranca la interpolación lineal fabricada), **no puedo descartar que ese "quiebre" sea un artefacto de la fabricación y no un evento real**. Hace falta investigar esto puntualmente (o confirmarlo con el usuario, que conoce el sector) antes de modelarlo como vigencia temporal en `marca_empresa`.
+
+### Plan de implementación — EJECUTADO 2026-07-04 (falta correr contra Supabase real + commitear)
+
+1. [x] **Schema**: `cuota_mercado_pct`/`volumen_kg` ahora nullable + columna `fuente_url`/`fuente_medio`/`fuente_fecha`/`cobertura_ranking`. Se optó por columnas directas en `ym.competencia` (no tabla separada, más simple). Además se creó el modelo relacional completo del punto 3.
+2. [x] **Datos**: `data/raw/competencia.csv` reemplazado — sin relleno 2011-2020 ni interpolación 2022-2024. 2021 y 2025 confirmados y cargados; 2024 parcial (2 empresas) agregado en el cierre del research; 2022/2023 quedan NULL (ver research cerrado arriba).
+3. [x] **Modelo relacional** (Problema 3): tablas `ym.empresas`/`ym.marcas`/`ym.marca_empresa`/`ym.despachos_empresa` creadas en schema. **No pobladas todavía** — el caso Molinos/Yerbatera Misiones SRL sigue sin confirmar el año de cambio de atribución, no se carga vigencia temporal sin esa fuente.
+4. [x] **API**: no cambió el contrato de `/competencia` (mismas columnas + las nuevas opcionales), no hizo falta versionar.
+5. [x] **Frontend**: HHI chart agregado, cobertura mínima 50% para excluir años con dato parcial del stacked chart, filtro "Desde" ajustado al primer año con dato real. Toggle empresa/marca-linaje (dependía de Problema 3) **no implementado** — Problema 3 sigue sin confirmar.
+6. [x] **Tests**: `frontend/lib/metricas-competencia.test.ts`, 6 tests, todos pasan (`npx vitest run`).
+7. [x] **Docs**: `docs/fuentes_competencia.md` con cada fuente + cierre de research 2022-2024.
+
+### Fase siguiente (no arrancar sin confirmación aparte)
+
+Precios de góndola vía SEPA (precio promedio por marca/presentación, índice relativo, scatter precio×share).
 
 ---
 

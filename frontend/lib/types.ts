@@ -47,8 +47,12 @@ export interface PrecioRow {
 export interface CompetenciaRow {
   anio: number;
   empresa: string;
-  cuota_mercado_pct: number;
-  volumen_kg: number;
+  cuota_mercado_pct: number | null;
+  volumen_kg: number | null;
+  cobertura_ranking: string | null;
+  fuente_url: string | null;
+  fuente_medio: string | null;
+  fuente_fecha: string | null;
 }
 
 export interface ImportacionRow {

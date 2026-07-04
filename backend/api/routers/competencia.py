@@ -16,7 +16,8 @@ async def listar_competencia(
 ):
     stmt = text(
         """
-        SELECT anio, empresa, cuota_mercado_pct, volumen_kg
+        SELECT anio, empresa, cuota_mercado_pct, volumen_kg,
+               cobertura_ranking, fuente_url, fuente_medio, fuente_fecha
         FROM ym.competencia
         WHERE (CAST(:anio_desde AS INTEGER) IS NULL OR anio >= CAST(:anio_desde AS INTEGER))
           AND (CAST(:anio_hasta AS INTEGER) IS NULL OR anio <= CAST(:anio_hasta AS INTEGER))

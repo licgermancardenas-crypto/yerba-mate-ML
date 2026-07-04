@@ -28,6 +28,7 @@ export function CuotasStackedChart({
           tickLine={false}
           axisLine={false}
           width={40}
+          domain={[0, 100]}
           tickFormatter={(v) => `${v}%`}
         />
         <Tooltip content={<MultiSeriesTooltip />} cursor={{ fill: "#15803d", fillOpacity: 0.06 }} />

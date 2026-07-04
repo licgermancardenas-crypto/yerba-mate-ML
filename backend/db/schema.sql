@@ -230,14 +230,79 @@ CREATE INDEX IF NOT EXISTS idx_precios_anio ON ym.precios (anio);
 -- ----------------------------------------------------------------------------
 -- 6) competencia — cuota de mercado y volumen anual por empresa
 -- ----------------------------------------------------------------------------
+-- AUDITORÍA 2026-07-04 (Fase 8): el CSV original 2011-2024 era relleno
+-- sintético (2011-2021 plano + 2022-2024 interpolación lineal) sin fuente
+-- real — ver docs/fuentes_competencia.md. NULL = sin dato real publicado
+-- para ese año/empresa, NUNCA 0 ni un valor inventado. "Others" es la
+-- categoría agregada que ya publica la fuente para el resto del ranking
+-- (cobertura_ranking documenta cuántas empresas entran en el desglose).
 CREATE TABLE IF NOT EXISTS ym.competencia (
     anio                SMALLINT NOT NULL,
-    empresa             TEXT NOT NULL,     -- incluye 'Others' como categoría agregada
-    cuota_mercado_pct   NUMERIC(5,2) NOT NULL,
-    volumen_kg          NUMERIC(14,2) NOT NULL,
+    empresa             TEXT NOT NULL,      -- nombre TAL COMO lo publica la fuente, sin reasignar
+    cuota_mercado_pct   NUMERIC(5,2),       -- NULL: sin fuente real para este año/empresa
+    volumen_kg          NUMERIC(14,2),      -- NULL: idem
+    cobertura_ranking   TEXT,               -- 'top10' | 'top20' | 'top65', cuántas empresas cubre el ranking fuente de este año
+    fuente_url          TEXT,
+    fuente_medio        TEXT,
+    fuente_fecha        DATE,               -- fecha de publicación de la fuente (no del año que reporta)
     PRIMARY KEY (anio, empresa)
 );
 CREATE INDEX IF NOT EXISTS idx_competencia_anio ON ym.competencia (anio);
+
+-- ----------------------------------------------------------------------------
+-- 6b) Modelo relacional empresa/marca (Fase 8 auditoría 2026-07-04)
+-- ----------------------------------------------------------------------------
+-- Separa la entidad comercial (empresa) de las marcas que vende, porque una
+-- marca puede cambiar de titular/elaborador sin salir de góndola (caso
+-- Molinos Río de la Plata / Yerbatera Misiones SRL — ver
+-- docs/fuentes_competencia.md; el año de transición NO está confirmado
+-- todavía, marca_empresa no debe cargarse con vigencias inventadas).
+-- ym.competencia.empresa arriba sigue siendo el nombre fiel a la fuente,
+-- sin reasignar — esta capa es un enriquecimiento de identidad aparte.
+CREATE TABLE IF NOT EXISTS ym.empresas (
+    id              SERIAL PRIMARY KEY,
+    razon_social    TEXT NOT NULL UNIQUE,
+    tipo            TEXT,       -- 'cooperativa' | 'SA' | 'SRL' | ...
+    provincia       TEXT
+);
+
+CREATE TABLE IF NOT EXISTS ym.marcas (
+    id              SERIAL PRIMARY KEY,
+    nombre          TEXT NOT NULL UNIQUE
+);
+
+-- rol: 'propietario' (dueño de la marca) | 'elaborador' (fabrica a fazón/maquila,
+-- no necesariamente el dueño) — permite modelar el caso planta alquilada sin
+-- asumir que el elaborador reemplaza al propietario en el ranking.
+CREATE TABLE IF NOT EXISTS ym.marca_empresa (
+    id              SERIAL PRIMARY KEY,
+    marca_id        INTEGER NOT NULL REFERENCES ym.marcas(id),
+    empresa_id      INTEGER NOT NULL REFERENCES ym.empresas(id),
+    rol             TEXT NOT NULL CHECK (rol IN ('propietario', 'elaborador')),
+    vigente_desde   DATE,
+    vigente_hasta   DATE,       -- NULL = vigente a la fecha de la última fuente cargada
+    notas           TEXT,
+    UNIQUE (marca_id, empresa_id, rol, vigente_desde)
+);
+
+-- Observaciones crudas por empresa, tal como las publica cada fuente — puede
+-- haber más de una por empresa/año (ej. un corte mensual y otro anual). No
+-- son la tabla que lee la API: ym.competencia arriba se cura a partir de
+-- estas (misma lógica raw-vs-normalizado que inym_gis.raw_features).
+CREATE TABLE IF NOT EXISTS ym.despachos_empresa (
+    id              SERIAL PRIMARY KEY,
+    empresa_id      INTEGER NOT NULL REFERENCES ym.empresas(id),
+    anio            SMALLINT NOT NULL,
+    kg              NUMERIC(14,2),
+    share_pct       NUMERIC(5,2),
+    ranking_pos     SMALLINT,
+    cobertura_ranking TEXT,
+    fuente_url      TEXT NOT NULL,
+    fuente_medio    TEXT,
+    fuente_fecha    DATE,
+    UNIQUE (empresa_id, anio, fuente_url)
+);
+CREATE INDEX IF NOT EXISTS idx_despachos_empresa_anio ON ym.despachos_empresa (anio);
 
 -- ----------------------------------------------------------------------------
 -- 7) superficie_productores — cantidad de productores y hectáreas cultivadas,

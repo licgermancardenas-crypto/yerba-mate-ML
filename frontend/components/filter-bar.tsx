@@ -13,17 +13,20 @@ export function FilterBar({
   anios,
   dimension,
   anioUnico = false,
+  anioDesdeDefault,
 }: {
   anios: number[];
   dimension?: DimensionFilter;
   /** Muestra un solo selector "Año" (setea anio_desde y anio_hasta al mismo valor) en vez de un rango Desde/Hasta. */
   anioUnico?: boolean;
+  /** Valor por defecto de "Desde" cuando no hay query param — para módulos donde los años más viejos no tienen dato real. */
+  anioDesdeDefault?: number;
 }) {
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
 
-  const anioDesde = searchParams.get("anio_desde") ?? String(anios[0] ?? "");
+  const anioDesde = searchParams.get("anio_desde") ?? String(anioDesdeDefault ?? anios[0] ?? "");
   const anioHasta = searchParams.get("anio_hasta") ?? String(anios[anios.length - 1] ?? "");
   const valorDimension = dimension ? searchParams.get(dimension.param) ?? "" : "";
   const hayFiltrosActivos = searchParams.toString().length > 0;
