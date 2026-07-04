@@ -2,7 +2,7 @@ import { Ship, Globe2, DollarSign, TrendingUp } from "lucide-react";
 import { PageHeader } from "@/components/page-header";
 import { KpiCard } from "@/components/kpi-card";
 import { FilterBar } from "@/components/filter-bar";
-import { SerieMensualChart } from "@/components/charts/serie-mensual-chart";
+import { SerieChartConFiltro } from "@/components/charts/serie-chart-con-filtro";
 import { HistoricalTable } from "@/components/historical-table";
 import type { ColumnaTabla } from "@/components/data-table";
 import { formatKg, formatNumero, formatPct, formatUsd } from "@/lib/format";
@@ -84,7 +84,7 @@ export default async function ExportacionesPage({
     .sort(([a], [b]) => a.localeCompare(b))
     .map(([clave, volumen_kg]) => {
       const [anio, mes] = clave.split("-");
-      return { etiqueta: `${MESES[Number(mes) - 1].slice(0, 3)} ${anio.slice(2)}`, valor: volumen_kg };
+      return { anio: Number(anio), etiqueta: `${MESES[Number(mes) - 1].slice(0, 3)} ${anio.slice(2)}`, valor: volumen_kg };
     });
 
   const anualHistorico = agregarExportacionesAnual(filas);
@@ -114,7 +114,7 @@ export default async function ExportacionesPage({
             <div className="xl:col-span-2 rounded-xl border border-border bg-card p-4">
               <h2 className="text-sm font-semibold text-card-foreground mb-1">Volumen exportado mensual</h2>
               <p className="text-xs text-muted-foreground mb-3">Suma de {destinoFiltro ?? "todos los destinos"}, en kilogramos</p>
-              <SerieMensualChart
+              <SerieChartConFiltro
                 data={serieMensual}
                 numberFormat={{ notation: "compact" }}
                 suffix=" kg"

@@ -2,8 +2,8 @@ import { Leaf, Factory, Globe2, Percent } from "lucide-react";
 import { PageHeader } from "@/components/page-header";
 import { KpiCard } from "@/components/kpi-card";
 import { FilterBar } from "@/components/filter-bar";
-import { SerieMensualChart } from "@/components/charts/serie-mensual-chart";
-import { CuotasStackedChart } from "@/components/charts/cuotas-stacked-chart";
+import { SerieChartConFiltro } from "@/components/charts/serie-chart-con-filtro";
+import { AnnualChartConFiltro } from "@/components/charts/annual-chart-con-filtro";
 import { HistoricalTable } from "@/components/historical-table";
 import { DataTable, type ColumnaTabla } from "@/components/data-table";
 import { formatKg, formatPct } from "@/lib/format";
@@ -101,7 +101,7 @@ export default async function CadenaProductivaPage({
 
   const serieHojaVerdeMensual = [...hojaVerdeMensualNacional]
     .sort((a, b) => a.anio - b.anio || a.mes - b.mes)
-    .map((f) => ({ etiqueta: `${MESES[f.mes - 1].slice(0, 3)} ${String(f.anio).slice(2)}`, valor: f.hoja_verde_kg }));
+    .map((f) => ({ anio: f.anio, etiqueta: `${MESES[f.mes - 1].slice(0, 3)} ${String(f.anio).slice(2)}`, valor: f.hoja_verde_kg }));
 
   const molinoStackedData = molinoAnual
     .slice()
@@ -150,7 +150,7 @@ export default async function CadenaProductivaPage({
       <div className="rounded-xl border border-border bg-card p-4 mb-4">
         <h2 className="text-sm font-semibold text-card-foreground mb-1">Ingreso de hoja verde a secadero</h2>
         <p className="text-xs text-muted-foreground mb-3">Total nacional, en kilogramos</p>
-        <SerieMensualChart data={serieHojaVerdeMensual} color="#15803d" numberFormat={{ notation: "compact" }} suffix=" kg" />
+        <SerieChartConFiltro data={serieHojaVerdeMensual} color="#15803d" numberFormat={{ notation: "compact" }} suffix=" kg" />
       </div>
 
       <div className="rounded-xl border border-border bg-card p-4 mb-4">
@@ -158,7 +158,8 @@ export default async function CadenaProductivaPage({
         <p className="text-xs text-muted-foreground mb-3">
           Mercado interno vs. externo, en kg. No coincide con consumo_interno_kg/exportaciones_kg de Producción — miden puntos distintos de la cadena.
         </p>
-        <CuotasStackedChart
+        <AnnualChartConFiltro
+          tipo="cuotas"
           data={molinoStackedData}
           series={[
             { key: "Interno", color: "#15803d" },

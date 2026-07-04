@@ -2,7 +2,7 @@ import { Sprout, Wheat, TrendingUp, DollarSign } from "lucide-react";
 import { PageHeader } from "@/components/page-header";
 import { KpiCard } from "@/components/kpi-card";
 import { FilterBar } from "@/components/filter-bar";
-import { SerieMensualChart } from "@/components/charts/serie-mensual-chart";
+import { SerieChartConFiltro } from "@/components/charts/serie-chart-con-filtro";
 import { HistoricalTable } from "@/components/historical-table";
 import type { ColumnaTabla } from "@/components/data-table";
 import { formatKg, formatNumero, formatPct, formatUsd } from "@/lib/format";
@@ -101,8 +101,8 @@ export default async function ProduccionPage({
             <div className="xl:col-span-2 rounded-xl border border-border bg-card p-4">
               <h2 className="text-sm font-semibold text-card-foreground mb-1">Producción nacional mensual</h2>
               <p className="text-xs text-muted-foreground mb-3">Suma de las ciudades productoras, en kilogramos</p>
-              <SerieMensualChart
-                data={serieMensual.map((p) => ({ etiqueta: p.etiqueta, valor: p.produccion_kg }))}
+              <SerieChartConFiltro
+                data={serieMensual.map((p) => ({ anio: p.anio, etiqueta: p.etiqueta, valor: p.produccion_kg }))}
                 numberFormat={{ notation: "compact" }}
                 suffix=" kg"
               />

@@ -2,7 +2,7 @@ import { Package, Ship, Globe2 } from "lucide-react";
 import { PageHeader } from "@/components/page-header";
 import { KpiCard } from "@/components/kpi-card";
 import { FilterBar } from "@/components/filter-bar";
-import { SerieMensualChart } from "@/components/charts/serie-mensual-chart";
+import { SerieChartConFiltro } from "@/components/charts/serie-chart-con-filtro";
 import { HistoricalTable } from "@/components/historical-table";
 import type { ColumnaTabla } from "@/components/data-table";
 import { formatKg } from "@/lib/format";
@@ -91,10 +91,10 @@ export default async function ImportacionesPage({
       <div className="rounded-xl border border-border bg-card p-4 mb-4">
         <h2 className="text-sm font-semibold text-card-foreground mb-1">Volumen importado mensual</h2>
         <p className="text-xs text-muted-foreground mb-3">Kilogramos</p>
-        <SerieMensualChart
+        <SerieChartConFiltro
           data={[...mensualHistorico]
             .sort((a, b) => a.anio - b.anio || a.mes - b.mes)
-            .map((f) => ({ etiqueta: `${f.mes_nombre.slice(0, 3)} ${String(f.anio).slice(2)}`, valor: f.volumen_kg }))}
+            .map((f) => ({ anio: f.anio, etiqueta: `${f.mes_nombre.slice(0, 3)} ${String(f.anio).slice(2)}`, valor: f.volumen_kg }))}
           color="#1d4ed8"
           numberFormat={{ notation: "compact" }}
           suffix=" kg"

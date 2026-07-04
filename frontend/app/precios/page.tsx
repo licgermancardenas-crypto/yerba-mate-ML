@@ -2,7 +2,7 @@ import { DollarSign, Leaf, Factory, TrendingUp, Scale } from "lucide-react";
 import { PageHeader } from "@/components/page-header";
 import { KpiCard } from "@/components/kpi-card";
 import { FilterBar } from "@/components/filter-bar";
-import { SerieMensualChart } from "@/components/charts/serie-mensual-chart";
+import { SerieChartConFiltro } from "@/components/charts/serie-chart-con-filtro";
 import { HistoricalTable } from "@/components/historical-table";
 import type { ColumnaTabla } from "@/components/data-table";
 import { formatNumero } from "@/lib/format";
@@ -84,10 +84,10 @@ export default async function PreciosPage({
 
   const serieHojaVerde = ordenadas
     .filter((f) => f.precio_hoja_verde_ars != null)
-    .map((f) => ({ etiqueta: etiqueta(f), valor: f.precio_hoja_verde_ars as number }));
+    .map((f) => ({ anio: f.anio, etiqueta: etiqueta(f), valor: f.precio_hoja_verde_ars as number }));
   const serieCanchada = ordenadas
     .filter((f) => f.precio_canchada_ars != null)
-    .map((f) => ({ etiqueta: etiqueta(f), valor: f.precio_canchada_ars as number }));
+    .map((f) => ({ anio: f.anio, etiqueta: etiqueta(f), valor: f.precio_canchada_ars as number }));
 
   const anualHistorico = agregarPreciosAnual(filas);
   const mensualHistorico = [...ordenadas].reverse();
@@ -101,12 +101,14 @@ export default async function PreciosPage({
   const serieHojaVerdeReal = conIpcNacional
     .filter((f) => f.precio_hoja_verde_ars != null)
     .map((f) => ({
+      anio: f.anio,
       etiqueta: etiqueta(f),
       valor: (f.precio_hoja_verde_ars as number) * ((ipcNacionalUltimo as number) / (f.ipc_nacional as number)),
     }));
   const serieCanchadaReal = conIpcNacional
     .filter((f) => f.precio_canchada_ars != null)
     .map((f) => ({
+      anio: f.anio,
       etiqueta: etiqueta(f),
       valor: (f.precio_canchada_ars as number) * ((ipcNacionalUltimo as number) / (f.ipc_nacional as number)),
     }));
@@ -127,8 +129,8 @@ export default async function PreciosPage({
     ? (ultimoConAmbosIpc.ipc_yerba_mate! / ultimoConAmbosIpc.ipc_nacional!) * 100
     : null;
 
-  const serieIpcNacional = conAmbosIpc.map((f) => ({ etiqueta: etiqueta(f), valor: f.ipc_nacional as number }));
-  const serieIpcYerbaMate = conAmbosIpc.map((f) => ({ etiqueta: etiqueta(f), valor: f.ipc_yerba_mate as number }));
+  const serieIpcNacional = conAmbosIpc.map((f) => ({ anio: f.anio, etiqueta: etiqueta(f), valor: f.ipc_nacional as number }));
+  const serieIpcYerbaMate = conAmbosIpc.map((f) => ({ anio: f.anio, etiqueta: etiqueta(f), valor: f.ipc_yerba_mate as number }));
 
   return (
     <main className="p-6 md:p-8">
@@ -165,13 +167,13 @@ export default async function PreciosPage({
         <div className="rounded-xl border border-border bg-card p-4">
           <h2 className="text-sm font-semibold text-card-foreground mb-1">Precio hoja verde</h2>
           <p className="text-xs text-muted-foreground mb-3">ARS/kg, serie completa</p>
-          <SerieMensualChart data={serieHojaVerde} color="#15803d" prefix="$" suffix="/kg" numberFormat={{ minimumFractionDigits: 2, maximumFractionDigits: 2 }} />
+          <SerieChartConFiltro data={serieHojaVerde} color="#15803d" prefix="$" suffix="/kg" numberFormat={{ minimumFractionDigits: 2, maximumFractionDigits: 2 }} />
         </div>
 
         <div className="rounded-xl border border-border bg-card p-4">
           <h2 className="text-sm font-semibold text-card-foreground mb-1">Precio canchada</h2>
           <p className="text-xs text-muted-foreground mb-3">ARS/kg, serie completa</p>
-          <SerieMensualChart data={serieCanchada} color="#a16207" prefix="$" suffix="/kg" numberFormat={{ minimumFractionDigits: 2, maximumFractionDigits: 2 }} />
+          <SerieChartConFiltro data={serieCanchada} color="#a16207" prefix="$" suffix="/kg" numberFormat={{ minimumFractionDigits: 2, maximumFractionDigits: 2 }} />
         </div>
       </div>
 
@@ -203,12 +205,12 @@ export default async function PreciosPage({
         <div className="rounded-xl border border-border bg-card p-4">
           <h3 className="text-sm font-semibold text-card-foreground mb-1">Precio real hoja verde</h3>
           <p className="text-xs text-muted-foreground mb-3">ARS/kg deflactado, en pesos del último mes con dato de IPC</p>
-          <SerieMensualChart data={serieHojaVerdeReal} color="#15803d" prefix="$" suffix="/kg" numberFormat={{ minimumFractionDigits: 2, maximumFractionDigits: 2 }} />
+          <SerieChartConFiltro data={serieHojaVerdeReal} color="#15803d" prefix="$" suffix="/kg" numberFormat={{ minimumFractionDigits: 2, maximumFractionDigits: 2 }} />
         </div>
         <div className="rounded-xl border border-border bg-card p-4">
           <h3 className="text-sm font-semibold text-card-foreground mb-1">Precio real canchada</h3>
           <p className="text-xs text-muted-foreground mb-3">ARS/kg deflactado, en pesos del último mes con dato de IPC</p>
-          <SerieMensualChart data={serieCanchadaReal} color="#a16207" prefix="$" suffix="/kg" numberFormat={{ minimumFractionDigits: 2, maximumFractionDigits: 2 }} />
+          <SerieChartConFiltro data={serieCanchadaReal} color="#a16207" prefix="$" suffix="/kg" numberFormat={{ minimumFractionDigits: 2, maximumFractionDigits: 2 }} />
         </div>
       </div>
 
@@ -216,12 +218,12 @@ export default async function PreciosPage({
         <div className="rounded-xl border border-border bg-card p-4">
           <h3 className="text-sm font-semibold text-card-foreground mb-1">IPC Nacional</h3>
           <p className="text-xs text-muted-foreground mb-3">Índice, base dic-2016=100 (INDEC)</p>
-          <SerieMensualChart data={serieIpcNacional} color="#1d4ed8" numberFormat={{ maximumFractionDigits: 0 }} />
+          <SerieChartConFiltro data={serieIpcNacional} color="#1d4ed8" numberFormat={{ maximumFractionDigits: 0 }} />
         </div>
         <div className="rounded-xl border border-border bg-card p-4">
           <h3 className="text-sm font-semibold text-card-foreground mb-1">IPC yerba mate (GBA)</h3>
           <p className="text-xs text-muted-foreground mb-3">Índice, base dic-2016=100 (INDEC) — precio al consumidor</p>
-          <SerieMensualChart data={serieIpcYerbaMate} color="#7e22ce" numberFormat={{ maximumFractionDigits: 0 }} />
+          <SerieChartConFiltro data={serieIpcYerbaMate} color="#7e22ce" numberFormat={{ maximumFractionDigits: 0 }} />
         </div>
       </div>
 

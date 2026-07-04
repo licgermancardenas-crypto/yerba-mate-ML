@@ -2,8 +2,7 @@ import { Users, Crown, Building2, Gauge, AlertTriangle } from "lucide-react";
 import { PageHeader } from "@/components/page-header";
 import { KpiCard } from "@/components/kpi-card";
 import { FilterBar } from "@/components/filter-bar";
-import { CuotasStackedChart } from "@/components/charts/cuotas-stacked-chart";
-import { HhiChart } from "@/components/charts/hhi-chart";
+import { AnnualChartConFiltro } from "@/components/charts/annual-chart-con-filtro";
 import { DataTable, type ColumnaTabla } from "@/components/data-table";
 import { formatPct } from "@/lib/format";
 import { getCompetencia } from "@/lib/api";
@@ -198,7 +197,7 @@ export default async function CompetenciaPage({
             ` ${aniosExcluidosDelChart} año(s) del rango seleccionado no se grafican por tener menos del ${COBERTURA_MINIMA_CHART}% del mercado con dato real (quedan en la tabla histórica con "s/d").`}
         </p>
         {dataChart.length > 0 ? (
-          <CuotasStackedChart data={dataChart} series={series} />
+          <AnnualChartConFiltro tipo="cuotas" data={dataChart} series={series} />
         ) : (
           <p className="text-sm text-muted-foreground py-12 text-center">Ningún año del rango seleccionado tiene cobertura suficiente para graficar.</p>
         )}
@@ -212,7 +211,7 @@ export default async function CompetenciaPage({
           concentrado, 1500-2500 moderadamente concentrado, &gt;2500 altamente concentrado.
         </p>
         {dataHhi.length > 0 ? (
-          <HhiChart data={dataHhi} />
+          <AnnualChartConFiltro tipo="hhi" data={dataHhi} />
         ) : (
           <p className="text-sm text-muted-foreground py-12 text-center">Ningún año del rango seleccionado tiene cobertura suficiente para calcular HHI de forma confiable.</p>
         )}

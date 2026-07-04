@@ -14,6 +14,7 @@ const MESES = [
 ];
 
 export interface SerieMensualPunto {
+  anio: number;
   etiqueta: string;
   produccion_kg: number;
 }
@@ -28,7 +29,7 @@ export function agregarProduccionMensual(filas: ProduccionRow[]): SerieMensualPu
     .sort(([a], [b]) => a.localeCompare(b))
     .map(([clave, produccion_kg]) => {
       const [anio, mes] = clave.split("-");
-      return { etiqueta: `${MESES[Number(mes) - 1].slice(0, 3)} ${anio.slice(2)}`, produccion_kg };
+      return { anio: Number(anio), etiqueta: `${MESES[Number(mes) - 1].slice(0, 3)} ${anio.slice(2)}`, produccion_kg };
     });
 }
 

@@ -2,8 +2,9 @@ import { Coffee, Package, ScrollText } from "lucide-react";
 import { PageHeader } from "@/components/page-header";
 import { KpiCard } from "@/components/kpi-card";
 import { FilterBar } from "@/components/filter-bar";
-import { SerieMensualChart } from "@/components/charts/serie-mensual-chart";
-import { EnvasesStackedChart, type EnvasesPunto } from "@/components/charts/envases-stacked-chart";
+import { SerieChartConFiltro } from "@/components/charts/serie-chart-con-filtro";
+import { AnnualChartConFiltro } from "@/components/charts/annual-chart-con-filtro";
+import type { EnvasesPunto } from "@/components/charts/envases-stacked-chart";
 import { HistoricalTable } from "@/components/historical-table";
 import type { ColumnaTabla } from "@/components/data-table";
 import { formatNumero } from "@/lib/format";
@@ -57,6 +58,7 @@ export default async function ConsumoPage({
   const anios = Array.from(porAnio.keys()).sort();
 
   const serieAnual = anios.map((anio) => ({
+    anio,
     etiqueta: String(anio),
     valor: porAnio.get(anio)!.consumo_per_capita_kg,
   }));
@@ -134,7 +136,7 @@ export default async function ConsumoPage({
             <div className="rounded-xl border border-border bg-card p-4">
               <h2 className="text-sm font-semibold text-card-foreground mb-1">Consumo per cápita por año</h2>
               <p className="text-xs text-muted-foreground mb-3">Kilogramos por persona por año</p>
-              <SerieMensualChart
+              <SerieChartConFiltro
                 data={serieAnual}
                 numberFormat={{ minimumFractionDigits: 1, maximumFractionDigits: 1 }}
                 suffix=" kg"
@@ -144,7 +146,7 @@ export default async function ConsumoPage({
             <div className="rounded-xl border border-border bg-card p-4">
               <h2 className="text-sm font-semibold text-card-foreground mb-1">Mix de envases por año</h2>
               <p className="text-xs text-muted-foreground mb-3">% de las salidas de molino al mercado interno</p>
-              <EnvasesStackedChart data={envasesPorAnio} />
+              <AnnualChartConFiltro tipo="envases" data={envasesPorAnio} />
             </div>
           </div>
 
