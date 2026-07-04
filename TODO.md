@@ -205,7 +205,7 @@ Stack: Next.js (Vercel) · FastAPI (Render/Railway) · Postgres+PostGIS (Supabas
 ---
 
 ## FASE 8 — Auditoría y refactor: módulo Competencia
-**Estado: IMPLEMENTADO (2026-07-04)** — schema, ETL, datos, frontend (HHI) y tests hechos; research de 2022-2024 cerrado el mismo día. Falta correr el ETL nuevo contra Supabase real (solo corrió local) y commitear.
+**Estado: COMPLETA (2026-07-04)** — schema migrado (`ALTER` + tablas relacionales) y ETL corrido contra Supabase real: 232 filas en `ym.competencia`, 25 con dato real (2021: 2, 2024: 2, 2025: 21). Commiteado y pusheado a `origin/main`.
 
 ### Hallazgo — origen del problema
 
