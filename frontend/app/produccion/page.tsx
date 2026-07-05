@@ -1,9 +1,11 @@
-import { Sprout, Wheat, TrendingUp, DollarSign, Gauge } from "lucide-react";
+import Link from "next/link";
+import { Sprout, Wheat, TrendingUp, DollarSign, Gauge, Map as MapIcon, BarChart3 } from "lucide-react";
 import { PageHeader } from "@/components/page-header";
 import { KpiCard } from "@/components/kpi-card";
 import { FilterBar } from "@/components/filter-bar";
 import { SerieChartConFiltro } from "@/components/charts/serie-chart-con-filtro";
 import { HistoricalTable } from "@/components/historical-table";
+import { ProduccionMapaClient } from "@/components/produccion-mapa-client";
 import type { ColumnaTabla } from "@/components/data-table";
 import { formatMasa, formatNumero, formatPct, formatUsd, type UnidadMasa } from "@/lib/format";
 import { getProduccion, getSuperficie } from "@/lib/api";
@@ -16,6 +18,18 @@ import {
   type ProduccionAnualRow,
   type ProduccionMensualNacionalRow,
 } from "@/lib/agregaciones";
+
+// Coordenadas de las 6 ciudades productoras puntuales (mismas usadas en
+// backend/etl/etl_nasa_power.py) — 'Otros' queda afuera del mapa, no tiene
+// ubicación puntual.
+const COORDENADAS_CIUDAD: Record<string, [number, number]> = {
+  "Colonia Liebig": [-55.72, -27.53],
+  "Gobernador Virasoro": [-56.03, -28.07],
+  "Apóstoles": [-55.75, -27.9],
+  "Montecarlo": [-54.77, -26.57],
+  "Oberá": [-55.12, -27.49],
+  "Santo Pipó": [-55.05, -27.2],
+};
 
 const COLUMNAS_ANUAL: ColumnaTabla<ProduccionAnualRow>[] = [
   { key: "anio", label: "Año", align: "left" },
@@ -48,6 +62,15 @@ export default async function ProduccionPage({
   const unidad: UnidadMasa = sp.unidad === "t" ? "t" : "kg";
   const sufijoUnidad = unidad === "t" ? " t" : " kg";
   const factorUnidad = unidad === "t" ? 1 / 1000 : 1;
+  const vista = sp.vista === "mapa" ? "mapa" : "datos";
+
+  const paramsSinVista = new URLSearchParams(
+    Object.entries(sp).flatMap(([k, v]) => (k === "vista" || v === undefined ? [] : [[k, String(v)]]))
+  );
+  const hrefDatos = paramsSinVista.toString() ? `/produccion?${paramsSinVista.toString()}` : "/produccion";
+  const paramsMapa = new URLSearchParams(paramsSinVista);
+  paramsMapa.set("vista", "mapa");
+  const hrefMapa = `/produccion?${paramsMapa.toString()}`;
 
   const [filasCompletas, superficieCompletas] = await Promise.all([getProduccion(), getSuperficie()]);
   const todosLosAnios = Array.from(new Set(filasCompletas.map((f) => f.anio))).sort((a, b) => a - b);
@@ -87,6 +110,20 @@ export default async function ProduccionPage({
   const anualHistorico = agregarProduccionAnual(filas);
   const mensualHistorico = agregarProduccionMensualNacional(filas);
 
+  const produccionPorCiudadAnio = Object.entries(
+    filasCompletas
+      .filter((f) => !provinciaFiltro || f.provincia === provinciaFiltro)
+      .reduce<Record<string, { anio: number; ciudad: string; provincia: string; produccion_kg: number }>>((acc, f) => {
+        const clave = `${f.anio}|${f.ciudad}`;
+        if (!acc[clave]) acc[clave] = { anio: f.anio, ciudad: f.ciudad, provincia: f.provincia, produccion_kg: 0 };
+        acc[clave].produccion_kg += f.produccion_kg;
+        return acc;
+      }, {})
+  )
+    .map(([, v]) => v)
+    .filter((v) => v.ciudad in COORDENADAS_CIUDAD)
+    .map((v) => ({ ...v, lng: COORDENADAS_CIUDAD[v.ciudad][0], lat: COORDENADAS_CIUDAD[v.ciudad][1] }));
+
   const rendimientoAnual = agregarRendimientoAnual(filas, filasSuperficie);
   const rendimientoUltimo = rendimientoAnual.find((f) => f.anio === ultimoAnio);
   const rendimientoPenultimo = rendimientoAnual.find((f) => f.anio === penultimoAnio);
@@ -102,111 +139,138 @@ export default async function ProduccionPage({
         description="Serie mensual y distribución geográfica de la producción de yerba mate elaborada."
       />
 
-      <FilterBar
-        anios={todosLosAnios}
-        dimension={{ param: "provincia", label: "Provincia", opciones: todasLasProvincias }}
-        mostrarUnidad
-      />
+      <div className="flex items-center gap-1 rounded-lg border border-border bg-card p-1 mb-6 w-fit">
+        <Link
+          href={hrefDatos}
+          className={`flex items-center gap-1.5 px-3 py-1.5 text-sm rounded-md transition-colors ${
+            vista === "datos" ? "bg-primary text-on-primary" : "text-foreground/70 hover:text-foreground"
+          }`}
+        >
+          <BarChart3 size={14} aria-hidden="true" />
+          Datos
+        </Link>
+        <Link
+          href={hrefMapa}
+          className={`flex items-center gap-1.5 px-3 py-1.5 text-sm rounded-md transition-colors ${
+            vista === "mapa" ? "bg-primary text-on-primary" : "text-foreground/70 hover:text-foreground"
+          }`}
+        >
+          <MapIcon size={14} aria-hidden="true" />
+          Mapa
+        </Link>
+      </div>
 
-      {filas.length === 0 ? (
-        <p className="text-sm text-muted-foreground">Sin datos para los filtros seleccionados.</p>
+      {vista === "mapa" ? (
+        <ProduccionMapaClient produccionPorCiudadAnio={produccionPorCiudadAnio} />
       ) : (
         <>
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
-            <KpiCard label={`Producción ${ultimoAnio}`} value={formatMasa(totalUltimo, unidad)} icon={Sprout} deltaPct={deltaAnual} deltaLabel={`vs. ${penultimoAnio}`} />
-            <KpiCard label={`Exportado ${ultimoAnio}`} value={formatMasa(exportadoUltimo, unidad)} icon={Wheat} />
-            <KpiCard label="Precio promedio USD/kg" value={formatNumero(precioPromedioUltimo, 2)} icon={TrendingUp} />
-            <KpiCard label={`Valor FOB exportado ${ultimoAnio}`} value={formatUsd(valorFobUltimo)} icon={DollarSign} />
-          </div>
+        <FilterBar
+          anios={todosLosAnios}
+          dimension={{ param: "provincia", label: "Provincia", opciones: todasLasProvincias }}
+          mostrarUnidad
+        />
 
-          <div className="grid grid-cols-1 xl:grid-cols-3 gap-4">
-            <div className="xl:col-span-2 rounded-xl border border-border bg-card p-4">
-              <h2 className="text-sm font-semibold text-card-foreground mb-1">Producción nacional mensual</h2>
-              <p className="text-xs text-muted-foreground mb-3">Suma de las ciudades productoras, en {unidad === "t" ? "toneladas" : "kilogramos"}</p>
-              <SerieChartConFiltro
-                data={serieMensual.map((p) => ({ anio: p.anio, etiqueta: p.etiqueta, valor: p.produccion_kg * factorUnidad }))}
-                numberFormat={{ notation: "compact" }}
-                suffix={sufijoUnidad}
-              />
+        {filas.length === 0 ? (
+          <p className="text-sm text-muted-foreground">Sin datos para los filtros seleccionados.</p>
+        ) : (
+          <>
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+              <KpiCard label={`Producción ${ultimoAnio}`} value={formatMasa(totalUltimo, unidad)} icon={Sprout} deltaPct={deltaAnual} deltaLabel={`vs. ${penultimoAnio}`} />
+              <KpiCard label={`Exportado ${ultimoAnio}`} value={formatMasa(exportadoUltimo, unidad)} icon={Wheat} />
+              <KpiCard label="Precio promedio USD/kg" value={formatNumero(precioPromedioUltimo, 2)} icon={TrendingUp} />
+              <KpiCard label={`Valor FOB exportado ${ultimoAnio}`} value={formatUsd(valorFobUltimo)} icon={DollarSign} />
             </div>
 
-            <div className="rounded-xl border border-border bg-card p-4">
-              <h2 className="text-sm font-semibold text-card-foreground mb-1">Distribución por ciudad ({ultimoAnio})</h2>
-              <p className="text-xs text-muted-foreground mb-3">% del total nacional</p>
-              <table className="w-full text-sm">
-                <thead>
-                  <tr className="text-left text-xs text-muted-foreground border-b border-border">
-                    <th className="font-medium py-2">Ciudad</th>
-                    <th className="font-medium py-2 text-right">%</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {porCiudadUltimo.map((fila) => (
-                    <tr key={fila.ciudad} className="border-b border-border last:border-0">
-                      <td className="py-2">
-                        <div className="text-card-foreground">{fila.ciudad}</div>
-                        <div className="text-xs text-muted-foreground">{fila.provincia}</div>
-                      </td>
-                      <td className="py-2 text-right tabular-nums font-medium text-card-foreground">
-                        {formatPct(fila.porcentaje)}
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          </div>
-
-          {rendimientoAnual.length > 0 && (
-            <>
-              <div className="mt-8 mb-4">
-                <h2 className="text-lg font-semibold text-foreground">Rendimiento por hectárea</h2>
-                <p className="text-sm text-muted-foreground mt-0.5">
-                  Producción / superficie cultivada, por año — la superficie se publica con cadencia anual (ym.superficie_productores).
-                </p>
-              </div>
-
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
-                <KpiCard
-                  label={`Rendimiento ${ultimoAnio}`}
-                  value={rendimientoUltimo ? `${formatNumero(rendimientoUltimo.rendimiento_kg_ha, 0)} kg/ha` : "Sin dato"}
-                  icon={Gauge}
-                  deltaPct={deltaRendimiento}
-                  deltaLabel={`vs. ${penultimoAnio}`}
-                />
-                <KpiCard
-                  label={`Superficie cultivada ${ultimoAnio}`}
-                  value={rendimientoUltimo ? `${formatNumero(rendimientoUltimo.superficie_ha, 0)} ha` : "Sin dato"}
-                  icon={Sprout}
+            <div className="grid grid-cols-1 xl:grid-cols-3 gap-4">
+              <div className="xl:col-span-2 rounded-xl border border-border bg-card p-4">
+                <h2 className="text-sm font-semibold text-card-foreground mb-1">Producción nacional mensual</h2>
+                <p className="text-xs text-muted-foreground mb-3">Suma de las ciudades productoras, en {unidad === "t" ? "toneladas" : "kilogramos"}</p>
+                <SerieChartConFiltro
+                  data={serieMensual.map((p) => ({ anio: p.anio, etiqueta: p.etiqueta, valor: p.produccion_kg * factorUnidad }))}
+                  numberFormat={{ notation: "compact" }}
+                  suffix={sufijoUnidad}
                 />
               </div>
 
               <div className="rounded-xl border border-border bg-card p-4">
-                <h3 className="text-sm font-semibold text-card-foreground mb-1">Rendimiento nacional por año</h3>
-                <p className="text-xs text-muted-foreground mb-3">kg de hoja verde por hectárea cultivada</p>
-                <SerieChartConFiltro
-                  data={rendimientoAnual.map((f) => ({ anio: f.anio, etiqueta: String(f.anio), valor: f.rendimiento_kg_ha }))}
-                  color="#a16207"
-                  numberFormat={{ maximumFractionDigits: 0 }}
-                  suffix=" kg/ha"
-                />
+                <h2 className="text-sm font-semibold text-card-foreground mb-1">Distribución por ciudad ({ultimoAnio})</h2>
+                <p className="text-xs text-muted-foreground mb-3">% del total nacional</p>
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="text-left text-xs text-muted-foreground border-b border-border">
+                      <th className="font-medium py-2">Ciudad</th>
+                      <th className="font-medium py-2 text-right">%</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {porCiudadUltimo.map((fila) => (
+                      <tr key={fila.ciudad} className="border-b border-border last:border-0">
+                        <td className="py-2">
+                          <div className="text-card-foreground">{fila.ciudad}</div>
+                          <div className="text-xs text-muted-foreground">{fila.provincia}</div>
+                        </td>
+                        <td className="py-2 text-right tabular-nums font-medium text-card-foreground">
+                          {formatPct(fila.porcentaje)}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
               </div>
-            </>
-          )}
+            </div>
 
-          <div className="mt-4 rounded-xl border border-border bg-card p-4">
-            <h2 className="text-sm font-semibold text-card-foreground mb-1">Histórico completo</h2>
-            <p className="text-xs text-muted-foreground mb-3">
-              Total {provinciaFiltro ?? "nacional"} (suma de {provinciaFiltro ? "las ciudades de la provincia" : "todas las ciudades productoras"}), desde{" "}
-              {anualHistorico[anualHistorico.length - 1]?.anio} hasta {ultimoAnio}
-            </p>
-            <HistoricalTable
-              columnasAnual={COLUMNAS_ANUAL}
-              filasAnual={anualHistorico}
-              columnasMensual={COLUMNAS_MENSUAL}
-              filasMensual={mensualHistorico}
-            />
-          </div>
+            {rendimientoAnual.length > 0 && (
+              <>
+                <div className="mt-8 mb-4">
+                  <h2 className="text-lg font-semibold text-foreground">Rendimiento por hectárea</h2>
+                  <p className="text-sm text-muted-foreground mt-0.5">
+                    Producción / superficie cultivada, por año — la superficie se publica con cadencia anual (ym.superficie_productores).
+                  </p>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
+                  <KpiCard
+                    label={`Rendimiento ${ultimoAnio}`}
+                    value={rendimientoUltimo ? `${formatNumero(rendimientoUltimo.rendimiento_kg_ha, 0)} kg/ha` : "Sin dato"}
+                    icon={Gauge}
+                    deltaPct={deltaRendimiento}
+                    deltaLabel={`vs. ${penultimoAnio}`}
+                  />
+                  <KpiCard
+                    label={`Superficie cultivada ${ultimoAnio}`}
+                    value={rendimientoUltimo ? `${formatNumero(rendimientoUltimo.superficie_ha, 0)} ha` : "Sin dato"}
+                    icon={Sprout}
+                  />
+                </div>
+
+                <div className="rounded-xl border border-border bg-card p-4">
+                  <h3 className="text-sm font-semibold text-card-foreground mb-1">Rendimiento nacional por año</h3>
+                  <p className="text-xs text-muted-foreground mb-3">kg de hoja verde por hectárea cultivada</p>
+                  <SerieChartConFiltro
+                    data={rendimientoAnual.map((f) => ({ anio: f.anio, etiqueta: String(f.anio), valor: f.rendimiento_kg_ha }))}
+                    color="#a16207"
+                    numberFormat={{ maximumFractionDigits: 0 }}
+                    suffix=" kg/ha"
+                  />
+                </div>
+              </>
+            )}
+
+            <div className="mt-4 rounded-xl border border-border bg-card p-4">
+              <h2 className="text-sm font-semibold text-card-foreground mb-1">Histórico completo</h2>
+              <p className="text-xs text-muted-foreground mb-3">
+                Total {provinciaFiltro ?? "nacional"} (suma de {provinciaFiltro ? "las ciudades de la provincia" : "todas las ciudades productoras"}), desde{" "}
+                {anualHistorico[anualHistorico.length - 1]?.anio} hasta {ultimoAnio}
+              </p>
+              <HistoricalTable
+                columnasAnual={COLUMNAS_ANUAL}
+                filasAnual={anualHistorico}
+                columnasMensual={COLUMNAS_MENSUAL}
+                filasMensual={mensualHistorico}
+              />
+            </div>
+          </>
+        )}
         </>
       )}
     </main>
