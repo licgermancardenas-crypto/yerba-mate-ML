@@ -10,6 +10,7 @@ import type {
   PrecioRow,
   ProduccionRow,
   SalidaMolinoRow,
+  SuperficieRow,
 } from "@/lib/types";
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000";
@@ -36,6 +37,15 @@ export function getProduccion(params?: { anioDesde?: number; anioHasta?: number;
   if (params?.provincia) qs.set("provincia", params.provincia);
   const query = qs.toString();
   return apiFetch<ProduccionRow[]>(`/produccion${query ? `?${query}` : ""}`);
+}
+
+export function getSuperficie(params?: { anioDesde?: number; anioHasta?: number; provincia?: string }) {
+  const qs = new URLSearchParams();
+  if (params?.anioDesde) qs.set("anio_desde", String(params.anioDesde));
+  if (params?.anioHasta) qs.set("anio_hasta", String(params.anioHasta));
+  if (params?.provincia) qs.set("provincia", params.provincia);
+  const query = qs.toString();
+  return apiFetch<SuperficieRow[]>(`/superficie${query ? `?${query}` : ""}`);
 }
 
 export function getConsumo(params?: { anioDesde?: number; anioHasta?: number }) {

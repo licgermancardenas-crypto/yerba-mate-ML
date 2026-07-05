@@ -13,6 +13,16 @@ export interface ProduccionRow {
   valor_fob_usd: number;
 }
 
+export interface SuperficieRow {
+  anio: number;
+  mes: number;
+  mes_nombre: string;
+  provincia: string;
+  ciudad: string;
+  productores: number;
+  superficie_ha: number;
+}
+
 export interface ConsumoRow {
   anio: number;
   mes: number;

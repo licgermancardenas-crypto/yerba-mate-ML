@@ -10,11 +10,13 @@ from backend.api.routers import (
     precios,
     precios_gondola,
     produccion,
+    superficie,
 )
 
 app = FastAPI(title="Yerba Mate ML API", version="0.1.0")
 
 app.include_router(produccion.router)
+app.include_router(superficie.router)
 app.include_router(consumo.router)
 app.include_router(exportaciones.router)
 app.include_router(importaciones.router)

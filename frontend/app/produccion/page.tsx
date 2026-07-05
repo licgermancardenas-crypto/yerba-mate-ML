@@ -1,4 +1,4 @@
-import { Sprout, Wheat, TrendingUp, DollarSign } from "lucide-react";
+import { Sprout, Wheat, TrendingUp, DollarSign, Gauge } from "lucide-react";
 import { PageHeader } from "@/components/page-header";
 import { KpiCard } from "@/components/kpi-card";
 import { FilterBar } from "@/components/filter-bar";
@@ -6,12 +6,13 @@ import { SerieChartConFiltro } from "@/components/charts/serie-chart-con-filtro"
 import { HistoricalTable } from "@/components/historical-table";
 import type { ColumnaTabla } from "@/components/data-table";
 import { formatMasa, formatNumero, formatPct, formatUsd, type UnidadMasa } from "@/lib/format";
-import { getProduccion } from "@/lib/api";
+import { getProduccion, getSuperficie } from "@/lib/api";
 import {
   agregarProduccionMensual,
   agregarProduccionPorCiudad,
   agregarProduccionAnual,
   agregarProduccionMensualNacional,
+  agregarRendimientoAnual,
   type ProduccionAnualRow,
   type ProduccionMensualNacionalRow,
 } from "@/lib/agregaciones";
@@ -48,11 +49,17 @@ export default async function ProduccionPage({
   const sufijoUnidad = unidad === "t" ? " t" : " kg";
   const factorUnidad = unidad === "t" ? 1 / 1000 : 1;
 
-  const filasCompletas = await getProduccion();
+  const [filasCompletas, superficieCompletas] = await Promise.all([getProduccion(), getSuperficie()]);
   const todosLosAnios = Array.from(new Set(filasCompletas.map((f) => f.anio))).sort((a, b) => a - b);
   const todasLasProvincias = Array.from(new Set(filasCompletas.map((f) => f.provincia))).sort();
 
   const filas = filasCompletas.filter(
+    (f) =>
+      (!anioDesde || f.anio >= anioDesde) &&
+      (!anioHasta || f.anio <= anioHasta) &&
+      (!provinciaFiltro || f.provincia === provinciaFiltro)
+  );
+  const filasSuperficie = superficieCompletas.filter(
     (f) =>
       (!anioDesde || f.anio >= anioDesde) &&
       (!anioHasta || f.anio <= anioHasta) &&
@@ -79,6 +86,14 @@ export default async function ProduccionPage({
 
   const anualHistorico = agregarProduccionAnual(filas);
   const mensualHistorico = agregarProduccionMensualNacional(filas);
+
+  const rendimientoAnual = agregarRendimientoAnual(filas, filasSuperficie);
+  const rendimientoUltimo = rendimientoAnual.find((f) => f.anio === ultimoAnio);
+  const rendimientoPenultimo = rendimientoAnual.find((f) => f.anio === penultimoAnio);
+  const deltaRendimiento =
+    rendimientoUltimo && rendimientoPenultimo
+      ? ((rendimientoUltimo.rendimiento_kg_ha - rendimientoPenultimo.rendimiento_kg_ha) / rendimientoPenultimo.rendimiento_kg_ha) * 100
+      : undefined;
 
   return (
     <main className="p-6 md:p-8">
@@ -141,6 +156,43 @@ export default async function ProduccionPage({
               </table>
             </div>
           </div>
+
+          {rendimientoAnual.length > 0 && (
+            <>
+              <div className="mt-8 mb-4">
+                <h2 className="text-lg font-semibold text-foreground">Rendimiento por hectárea</h2>
+                <p className="text-sm text-muted-foreground mt-0.5">
+                  Producción / superficie cultivada, por año — la superficie se publica con cadencia anual (ym.superficie_productores).
+                </p>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
+                <KpiCard
+                  label={`Rendimiento ${ultimoAnio}`}
+                  value={rendimientoUltimo ? `${formatNumero(rendimientoUltimo.rendimiento_kg_ha, 0)} kg/ha` : "Sin dato"}
+                  icon={Gauge}
+                  deltaPct={deltaRendimiento}
+                  deltaLabel={`vs. ${penultimoAnio}`}
+                />
+                <KpiCard
+                  label={`Superficie cultivada ${ultimoAnio}`}
+                  value={rendimientoUltimo ? `${formatNumero(rendimientoUltimo.superficie_ha, 0)} ha` : "Sin dato"}
+                  icon={Sprout}
+                />
+              </div>
+
+              <div className="rounded-xl border border-border bg-card p-4">
+                <h3 className="text-sm font-semibold text-card-foreground mb-1">Rendimiento nacional por año</h3>
+                <p className="text-xs text-muted-foreground mb-3">kg de hoja verde por hectárea cultivada</p>
+                <SerieChartConFiltro
+                  data={rendimientoAnual.map((f) => ({ anio: f.anio, etiqueta: String(f.anio), valor: f.rendimiento_kg_ha }))}
+                  color="#a16207"
+                  numberFormat={{ maximumFractionDigits: 0 }}
+                  suffix=" kg/ha"
+                />
+              </div>
+            </>
+          )}
 
           <div className="mt-4 rounded-xl border border-border bg-card p-4">
             <h2 className="text-sm font-semibold text-card-foreground mb-1">Histórico completo</h2>

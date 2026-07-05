@@ -6,6 +6,7 @@ import type {
   PrecioRow,
   ProduccionRow,
   SalidaMolinoRow,
+  SuperficieRow,
 } from "@/lib/types";
 
 const MESES = [
@@ -131,6 +132,53 @@ export function agregarProduccionMensualNacional(filas: ProduccionRow[]): Produc
       valor_fob_usd: a.valor_fob_usd,
     }))
     .sort((a, b) => b.anio - a.anio || b.mes - a.mes);
+}
+
+// ----------------------------------------------------------------------------
+// Rendimiento — kg producidos por hectárea cultivada, por año (nacional)
+// ----------------------------------------------------------------------------
+// superficie_ha se publica con cadencia anual (se repite los 12 meses de
+// cada año, ver ym.superficie_productores) — el rendimiento solo tiene
+// sentido a nivel anual, promediar/sumar meses de superficie sería
+// contar la misma hectárea varias veces.
+
+export interface RendimientoAnualRow {
+  anio: number;
+  produccion_kg: number;
+  superficie_ha: number;
+  rendimiento_kg_ha: number;
+}
+
+export function agregarRendimientoAnual(
+  filasProduccion: ProduccionRow[],
+  filasSuperficie: SuperficieRow[]
+): RendimientoAnualRow[] {
+  const produccionPorAnio = new Map<number, number>();
+  for (const f of filasProduccion) {
+    produccionPorAnio.set(f.anio, (produccionPorAnio.get(f.anio) ?? 0) + f.produccion_kg);
+  }
+
+  // Toma un solo mes por (año, ciudad) para no sumar la misma superficie 12 veces.
+  const haPorAnioCiudad = new Map<string, number>();
+  for (const f of filasSuperficie) {
+    const clave = `${f.anio}|${f.provincia}|${f.ciudad}`;
+    if (!haPorAnioCiudad.has(clave)) haPorAnioCiudad.set(clave, f.superficie_ha);
+  }
+  const superficiePorAnio = new Map<number, number>();
+  for (const [clave, ha] of haPorAnioCiudad) {
+    const anio = Number(clave.split("|")[0]);
+    superficiePorAnio.set(anio, (superficiePorAnio.get(anio) ?? 0) + ha);
+  }
+
+  const anios = Array.from(produccionPorAnio.keys())
+    .filter((anio) => superficiePorAnio.has(anio))
+    .sort((a, b) => a - b);
+
+  return anios.map((anio) => {
+    const produccion_kg = produccionPorAnio.get(anio)!;
+    const superficie_ha = superficiePorAnio.get(anio)!;
+    return { anio, produccion_kg, superficie_ha, rendimiento_kg_ha: produccion_kg / superficie_ha };
+  });
 }
 
 // ----------------------------------------------------------------------------

@@ -121,6 +121,8 @@ Stack: Next.js (Vercel) · FastAPI (Render/Railway) · Postgres+PostGIS (Supabas
 - [ ] UN Comtrade / OEC: comercio bilateral por país destino
 - [ ] Google Trends (pytrends): "yerba mate" como proxy de demanda internacional
 - [x] **Composición exportación granel vs. fraccionado** (investigado y cargado 2026-07-04): no está en `ym.exportaciones` ni en ninguna fuente ya integrada (ni INDEC NCM, ni los PDF del INYM que ya scrapeamos). Único dato real encontrado: Bolsa de Comercio de Rosario, Informativo Semanal N.° 2222 (28/11/2025) — 57% a granel (bolsas 50kg) / 29% fraccionado minorista (1/4-2kg), sobre ene-sep 2025. Es un análisis puntual en un artículo de texto, no un dataset/API — no hay forma de automatizar el ETL, cada punto futuro requeriría buscar a mano si BCR publicó otro informe similar. Cargado como anotación estática (no tabla) en `/exportaciones`, mismo criterio que Competencia (dato real citado, sin inventar series)
+- [x] **Rendimiento por hectárea** (2026-07-04): sin research nuevo — cruza `ym.dataset_principal` (producción) con `ym.superficie_productores` (ya cargada, sin endpoint hasta ahora) por (año, provincia, ciudad), las 7 ciudades matchean exacto entre ambas fuentes. Nuevo endpoint `GET /superficie`. KPI + chart en Producción. Validado con datos reales: 3.600-5.600 kg/ha 2011-2025, rango agronómicamente plausible para yerba mate
+- [x] **Estacionalidad de cosecha** (2026-07-04): sin research nuevo — promedio de `ym.inym_hoja_verde_zona` (zona TOTAL) por mes calendario a través de todos los años, en Cadena Productiva. Confirma el patrón real: pico abril-septiembre (95-138M kg/mes), caída fuerte octubre-diciembre (época de floración, <1M-29M kg/mes)
 
 ---
 

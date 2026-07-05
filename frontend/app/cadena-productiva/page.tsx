@@ -1,9 +1,10 @@
-import { Leaf, Factory, Globe2, Percent } from "lucide-react";
+import { Leaf, Factory, Globe2, Percent, CalendarRange } from "lucide-react";
 import { PageHeader } from "@/components/page-header";
 import { KpiCard } from "@/components/kpi-card";
 import { FilterBar } from "@/components/filter-bar";
 import { SerieChartConFiltro } from "@/components/charts/serie-chart-con-filtro";
 import { AnnualChartConFiltro } from "@/components/charts/annual-chart-con-filtro";
+import { SerieMensualChart } from "@/components/charts/serie-mensual-chart";
 import { HistoricalTable } from "@/components/historical-table";
 import { DataTable, type ColumnaTabla } from "@/components/data-table";
 import { formatMasa, formatPct, type UnidadMasa } from "@/lib/format";
@@ -106,6 +107,20 @@ export default async function CadenaProductivaPage({
     .sort((a, b) => a.anio - b.anio || a.mes - b.mes)
     .map((f) => ({ anio: f.anio, etiqueta: `${MESES[f.mes - 1].slice(0, 3)} ${String(f.anio).slice(2)}`, valor: f.hoja_verde_kg }));
 
+  // Estacionalidad de cosecha: promedio de ingreso de hoja verde por mes
+  // calendario, a través de todos los años del rango filtrado (no una serie
+  // en el tiempo — por eso no usa SerieChartConFiltro, ya está agregada).
+  const promedioPorMes = Array.from({ length: 12 }, (_, i) => {
+    const mes = i + 1;
+    const valores = hojaVerdeMensualNacional.filter((f) => f.mes === mes).map((f) => f.hoja_verde_kg);
+    const promedio = valores.length ? valores.reduce((a, b) => a + b, 0) / valores.length : 0;
+    return { mes, etiqueta: MESES[i].slice(0, 3), valor: promedio * factorUnidad };
+  });
+  const mesPico = promedioPorMes.reduce((max, actual) => (actual.valor > max.valor ? actual : max), promedioPorMes[0]);
+  const mesesCosecha = promedioPorMes.filter((m) => m.mes >= 4 && m.mes <= 9).reduce((acc, m) => acc + m.valor, 0);
+  const totalPromedio = promedioPorMes.reduce((acc, m) => acc + m.valor, 0);
+  const pctEnCosecha = totalPromedio > 0 ? (mesesCosecha / totalPromedio) * 100 : 0;
+
   const molinoStackedData = molinoAnual
     .slice()
     .reverse()
@@ -156,6 +171,31 @@ export default async function CadenaProductivaPage({
         <SerieChartConFiltro
           data={serieHojaVerdeMensual.map((p) => ({ ...p, valor: p.valor * factorUnidad }))}
           color="#15803d"
+          numberFormat={{ notation: "compact" }}
+          suffix={sufijoUnidad}
+        />
+      </div>
+
+      <div className="mt-8 mb-4">
+        <h2 className="text-lg font-semibold text-foreground">Estacionalidad de cosecha</h2>
+        <p className="text-sm text-muted-foreground mt-0.5">
+          Promedio de ingreso de hoja verde por mes calendario, a través de todos los años del rango seleccionado.
+        </p>
+      </div>
+
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
+        <KpiCard label="Mes pico de cosecha" value={mesPico.etiqueta} icon={CalendarRange} />
+        <KpiCard label="Concentración abril-septiembre" value={formatPct(pctEnCosecha)} icon={Percent} />
+      </div>
+
+      <div className="rounded-xl border border-border bg-card p-4 mb-4">
+        <h3 className="text-sm font-semibold text-card-foreground mb-1">Ingreso de hoja verde — promedio mensual</h3>
+        <p className="text-xs text-muted-foreground mb-3">
+          Total nacional, en {unidad === "t" ? "toneladas" : "kilogramos"} — la cosecha de yerba mate se concentra entre abril y septiembre
+        </p>
+        <SerieMensualChart
+          data={promedioPorMes.map(({ etiqueta, valor }) => ({ etiqueta, valor }))}
+          color="#a16207"
           numberFormat={{ notation: "compact" }}
           suffix={sufijoUnidad}
         />
