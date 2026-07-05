@@ -120,6 +120,7 @@ Stack: Next.js (Vercel) · FastAPI (Render/Railway) · Postgres+PostGIS (Supabas
 ### 3e — Opcionales (post-MVP)
 - [ ] UN Comtrade / OEC: comercio bilateral por país destino
 - [ ] Google Trends (pytrends): "yerba mate" como proxy de demanda internacional
+- [x] **Composición exportación granel vs. fraccionado** (investigado y cargado 2026-07-04): no está en `ym.exportaciones` ni en ninguna fuente ya integrada (ni INDEC NCM, ni los PDF del INYM que ya scrapeamos). Único dato real encontrado: Bolsa de Comercio de Rosario, Informativo Semanal N.° 2222 (28/11/2025) — 57% a granel (bolsas 50kg) / 29% fraccionado minorista (1/4-2kg), sobre ene-sep 2025. Es un análisis puntual en un artículo de texto, no un dataset/API — no hay forma de automatizar el ETL, cada punto futuro requeriría buscar a mano si BCR publicó otro informe similar. Cargado como anotación estática (no tabla) en `/exportaciones`, mismo criterio que Competencia (dato real citado, sin inventar series)
 
 ---
 

@@ -1,4 +1,4 @@
-import { Ship, Globe2, DollarSign, TrendingUp } from "lucide-react";
+import { Ship, Globe2, DollarSign, TrendingUp, PieChart } from "lucide-react";
 import { PageHeader } from "@/components/page-header";
 import { KpiCard } from "@/components/kpi-card";
 import { FilterBar } from "@/components/filter-bar";
@@ -147,6 +147,31 @@ export default async function ExportacionesPage({
                   ))}
                 </tbody>
               </table>
+            </div>
+          </div>
+
+          <div className="mt-4 rounded-xl border border-border bg-card p-4">
+            <h2 className="text-sm font-semibold text-card-foreground mb-1 flex items-center gap-2">
+              <PieChart size={16} className="text-primary" aria-hidden="true" />
+              Composición: a granel vs. fraccionado
+            </h2>
+            <p className="text-xs text-muted-foreground mb-3">
+              Dato puntual (no serie histórica, no está en `ym.exportaciones`) — Bolsa de Comercio de Rosario, Informativo
+              Semanal N.° 2222 (28/11/2025), sobre datos de enero-septiembre 2025.
+            </p>
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
+              <div>
+                <div className="text-2xl font-semibold text-card-foreground">57%</div>
+                <div className="text-xs text-muted-foreground">A granel, bolsas de 50 kg sin fraccionar</div>
+              </div>
+              <div>
+                <div className="text-2xl font-semibold text-card-foreground">29%</div>
+                <div className="text-xs text-muted-foreground">Fraccionado para consumo minorista (1/4 kg a 2 kg)</div>
+              </div>
+              <div>
+                <div className="text-2xl font-semibold text-muted-foreground">~14%</div>
+                <div className="text-xs text-muted-foreground">Resto, sin desglosar en la fuente</div>
+              </div>
             </div>
           </div>
 
