@@ -105,8 +105,18 @@ export interface SalidaMolinoRow {
 
 export interface CapaCatalogo {
   layer_name: string;
-  categoria: "limites" | "edad" | "densidad" | "consociado" | "secaderos";
-  nivel_espacial: "municipio" | "departamento" | "provincia" | "zona" | "punto";
+  categoria:
+    | "limites"
+    | "edad"
+    | "densidad"
+    | "consociado"
+    | "secaderos"
+    | "indec_jurisdicciones"
+    | "indec_departamentos"
+    | "indec_fracciones"
+    | "indec_radios_censales"
+    | "indec_localidades";
+  nivel_espacial: "municipio" | "departamento" | "provincia" | "zona" | "punto" | "fraccion" | "radio" | "localidad";
   geom_type: "MultiPolygon" | "Point";
   activa: boolean;
   descripcion: string;

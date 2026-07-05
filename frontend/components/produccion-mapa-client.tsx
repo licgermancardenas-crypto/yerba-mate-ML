@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { Mountain, Satellite } from "lucide-react";
+import { Mountain, Satellite, Grid3x3 } from "lucide-react";
 import { ProduccionMapa, type BurbujaProduccion } from "@/components/produccion-mapa";
 import { formatKg } from "@/lib/format";
 
@@ -21,13 +21,19 @@ export function ProduccionMapaClient({ produccionPorCiudadAnio }: { produccionPo
   );
   const [anio, setAnio] = useState(anios[anios.length - 1]);
   const [basemap, setBasemap] = useState<"topo" | "satelital">("satelital");
+  const [mostrarRadios, setMostrarRadios] = useState(true);
   const [limites, setLimites] = useState<GeoJSON.FeatureCollection | null>(null);
+  const [radiosCensales, setRadiosCensales] = useState<GeoJSON.FeatureCollection | null>(null);
 
   useEffect(() => {
     fetch("/api/geo/view_superficie_por_municipios")
       .then((res) => (res.ok ? res.json() : null))
       .then(setLimites)
       .catch(() => setLimites(null));
+    fetch("/api/geo/indec_radios_censales2")
+      .then((res) => (res.ok ? res.json() : null))
+      .then(setRadiosCensales)
+      .catch(() => setRadiosCensales(null));
   }, []);
 
   const burbujas: BurbujaProduccion[] = produccionPorCiudadAnio
@@ -80,13 +86,29 @@ export function ProduccionMapaClient({ produccionPorCiudadAnio }: { produccionPo
           </select>
         </div>
 
+        <button
+          type="button"
+          onClick={() => setMostrarRadios((v) => !v)}
+          className={`flex items-center gap-1.5 px-3 py-1.5 text-sm rounded-lg border transition-colors ${
+            mostrarRadios ? "border-primary bg-primary/10 text-primary" : "border-border text-foreground/70 hover:text-foreground"
+          }`}
+        >
+          <Grid3x3 size={14} aria-hidden="true" />
+          Radios censales (INDEC)
+        </button>
+
         <span className="text-xs text-muted-foreground ml-auto">
-          Verde: superficie cultivada (por municipio, INYM) · Naranja: producción por ciudad, {anio}
+          Verde: superficie cultivada (municipio, INYM) · Amarillo: radios censales (INDEC) · Naranja: producción por ciudad, {anio}
         </span>
       </div>
 
       <div className="rounded-xl border border-border bg-card overflow-hidden h-[620px] relative">
-        <ProduccionMapa burbujas={burbujas} limites={limites} basemap={basemap} />
+        <ProduccionMapa
+          burbujas={burbujas}
+          limites={limites}
+          radiosCensales={mostrarRadios ? radiosCensales : null}
+          basemap={basemap}
+        />
         <div className="absolute bottom-3 left-3 rounded-lg border border-border bg-card/95 backdrop-blur px-3 py-2 text-xs shadow-lg">
           <div className="font-medium text-card-foreground mb-1">Producción {anio}</div>
           <div className="flex items-center gap-2">

@@ -11,6 +11,11 @@ const CATEGORIA_LABELS: Record<string, string> = {
   densidad: "Densidad de plantación",
   consociado: "Cultivo consociado",
   secaderos: "Secaderos",
+  indec_jurisdicciones: "INDEC — Provincias",
+  indec_departamentos: "INDEC — Departamentos",
+  indec_fracciones: "INDEC — Fracciones censales",
+  indec_radios_censales: "INDEC — Radios censales",
+  indec_localidades: "INDEC — Localidades",
 };
 
 const NIVEL_LABELS: Record<string, string> = {
@@ -19,6 +24,9 @@ const NIVEL_LABELS: Record<string, string> = {
   provincia: "Provincia",
   zona: "Zona",
   punto: "Puntual",
+  fraccion: "Fracción censal",
+  radio: "Radio censal",
+  localidad: "Localidad",
 };
 
 export function MapaGisClient({

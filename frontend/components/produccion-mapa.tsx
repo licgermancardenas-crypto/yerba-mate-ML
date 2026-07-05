@@ -15,6 +15,7 @@ export interface BurbujaProduccion {
 interface Props {
   burbujas: BurbujaProduccion[];
   limites: GeoJSON.FeatureCollection | null;
+  radiosCensales: GeoJSON.FeatureCollection | null;
   basemap: "topo" | "satelital";
 }
 
@@ -64,7 +65,7 @@ function crearPuntosGeoJSON(burbujas: BurbujaProduccion[]): GeoJSON.FeatureColle
   };
 }
 
-export function ProduccionMapa({ burbujas, limites, basemap }: Props) {
+export function ProduccionMapa({ burbujas, limites, radiosCensales, basemap }: Props) {
   const containerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<maplibregl.Map | null>(null);
   const popupRef = useRef<maplibregl.Popup | null>(null);
@@ -155,6 +156,31 @@ export function ProduccionMapa({ burbujas, limites, basemap }: Props) {
     if (map.isStyleLoaded()) render();
     else map.once("load", render);
   }, [limites]);
+
+  // Radios censales (INDEC/GeoNode, Misiones+Corrientes) — solo contorno fino,
+  // sin relleno, para que se vea el detalle del terreno debajo sin taparlo.
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map) return;
+
+    function render() {
+      if (!map) return;
+      if (map.getLayer("radios-censales-outline")) map.removeLayer("radios-censales-outline");
+      if (map.getSource("radios-censales")) map.removeSource("radios-censales");
+      if (!radiosCensales) return;
+
+      map.addSource("radios-censales", { type: "geojson", data: radiosCensales });
+      map.addLayer({
+        id: "radios-censales-outline",
+        type: "line",
+        source: "radios-censales",
+        paint: { "line-color": "#facc15", "line-width": 0.6, "line-opacity": 0.75 },
+      });
+    }
+
+    if (map.isStyleLoaded()) render();
+    else map.once("load", render);
+  }, [radiosCensales]);
 
   // Burbujas de producción por ciudad
   useEffect(() => {
