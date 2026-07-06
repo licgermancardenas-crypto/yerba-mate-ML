@@ -63,6 +63,18 @@ const VISTAS: { id: VistaMapa; label: string; icon: typeof MapIcon }[] = [
   { id: "flujo", label: "Flujo", icon: Route },
 ];
 
+// Ancho fijo (no "lo que ocupe el texto") para que la columna de Filtros
+// tenga un tamaño predecible y no desalinee la cuadrícula de los otros dos
+// grupos de controles según cuánto texto tenga cada <option> seleccionada.
+const SELECT_CLASS = "text-sm rounded-lg border border-border bg-background px-2.5 py-1.5 text-foreground w-[172px]";
+
+// Ancla siempre abajo-a-la-izquierda, con z-index explícito y un ancho
+// máximo -- el zoom (NavigationControl) vive arriba-a-la-derecha y la escala
+// (ScaleControl) abajo-a-la-derecha, así que por diseño nunca se solapan;
+// el max-w es un cinturón de seguridad para que en pantallas angostas esta
+// leyenda tampoco llegue a invadir ese lado.
+const LEYENDA_CLASS = "absolute bottom-3 left-3 z-10 max-w-[210px] rounded-lg border border-border bg-card/95 backdrop-blur px-3 py-2 text-xs shadow-lg";
+
 const BASEMAPS: { id: Basemap; label: string; icon: typeof Mountain }[] = [
   { id: "topo", label: "Topográfico", icon: Mountain },
   { id: "satelital", label: "Satelital", icon: Satellite },
@@ -239,31 +251,27 @@ export function ProduccionMapaClient({ produccionPorCiudadAnio }: { produccionPo
       <div className="flex flex-col gap-4 rounded-2xl border border-border bg-card p-4 shadow-sm">
         <div className="flex flex-wrap items-start gap-x-6 gap-y-4">
           <GrupoControl titulo="Filtros">
-            <div className="flex flex-col gap-1">
-              <label htmlFor="mapa-provincia" className="sr-only">
-                Provincia
-              </label>
-              <select
-                id="mapa-provincia"
-                value={provincia}
-                onChange={(e) => setProvincia(e.target.value)}
-                className="text-sm rounded-lg border border-border bg-background px-2.5 py-1.5 text-foreground"
-              >
-                <option value="">Provincia: todas</option>
-                {provincias.map((p) => (
-                  <option key={p} value={p}>
-                    {p}
-                  </option>
-                ))}
-              </select>
-            </div>
+            <select
+              id="mapa-provincia"
+              aria-label="Provincia"
+              value={provincia}
+              onChange={(e) => setProvincia(e.target.value)}
+              className={SELECT_CLASS}
+            >
+              <option value="">Provincia: todas</option>
+              {provincias.map((p) => (
+                <option key={p} value={p}>
+                  {p}
+                </option>
+              ))}
+            </select>
 
             <select
               id="mapa-departamento"
               aria-label="Departamento"
               value={departamento}
               onChange={(e) => setDepartamento(e.target.value)}
-              className="text-sm rounded-lg border border-border bg-background px-2.5 py-1.5 text-foreground"
+              className={SELECT_CLASS}
             >
               <option value="">Departamento: todos</option>
               {departamentos.map((d) => (
@@ -279,7 +287,7 @@ export function ProduccionMapaClient({ produccionPorCiudadAnio }: { produccionPo
                 aria-label="Año"
                 value={anio}
                 onChange={(e) => setAnio(Number(e.target.value))}
-                className="text-sm rounded-lg border border-border bg-background px-2.5 py-1.5 text-foreground"
+                className={SELECT_CLASS}
               >
                 {anios.map((a) => (
                   <option key={a} value={a}>
@@ -337,7 +345,7 @@ export function ProduccionMapaClient({ produccionPorCiudadAnio }: { produccionPo
           </GrupoControl>
         </div>
 
-        <div className="flex items-start gap-2 rounded-lg border border-border bg-muted px-3 py-2">
+        <div className="flex items-start gap-2 rounded-2xl border border-border bg-muted px-3.5 py-2.5">
           <Info size={14} className="text-foreground/70 mt-0.5 shrink-0" aria-hidden="true" />
           <span className="text-xs text-foreground/90 leading-snug">{leyendaTexto}</span>
         </div>
@@ -361,7 +369,7 @@ export function ProduccionMapaClient({ produccionPorCiudadAnio }: { produccionPo
         />
 
         {vista === "coropletico" && (
-          <div className="absolute bottom-3 left-3 rounded-lg border border-border bg-card/95 backdrop-blur px-3 py-2 text-xs shadow-lg">
+          <div className={LEYENDA_CLASS}>
             <div className="font-medium text-card-foreground mb-1">% superficie cultivada</div>
             <div className="flex items-center gap-1">
               <span className="inline-block w-4 h-3" style={{ backgroundColor: "#f0fdf4" }} />
@@ -382,7 +390,7 @@ export function ProduccionMapaClient({ produccionPorCiudadAnio }: { produccionPo
         )}
 
         {vista === "heatmap" && (
-          <div className="absolute bottom-3 left-3 rounded-lg border border-border bg-card/95 backdrop-blur px-3 py-2 text-xs shadow-lg">
+          <div className={LEYENDA_CLASS}>
             <div className="font-medium text-card-foreground mb-1">Concentración de secaderos</div>
             <div className="flex items-center gap-1">
               <span className="inline-block w-4 h-3" style={{ backgroundColor: "#bbf7d0" }} />
@@ -399,7 +407,7 @@ export function ProduccionMapaClient({ produccionPorCiudadAnio }: { produccionPo
         )}
 
         {vista === "secaderos" && (
-          <div className="absolute bottom-3 left-3 rounded-lg border border-border bg-card/95 backdrop-blur px-3 py-2 text-xs shadow-lg">
+          <div className={LEYENDA_CLASS}>
             <div className="font-medium text-card-foreground mb-1.5">Secaderos</div>
             <div className="flex items-center gap-2 mb-1">
               <span className="inline-block w-3 h-3 rounded-full" style={{ backgroundColor: "#ea580c" }} />
@@ -416,7 +424,7 @@ export function ProduccionMapaClient({ produccionPorCiudadAnio }: { produccionPo
         )}
 
         {vista === "burbujas" && (
-          <div className="absolute bottom-3 left-3 rounded-lg border border-border bg-card/95 backdrop-blur px-3 py-2 text-xs shadow-lg">
+          <div className={LEYENDA_CLASS}>
             <div className="font-medium text-card-foreground mb-1.5">Producción por ciudad</div>
             <div className="flex items-end gap-2">
               <span className="rounded-full" style={{ width: 8, height: 8, backgroundColor: "#ea580c" }} />
@@ -428,7 +436,7 @@ export function ProduccionMapaClient({ produccionPorCiudadAnio }: { produccionPo
         )}
 
         {vista === "flujo" && (
-          <div className="absolute bottom-3 left-3 rounded-lg border border-border bg-card/95 backdrop-blur px-3 py-2 text-xs shadow-lg max-w-[220px]">
+          <div className={LEYENDA_CLASS}>
             <div className="font-medium text-card-foreground mb-1.5">Flujo ciudad → secadero</div>
             <div className="flex items-center gap-2 mb-1">
               <span className="inline-block w-6 h-0.5" style={{ backgroundColor: "#1d4ed8" }} />
