@@ -4,7 +4,15 @@ import maplibregl from "maplibre-gl";
 import "maplibre-gl/dist/maplibre-gl.css";
 import { useEffect, useRef } from "react";
 
-export type VistaMapa = "coropletico" | "secaderos";
+export type VistaMapa = "coropletico" | "secaderos" | "heatmap" | "burbujas" | "flujo";
+
+export interface BurbujaProduccion {
+  ciudad: string;
+  provincia: string;
+  produccion_kg: number;
+  lng: number;
+  lat: number;
+}
 
 interface Props {
   vista: VistaMapa;
@@ -13,8 +21,11 @@ interface Props {
   departamentosDatos: GeoJSON.FeatureCollection | null; // INYM, solo los que tienen dato real (color)
   municipios: GeoJSON.FeatureCollection | null;
   secaderos: GeoJSON.FeatureCollection | null;
+  burbujas: BurbujaProduccion[];
+  flujo: GeoJSON.FeatureCollection | null; // LineString ciudad -> secadero más cercano
   basemap: "topo" | "satelital";
   provinciaFiltro: string | null; // 'MISIONES' | 'CORRIENTES' | null (todas)
+  departamentoFiltro: string | null; // nombre del depto (case-insensitive) o null (todos)
   bboxFoco: GeoJSON.FeatureCollection | null; // feature(s) a los que hacer fitBounds cuando cambia el filtro
 }
 
@@ -71,6 +82,19 @@ function fitBoundsA(map: maplibregl.Map, fc: GeoJSON.FeatureCollection, opts?: m
   if (!bounds.isEmpty()) map.fitBounds(bounds, { padding: 40, duration: 600, ...opts });
 }
 
+function crearPuntosBurbujas(burbujas: BurbujaProduccion[]): GeoJSON.FeatureCollection<GeoJSON.Point> {
+  return {
+    type: "FeatureCollection",
+    features: burbujas.map(
+      (b): GeoJSON.Feature<GeoJSON.Point> => ({
+        type: "Feature",
+        geometry: { type: "Point", coordinates: [b.lng, b.lat] },
+        properties: { ciudad: b.ciudad, provincia: b.provincia, produccion_kg: b.produccion_kg },
+      })
+    ),
+  };
+}
+
 export function ProduccionMapa({
   vista,
   jurisdicciones,
@@ -78,8 +102,11 @@ export function ProduccionMapa({
   departamentosDatos,
   municipios,
   secaderos,
+  burbujas,
+  flujo,
   basemap,
   provinciaFiltro,
+  departamentoFiltro,
   bboxFoco,
 }: Props) {
   const containerRef = useRef<HTMLDivElement>(null);
@@ -140,7 +167,39 @@ export function ProduccionMapa({
       });
     });
 
-    for (const layerId of ["deptos-datos-fill", "secaderos-puntos", "secaderos-clusters"]) {
+    map.on("click", "burbujas-puntos", (e) => {
+      const f = e.features?.[0];
+      if (!f) return;
+      const p = f.properties as { ciudad: string; provincia: string; produccion_kg: number };
+      popupRef.current
+        ?.setLngLat(e.lngLat)
+        .setHTML(
+          `<div class="p-1 text-sm">
+            <div class="font-semibold">${p.ciudad}</div>
+            <div class="text-xs text-muted-foreground mb-1">${p.provincia}</div>
+            <div>${new Intl.NumberFormat("es-AR").format(p.produccion_kg)} kg</div>
+          </div>`
+        )
+        .addTo(map);
+    });
+
+    map.on("click", "flujo-lineas", (e) => {
+      const f = e.features?.[0];
+      if (!f) return;
+      const p = f.properties as { ciudad: string; distancia_km: number; produccion_kg: number };
+      popupRef.current
+        ?.setLngLat(e.lngLat)
+        .setHTML(
+          `<div class="p-1 text-sm">
+            <div class="font-semibold">${p.ciudad} → secadero más cercano</div>
+            <div class="text-xs text-muted-foreground mb-1">${p.distancia_km.toFixed(1)} km en línea recta (proximidad, no ruta logística verificada)</div>
+            <div>${new Intl.NumberFormat("es-AR").format(p.produccion_kg)} kg producidos en la ciudad de origen</div>
+          </div>`
+        )
+        .addTo(map);
+    });
+
+    for (const layerId of ["deptos-datos-fill", "secaderos-puntos", "secaderos-clusters", "burbujas-puntos", "flujo-lineas"]) {
       map.on("mouseenter", layerId, () => {
         map.getCanvas().style.cursor = "pointer";
       });
@@ -213,7 +272,7 @@ export function ProduccionMapa({
     if (!map) return;
     function render() {
       if (!map) return;
-      for (const id of ["deptos-contexto-fill", "deptos-contexto-outline", "deptos-contexto-label"]) {
+      for (const id of ["deptos-contexto-fill", "deptos-contexto-outline", "deptos-contexto-label", "deptos-seleccionado-outline"]) {
         if (map.getLayer(id)) map.removeLayer(id);
       }
       if (map.getSource("deptos-contexto")) map.removeSource("deptos-contexto");
@@ -237,6 +296,17 @@ export function ProduccionMapa({
           type: "line",
           source: "deptos-contexto",
           paint: { "line-color": "#475569", "line-width": 0.8, "line-opacity": 0.7 },
+        },
+        antesDe
+      );
+      // Borde destacado del departamento elegido (se activa vía filter, ver efecto de filtros)
+      map.addLayer(
+        {
+          id: "deptos-seleccionado-outline",
+          type: "line",
+          source: "deptos-contexto",
+          filter: ["==", ["get", "nam"], "__ninguno__"],
+          paint: { "line-color": "#eab308", "line-width": 3.5 },
         },
         antesDe
       );
@@ -347,7 +417,7 @@ export function ProduccionMapa({
     else map.once("load", render);
   }, [municipios]);
 
-  // Clústeres de secaderos
+  // Clústeres de secaderos (dinámico: MapLibre reagrupa/desglosa solo con el zoom)
   useEffect(() => {
     const map = mapRef.current;
     if (!map) return;
@@ -397,47 +467,195 @@ export function ProduccionMapa({
     else map.once("load", render);
   }, [secaderos]);
 
-  // Vista activa: coroplético vs secaderos
+  // Heatmap de concentración de secaderos (densidad real de puntos)
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map) return;
+    function render() {
+      if (!map) return;
+      if (map.getLayer("heatmap-secaderos")) map.removeLayer("heatmap-secaderos");
+      if (map.getSource("heatmap-secaderos")) map.removeSource("heatmap-secaderos");
+      if (!secaderos) return;
+
+      map.addSource("heatmap-secaderos", { type: "geojson", data: secaderos });
+      map.addLayer({
+        id: "heatmap-secaderos",
+        type: "heatmap",
+        source: "heatmap-secaderos",
+        paint: {
+          "heatmap-weight": 1,
+          "heatmap-intensity": ["interpolate", ["linear"], ["zoom"], 6, 1, 12, 3],
+          "heatmap-radius": ["interpolate", ["linear"], ["zoom"], 6, 16, 12, 45],
+          "heatmap-opacity": 0.85,
+          "heatmap-color": [
+            "interpolate", ["linear"], ["heatmap-density"],
+            0, "rgba(240,253,244,0)",
+            0.2, "#bbf7d0",
+            0.4, "#4ade80",
+            0.6, "#f59e0b",
+            0.8, "#ea580c",
+            1, "#7f1d1d",
+          ],
+        },
+      });
+    }
+    if (map.isStyleLoaded()) render();
+    else map.once("load", render);
+  }, [secaderos]);
+
+  // Burbujas proporcionales — producción por ciudad, tamaño = volumen real
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map) return;
+    function render() {
+      if (!map) return;
+      for (const id of ["burbujas-halo", "burbujas-puntos", "burbujas-label"]) {
+        if (map.getLayer(id)) map.removeLayer(id);
+      }
+      if (map.getSource("burbujas")) map.removeSource("burbujas");
+      if (!burbujas || burbujas.length === 0) return;
+
+      const maxProd = Math.max(1, ...burbujas.map((b) => b.produccion_kg));
+      map.addSource("burbujas", { type: "geojson", data: crearPuntosBurbujas(burbujas) });
+
+      map.addLayer({
+        id: "burbujas-halo",
+        type: "circle",
+        source: "burbujas",
+        paint: {
+          "circle-radius": ["interpolate", ["linear"], ["get", "produccion_kg"], 0, 12, maxProd, 60],
+          "circle-color": "#f59e0b",
+          "circle-opacity": 0.15,
+        },
+      });
+      map.addLayer({
+        id: "burbujas-puntos",
+        type: "circle",
+        source: "burbujas",
+        paint: {
+          "circle-radius": ["interpolate", ["linear"], ["get", "produccion_kg"], 0, 6, maxProd, 32],
+          "circle-color": "#ea580c",
+          "circle-opacity": 0.85,
+          "circle-stroke-width": 1.5,
+          "circle-stroke-color": "#ffffff",
+        },
+      });
+      map.addLayer({
+        id: "burbujas-label",
+        type: "symbol",
+        source: "burbujas",
+        layout: {
+          "text-field": ["get", "ciudad"],
+          "text-size": 11,
+          "text-font": ["Open Sans Bold", "Arial Unicode MS Bold"],
+          "text-offset": [0, 1.8],
+          "text-anchor": "top",
+        },
+        paint: { "text-color": "#7c2d12", "text-halo-color": "#ffffff", "text-halo-width": 1.3 },
+      });
+    }
+    if (map.isStyleLoaded()) render();
+    else map.once("load", render);
+  }, [burbujas]);
+
+  // Flow map — ciudad productora -> secadero más cercano (proximidad geográfica real, no ruta logística verificada)
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map) return;
+    function render() {
+      if (!map) return;
+      for (const id of ["flujo-lineas", "flujo-origen"]) {
+        if (map.getLayer(id)) map.removeLayer(id);
+      }
+      if (map.getSource("flujo")) map.removeSource("flujo");
+      if (!flujo || flujo.features.length === 0) return;
+
+      const volumenes = flujo.features.map((f) => (f.properties?.produccion_kg as number) ?? 0);
+      const max = Math.max(1, ...volumenes);
+
+      map.addSource("flujo", { type: "geojson", data: flujo });
+      map.addLayer({
+        id: "flujo-lineas",
+        type: "line",
+        source: "flujo",
+        layout: { "line-cap": "round" },
+        paint: {
+          "line-color": "#1d4ed8",
+          "line-width": ["interpolate", ["linear"], ["get", "produccion_kg"], 0, 1.5, max, 9],
+          "line-opacity": 0.65,
+        },
+      });
+      map.addLayer({
+        id: "flujo-origen",
+        type: "circle",
+        source: "flujo",
+        paint: { "circle-radius": 6, "circle-color": "#1d4ed8", "circle-stroke-width": 1.5, "circle-stroke-color": "#ffffff" },
+      });
+    }
+    if (map.isStyleLoaded()) render();
+    else map.once("load", render);
+  }, [flujo]);
+
+  // Vista activa
   useEffect(() => {
     const map = mapRef.current;
     if (!map) return;
     function aplicar() {
       if (!map) return;
-      const visCoropletico = vista === "coropletico" ? "visible" : "none";
-      const visSecaderos = vista === "secaderos" ? "visible" : "none";
+      const vis = (v: VistaMapa) => (vista === v ? "visible" : "none");
       for (const id of ["deptos-datos-fill", "deptos-datos-outline"]) {
-        if (map.getLayer(id)) map.setLayoutProperty(id, "visibility", visCoropletico);
+        if (map.getLayer(id)) map.setLayoutProperty(id, "visibility", vis("coropletico"));
       }
       for (const id of ["secaderos-clusters", "secaderos-cluster-count", "secaderos-puntos"]) {
-        if (map.getLayer(id)) map.setLayoutProperty(id, "visibility", visSecaderos);
+        if (map.getLayer(id)) map.setLayoutProperty(id, "visibility", vis("secaderos"));
+      }
+      if (map.getLayer("heatmap-secaderos")) map.setLayoutProperty("heatmap-secaderos", "visibility", vis("heatmap"));
+      for (const id of ["burbujas-halo", "burbujas-puntos", "burbujas-label"]) {
+        if (map.getLayer(id)) map.setLayoutProperty(id, "visibility", vis("burbujas"));
+      }
+      for (const id of ["flujo-lineas", "flujo-origen"]) {
+        if (map.getLayer(id)) map.setLayoutProperty(id, "visibility", vis("flujo"));
       }
     }
     if (map.isStyleLoaded()) aplicar();
     else map.once("load", aplicar);
-  }, [vista, departamentosDatos, secaderos]);
+  }, [vista, departamentosDatos, secaderos, burbujas, flujo]);
 
-  // Filtro de provincia: atenúa lo que no pertenece a la selección
+  // Filtro de provincia/departamento: atenúa lo que no pertenece a la selección
+  // y resalta con borde amarillo el departamento elegido.
   useEffect(() => {
     const map = mapRef.current;
     if (!map) return;
     function aplicar() {
       if (!map) return;
-      const activo = provinciaFiltro !== null;
-      const opacidadFuera = activo ? 0.08 : 0.18;
-      const opacidadDentro = 0.18;
-      const filtroGris: number | maplibregl.ExpressionSpecification = activo
-        ? ["case", ["==", ["upcase", ["get", "jur"]], provinciaFiltro as string], opacidadDentro, opacidadFuera]
-        : opacidadDentro;
-      if (map.getLayer("deptos-contexto-fill")) map.setPaintProperty("deptos-contexto-fill", "fill-opacity", filtroGris);
+      const provActivo = provinciaFiltro !== null;
+      const deptoActivo = departamentoFiltro !== null;
 
-      const opacidadColor: number | maplibregl.ExpressionSpecification = activo
-        ? ["case", ["==", ["upcase", ["get", "pcia"]], provinciaFiltro as string], 0.88, 0.12]
-        : 0.88;
-      if (map.getLayer("deptos-datos-fill")) map.setPaintProperty("deptos-datos-fill", "fill-opacity", opacidadColor);
+      // Contexto gris: si hay depto elegido, solo ese depto queda "presente";
+      // si solo hay provincia, se atenúa el resto de provincias.
+      let opacidadContexto: number | maplibregl.ExpressionSpecification = 0.18;
+      if (deptoActivo) {
+        opacidadContexto = ["case", ["==", ["get", "nam"], departamentoFiltro as string], 0.05, 0.22];
+      } else if (provActivo) {
+        opacidadContexto = ["case", ["==", ["upcase", ["get", "jur"]], provinciaFiltro as string], 0.18, 0.06];
+      }
+      if (map.getLayer("deptos-contexto-fill")) map.setPaintProperty("deptos-contexto-fill", "fill-opacity", opacidadContexto);
+
+      let opacidadDatos: number | maplibregl.ExpressionSpecification = 0.88;
+      if (deptoActivo) {
+        opacidadDatos = ["case", ["==", ["upcase", ["get", "depto"]], (departamentoFiltro as string).toUpperCase()], 0.92, 0.06];
+      } else if (provActivo) {
+        opacidadDatos = ["case", ["==", ["upcase", ["get", "pcia"]], provinciaFiltro as string], 0.88, 0.1];
+      }
+      if (map.getLayer("deptos-datos-fill")) map.setPaintProperty("deptos-datos-fill", "fill-opacity", opacidadDatos);
+
+      if (map.getLayer("deptos-seleccionado-outline")) {
+        map.setFilter("deptos-seleccionado-outline", ["==", ["get", "nam"], deptoActivo ? (departamentoFiltro as string) : "__ninguno__"]);
+      }
     }
     if (map.isStyleLoaded()) aplicar();
     else map.once("load", aplicar);
-  }, [provinciaFiltro]);
+  }, [provinciaFiltro, departamentoFiltro]);
 
   // Foco (fitBounds) cuando cambia el filtro de provincia/departamento
   useEffect(() => {

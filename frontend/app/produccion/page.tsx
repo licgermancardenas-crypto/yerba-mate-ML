@@ -20,6 +20,17 @@ import {
   type ProduccionMensualNacionalRow,
 } from "@/lib/agregaciones";
 
+// Coordenadas de las ciudades productoras — no hay geocodificación en el
+// dataset del INYM, así que se ubican a mano las cabeceras conocidas.
+const COORDENADAS_CIUDAD: Record<string, [number, number]> = {
+  "Colonia Liebig": [-55.72, -27.53],
+  "Gobernador Virasoro": [-56.03, -28.07],
+  "Apóstoles": [-55.75, -27.9],
+  "Montecarlo": [-54.77, -26.57],
+  "Oberá": [-55.12, -27.49],
+  "Santo Pipó": [-55.05, -27.2],
+};
+
 const COLUMNAS_ANUAL: ColumnaTabla<ProduccionAnualRow>[] = [
   { key: "anio", label: "Año", align: "left" },
   { key: "produccion_kg", label: "Producción (kg)", align: "right", format: "entero" },
@@ -64,6 +75,21 @@ export default async function ProduccionPage({
   const [filasCompletas, superficieCompletas] = await Promise.all([getProduccion(), getSuperficie()]);
   const todosLosAnios = Array.from(new Set(filasCompletas.map((f) => f.anio))).sort((a, b) => a - b);
   const todasLasProvincias = Array.from(new Set(filasCompletas.map((f) => f.provincia))).sort();
+
+  const produccionPorCiudadAnioMap = new Map<string, { anio: number; ciudad: string; provincia: string; produccion_kg: number }>();
+  for (const f of filasCompletas) {
+    const coords = COORDENADAS_CIUDAD[f.ciudad];
+    if (!coords) continue;
+    const key = `${f.anio}|${f.ciudad}`;
+    const acc = produccionPorCiudadAnioMap.get(key);
+    if (acc) acc.produccion_kg += f.produccion_kg;
+    else produccionPorCiudadAnioMap.set(key, { anio: f.anio, ciudad: f.ciudad, provincia: f.provincia, produccion_kg: f.produccion_kg });
+  }
+  const produccionPorCiudadAnio = Array.from(produccionPorCiudadAnioMap.values()).map((f) => ({
+    ...f,
+    lng: COORDENADAS_CIUDAD[f.ciudad][0],
+    lat: COORDENADAS_CIUDAD[f.ciudad][1],
+  }));
 
   const filas = filasCompletas.filter(
     (f) =>
@@ -136,7 +162,7 @@ export default async function ProduccionPage({
       </div>
 
       {vista === "mapa" ? (
-        <ProduccionMapaClient />
+        <ProduccionMapaClient produccionPorCiudadAnio={produccionPorCiudadAnio} />
       ) : (
         <>
         <FilterBar
