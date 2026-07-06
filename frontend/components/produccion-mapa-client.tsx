@@ -3,6 +3,8 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { Mountain, Satellite, Signpost, Map as MapIcon, Factory, Flame, Circle, Route, Info } from "lucide-react";
 import { ProduccionMapa, type VistaMapa, type Basemap, type BurbujaProduccion } from "@/components/produccion-mapa";
+import { ProduccionPanel, type BurbujaSeleccionada, type RutaFlujo } from "@/components/produccion-panel";
+import { normalizar } from "@/lib/texto";
 
 interface DeptoContextoFeature {
   type: "Feature";
@@ -33,15 +35,6 @@ async function fetchGeo<T = GeoJSON.FeatureCollection>(layer: string): Promise<T
   } catch {
     return null;
   }
-}
-
-// El INYM y el INDEC no siempre escriben igual un mismo departamento
-// ("OBERA" sin tilde vs. "Oberá") — se normaliza (sin acentos, mayúsculas)
-// para poder cruzar ambas fuentes sin depender de la grafía exacta.
-const DIACRITICOS = new RegExp("[\\u0300-\\u036f]", "g");
-
-function normalizar(s: string): string {
-  return s.normalize("NFD").replace(DIACRITICOS, "").toUpperCase().trim();
 }
 
 // Distancia geodésica (km) — suficiente para elegir el secadero más cercano,
@@ -117,6 +110,16 @@ export function ProduccionMapaClient({ produccionPorCiudadAnio }: { produccionPo
   const [municipios, setMunicipios] = useState<GeoJSON.FeatureCollection | null>(null);
   const [secaderos, setSecaderos] = useState<GeoJSON.FeatureCollection | null>(null);
   const [maxPct, setMaxPct] = useState(0);
+  const [ciudadSeleccionada, setCiudadSeleccionada] = useState<BurbujaSeleccionada | null>(null);
+  const [rutaSeleccionada, setRutaSeleccionada] = useState<RutaFlujo | null>(null);
+
+  // Limpia la selección puntual (burbuja/ruta) al cambiar de vista o de año
+  // -- evita mostrar en el panel el detalle de una ciudad que ya no
+  // corresponde al año/capa que se está mirando.
+  useEffect(() => {
+    setCiudadSeleccionada(null);
+    setRutaSeleccionada(null);
+  }, [vista, anio]);
 
   useEffect(() => {
     fetchGeo("indec_jurisdicciones").then(setJurisdicciones);
@@ -245,6 +248,8 @@ export function ProduccionMapaClient({ produccionPorCiudadAnio }: { produccionPo
 
   const nSecaderos = secaderos?.features.length ?? 0;
 
+  const flujoPlano: RutaFlujo[] = (flujo?.features ?? []).map((f) => f.properties as unknown as RutaFlujo);
+
   const leyendaTexto =
     vista === "coropletico"
       ? "Color = % de superficie departamental cultivada con yerba mate (gris = sin dato en el INYM). Click en un departamento para seleccionarlo."
@@ -353,7 +358,20 @@ export function ProduccionMapaClient({ produccionPorCiudadAnio }: { produccionPo
         </div>
       </div>
 
-      <div className="rounded-2xl border border-border bg-card overflow-hidden shadow-sm h-[640px] relative">
+      <div className="flex flex-col lg:flex-row gap-4 items-start">
+        <ProduccionPanel
+          vista={vista}
+          anio={anio}
+          departamentosDatos={departamentosDatos}
+          departamento={departamento}
+          burbujas={burbujas}
+          ciudadSeleccionada={ciudadSeleccionada}
+          flujo={flujoPlano}
+          rutaSeleccionada={rutaSeleccionada}
+          nSecaderos={nSecaderos}
+        />
+
+        <div className="rounded-2xl border border-border bg-card overflow-hidden shadow-sm h-[720px] w-full flex-1 relative">
         <ProduccionMapa
           vista={vista}
           jurisdicciones={jurisdicciones}
@@ -368,6 +386,8 @@ export function ProduccionMapaClient({ produccionPorCiudadAnio }: { produccionPo
           departamentoFiltro={departamento ? normalizar(departamento) : null}
           bboxFoco={bboxFoco}
           onSeleccionarDepartamento={manejarClickDepartamentoEnMapa}
+          onSeleccionarBurbuja={setCiudadSeleccionada}
+          onSeleccionarFlujo={setRutaSeleccionada}
         />
 
         {vista === "coropletico" && (
@@ -447,6 +467,7 @@ export function ProduccionMapaClient({ produccionPorCiudadAnio }: { produccionPo
             <div className="text-muted-foreground italic leading-snug">Proximidad geográfica, no ruta logística verificada.</div>
           </div>
         )}
+        </div>
       </div>
     </div>
   );

@@ -3,6 +3,7 @@
 import maplibregl from "maplibre-gl";
 import "maplibre-gl/dist/maplibre-gl.css";
 import { useEffect, useRef } from "react";
+import { tituloCase } from "@/lib/texto";
 
 export type VistaMapa = "coropletico" | "secaderos" | "heatmap" | "burbujas" | "flujo";
 export type Basemap = "topo" | "satelital" | "calles";
@@ -37,6 +38,10 @@ interface Props {
   // mapa (contexto o coroplético) — permite sincronizar los selectores de la
   // barra de control con la interacción sobre el mapa.
   onSeleccionarDepartamento?: (deptoNorm: string) => void;
+  // Alimentan el panel lateral de KPIs/gráficos (ProduccionPanel) cuando el
+  // usuario clickea una burbuja o una línea de flujo.
+  onSeleccionarBurbuja?: (b: { ciudad: string; provincia: string; produccion_kg: number }) => void;
+  onSeleccionarFlujo?: (r: { ciudad: string; produccion_kg: number; distancia_km: number }) => void;
 }
 
 const CENTRO_INICIAL: [number, number] = [-54.9, -27.1];
@@ -90,14 +95,6 @@ const TEXT_PAINT = {
 
 const nf0 = new Intl.NumberFormat("es-AR", { maximumFractionDigits: 0 });
 const nf1 = new Intl.NumberFormat("es-AR", { maximumFractionDigits: 1 });
-
-// El INYM guarda los nombres de departamento en mayúsculas y sin acentos
-// ("OBERA"); el INDEC los publica con su grafía correcta ("Oberá"). Para
-// mostrarlos en un popup sin gritar en mayúsculas (aunque sin poder
-// restituir la tilde que no está en la fuente).
-function tituloCase(s: string): string {
-  return s.toLowerCase().replace(/(^|\s)\S/g, (c) => c.toUpperCase());
-}
 
 function popupHTML(titulo: string, subtitulo: string | null, filas: { label: string; valor: string }[], nota?: string): string {
   const filasHtml = filas
@@ -159,6 +156,8 @@ export function ProduccionMapa({
   departamentoFiltro,
   bboxFoco,
   onSeleccionarDepartamento,
+  onSeleccionarBurbuja,
+  onSeleccionarFlujo,
 }: Props) {
   const containerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<maplibregl.Map | null>(null);
@@ -170,6 +169,14 @@ export function ProduccionMapa({
   useEffect(() => {
     onSeleccionarDeptoRef.current = onSeleccionarDepartamento;
   }, [onSeleccionarDepartamento]);
+  const onSeleccionarBurbujaRef = useRef(onSeleccionarBurbuja);
+  useEffect(() => {
+    onSeleccionarBurbujaRef.current = onSeleccionarBurbuja;
+  }, [onSeleccionarBurbuja]);
+  const onSeleccionarFlujoRef = useRef(onSeleccionarFlujo);
+  useEffect(() => {
+    onSeleccionarFlujoRef.current = onSeleccionarFlujo;
+  }, [onSeleccionarFlujo]);
 
   useEffect(() => {
     if (!containerRef.current) return;
@@ -236,6 +243,7 @@ export function ProduccionMapa({
         ?.setLngLat(e.lngLat)
         .setHTML(popupHTML(p.ciudad, p.provincia, [{ label: "Producción", valor: `${nf0.format(p.produccion_kg)} kg` }]))
         .addTo(map);
+      onSeleccionarBurbujaRef.current?.(p);
     });
 
     map.on("click", "flujo-lineas", (e) => {
@@ -256,6 +264,7 @@ export function ProduccionMapa({
           )
         )
         .addTo(map);
+      onSeleccionarFlujoRef.current?.(p);
     });
 
     for (const layerId of [

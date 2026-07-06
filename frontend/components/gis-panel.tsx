@@ -1,36 +1,8 @@
 "use client";
 
-import { Bar, BarChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import type { CapaCatalogo, GeoFeatureCollection } from "@/lib/types";
 import { detalleFeature, resumirCapa } from "@/lib/gis-resumen";
-import { formatNumero } from "@/lib/format";
-
-const GRID_COLOR = "#e2e8e4";
-const TICK_COLOR = "#64748b";
-
-function RankingChart({ data }: { data: { nombre: string; valor: number }[] }) {
-  if (data.length === 0) return null;
-  return (
-    <ResponsiveContainer width="100%" height={Math.max(140, data.length * 26)}>
-      <BarChart data={data} layout="vertical" margin={{ top: 4, right: 16, bottom: 0, left: 0 }}>
-        <CartesianGrid stroke={GRID_COLOR} horizontal={false} />
-        <XAxis type="number" tick={{ fontSize: 10, fill: TICK_COLOR }} tickLine={false} axisLine={{ stroke: GRID_COLOR }} />
-        <YAxis type="category" dataKey="nombre" tick={{ fontSize: 11, fill: TICK_COLOR }} tickLine={false} axisLine={false} width={92} />
-        <Tooltip cursor={{ fill: "#15803d", fillOpacity: 0.06 }} formatter={(v) => formatNumero(Number(v), 0)} />
-        <Bar dataKey="valor" fill="#15803d" radius={[0, 4, 4, 0]} maxBarSize={16} isAnimationActive={false} />
-      </BarChart>
-    </ResponsiveContainer>
-  );
-}
-
-function KpiRow({ label, valor }: { label: string; valor: string }) {
-  return (
-    <div className="flex items-baseline justify-between gap-3 py-1.5 border-b border-border last:border-0">
-      <span className="text-xs text-muted-foreground">{label}</span>
-      <span className="text-sm font-semibold tabular-nums text-card-foreground">{valor}</span>
-    </div>
-  );
-}
+import { KpiRow, PanelCard, RankingChart } from "@/components/mapa-kpi";
 
 export function GisPanel({
   capa,
@@ -46,24 +18,19 @@ export function GisPanel({
 
   return (
     <div className="flex flex-col gap-4 lg:w-[340px] lg:shrink-0">
-      <div className="rounded-2xl border border-border bg-card p-4 shadow-sm">
-        <h3 className="text-sm font-semibold text-card-foreground mb-1">Resumen de la capa</h3>
-        <p className="text-xs text-muted-foreground mb-2">{capa.descripcion}</p>
+      <PanelCard titulo="Resumen de la capa" subtitulo={capa.descripcion}>
         {resumen.kpis.map((k) => (
           <KpiRow key={k.label} {...k} />
         ))}
-      </div>
+      </PanelCard>
 
       {resumen.ranking.length > 0 && (
-        <div className="rounded-2xl border border-border bg-card p-4 shadow-sm">
-          <h3 className="text-sm font-semibold text-card-foreground mb-1">Ranking</h3>
-          <p className="text-xs text-muted-foreground mb-2">{resumen.rankingLabel}</p>
+        <PanelCard titulo="Ranking" subtitulo={resumen.rankingLabel}>
           <RankingChart data={resumen.ranking} />
-        </div>
+        </PanelCard>
       )}
 
-      <div className="rounded-2xl border border-border bg-card p-4 shadow-sm">
-        <h3 className="text-sm font-semibold text-card-foreground mb-2">Zona seleccionada</h3>
+      <PanelCard titulo="Zona seleccionada">
         {!detalle ? (
           <p className="text-xs text-muted-foreground">Hacé click en una zona del mapa para ver su detalle acá.</p>
         ) : (
@@ -88,7 +55,7 @@ export function GisPanel({
             )}
           </>
         )}
-      </div>
+      </PanelCard>
     </div>
   );
 }
