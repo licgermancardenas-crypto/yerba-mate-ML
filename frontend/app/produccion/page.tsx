@@ -2,6 +2,7 @@ import Link from "next/link";
 import { Sprout, Wheat, TrendingUp, DollarSign, Gauge, Map as MapIcon, BarChart3 } from "lucide-react";
 import { PageHeader } from "@/components/page-header";
 import { KpiCard } from "@/components/kpi-card";
+import { ChartCard } from "@/components/chart-card";
 import { FilterBar } from "@/components/filter-bar";
 import { SerieChartConFiltro } from "@/components/charts/serie-chart-con-filtro";
 import { HistoricalTable } from "@/components/historical-table";
@@ -113,7 +114,7 @@ export default async function ProduccionPage({
         description="Serie mensual y distribución geográfica de la producción de yerba mate elaborada."
       />
 
-      <div className="flex items-center gap-1 rounded-lg border border-border bg-card p-1 mb-6 w-fit">
+      <div className="flex items-center gap-1 rounded-xl border border-border bg-card p-1 mb-6 w-fit shadow-sm">
         <Link
           href={hrefDatos}
           className={`flex items-center gap-1.5 px-3 py-1.5 text-sm rounded-md transition-colors ${
@@ -149,26 +150,26 @@ export default async function ProduccionPage({
         ) : (
           <>
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
-              <KpiCard label={`Producción ${ultimoAnio}`} value={formatMasa(totalUltimo, unidad)} icon={Sprout} deltaPct={deltaAnual} deltaLabel={`vs. ${penultimoAnio}`} />
+              <KpiCard label={`Producción ${ultimoAnio}`} value={formatMasa(totalUltimo, unidad)} icon={Sprout} deltaPct={deltaAnual} deltaLabel={`vs. ${penultimoAnio}`} destacado />
               <KpiCard label={`Exportado ${ultimoAnio}`} value={formatMasa(exportadoUltimo, unidad)} icon={Wheat} />
               <KpiCard label="Precio promedio USD/kg" value={formatNumero(precioPromedioUltimo, 2)} icon={TrendingUp} />
               <KpiCard label={`Valor FOB exportado ${ultimoAnio}`} value={formatUsd(valorFobUltimo)} icon={DollarSign} />
             </div>
 
             <div className="grid grid-cols-1 xl:grid-cols-3 gap-4">
-              <div className="xl:col-span-2 rounded-xl border border-border bg-card p-4">
-                <h2 className="text-sm font-semibold text-card-foreground mb-1">Producción nacional mensual</h2>
-                <p className="text-xs text-muted-foreground mb-3">Suma de las ciudades productoras, en {unidad === "t" ? "toneladas" : "kilogramos"}</p>
+              <ChartCard
+                title="Producción nacional mensual"
+                description={`Suma de las ciudades productoras, en ${unidad === "t" ? "toneladas" : "kilogramos"}`}
+                className="xl:col-span-2"
+              >
                 <SerieChartConFiltro
                   data={serieMensual.map((p) => ({ anio: p.anio, etiqueta: p.etiqueta, valor: p.produccion_kg * factorUnidad }))}
                   numberFormat={{ notation: "compact" }}
                   suffix={sufijoUnidad}
                 />
-              </div>
+              </ChartCard>
 
-              <div className="rounded-xl border border-border bg-card p-4">
-                <h2 className="text-sm font-semibold text-card-foreground mb-1">Distribución por ciudad ({ultimoAnio})</h2>
-                <p className="text-xs text-muted-foreground mb-3">% del total nacional</p>
+              <ChartCard title={`Distribución por ciudad (${ultimoAnio})`} description="% del total nacional">
                 <table className="w-full text-sm">
                   <thead>
                     <tr className="text-left text-xs text-muted-foreground border-b border-border">
@@ -190,7 +191,7 @@ export default async function ProduccionPage({
                     ))}
                   </tbody>
                 </table>
-              </div>
+              </ChartCard>
             </div>
 
             {rendimientoAnual.length > 0 && (
@@ -217,32 +218,34 @@ export default async function ProduccionPage({
                   />
                 </div>
 
-                <div className="rounded-xl border border-border bg-card p-4">
-                  <h3 className="text-sm font-semibold text-card-foreground mb-1">Rendimiento nacional por año</h3>
-                  <p className="text-xs text-muted-foreground mb-3">kg de hoja verde por hectárea cultivada</p>
+                <ChartCard title="Rendimiento nacional por año" description="kg de hoja verde por hectárea cultivada">
                   <SerieChartConFiltro
                     data={rendimientoAnual.map((f) => ({ anio: f.anio, etiqueta: String(f.anio), valor: f.rendimiento_kg_ha }))}
                     color="#a16207"
                     numberFormat={{ maximumFractionDigits: 0 }}
                     suffix=" kg/ha"
                   />
-                </div>
+                </ChartCard>
               </>
             )}
 
-            <div className="mt-4 rounded-xl border border-border bg-card p-4">
-              <h2 className="text-sm font-semibold text-card-foreground mb-1">Histórico completo</h2>
-              <p className="text-xs text-muted-foreground mb-3">
-                Total {provinciaFiltro ?? "nacional"} (suma de {provinciaFiltro ? "las ciudades de la provincia" : "todas las ciudades productoras"}), desde{" "}
-                {anualHistorico[anualHistorico.length - 1]?.anio} hasta {ultimoAnio}
-              </p>
+            <ChartCard
+              title="Histórico completo"
+              className="mt-4"
+              description={
+                <>
+                  Total {provinciaFiltro ?? "nacional"} (suma de {provinciaFiltro ? "las ciudades de la provincia" : "todas las ciudades productoras"}), desde{" "}
+                  {anualHistorico[anualHistorico.length - 1]?.anio} hasta {ultimoAnio}
+                </>
+              }
+            >
               <HistoricalTable
                 columnasAnual={COLUMNAS_ANUAL}
                 filasAnual={anualHistorico}
                 columnasMensual={COLUMNAS_MENSUAL}
                 filasMensual={mensualHistorico}
               />
-            </div>
+            </ChartCard>
           </>
         )}
         </>

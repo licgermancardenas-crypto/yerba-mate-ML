@@ -1,6 +1,7 @@
 import { Package, Ship, Globe2 } from "lucide-react";
 import { PageHeader } from "@/components/page-header";
 import { KpiCard } from "@/components/kpi-card";
+import { ChartCard } from "@/components/chart-card";
 import { FilterBar } from "@/components/filter-bar";
 import { SerieChartConFiltro } from "@/components/charts/serie-chart-con-filtro";
 import { HistoricalTable } from "@/components/historical-table";
@@ -82,6 +83,7 @@ export default async function ImportacionesPage({
           icon={Package}
           deltaPct={deltaImportado}
           deltaLabel={`vs. ${penultimoAnio}`}
+          destacado
         />
         <KpiCard
           label={`Balanza comercial ${ultimoAnio}`}
@@ -91,9 +93,7 @@ export default async function ImportacionesPage({
         <KpiCard label="Años con datos" value={String(anualHistorico.length)} icon={Globe2} />
       </div>
 
-      <div className="rounded-xl border border-border bg-card p-4 mb-4">
-        <h2 className="text-sm font-semibold text-card-foreground mb-1">Volumen importado mensual</h2>
-        <p className="text-xs text-muted-foreground mb-3">{unidad === "t" ? "Toneladas" : "Kilogramos"}</p>
+      <ChartCard title="Volumen importado mensual" description={unidad === "t" ? "Toneladas" : "Kilogramos"} className="mb-4">
         <SerieChartConFiltro
           data={[...mensualHistorico]
             .sort((a, b) => a.anio - b.anio || a.mes - b.mes)
@@ -102,20 +102,21 @@ export default async function ImportacionesPage({
           numberFormat={{ notation: "compact" }}
           suffix={sufijoUnidad}
         />
-      </div>
+      </ChartCard>
 
-      <div className="rounded-xl border border-border bg-card p-4">
-        <h2 className="text-sm font-semibold text-card-foreground mb-1">Histórico completo</h2>
-        <p className="text-xs text-muted-foreground mb-3">
-          Desde {anualHistorico[anualHistorico.length - 1]?.anio} hasta {ultimoAnio}
-        </p>
+      <ChartCard
+        title="Histórico completo"
+        description={
+          <>Desde {anualHistorico[anualHistorico.length - 1]?.anio} hasta {ultimoAnio}</>
+        }
+      >
         <HistoricalTable
           columnasAnual={COLUMNAS_ANUAL}
           filasAnual={anualHistorico}
           columnasMensual={COLUMNAS_MENSUAL}
           filasMensual={mensualHistorico}
         />
-      </div>
+      </ChartCard>
     </main>
   );
 }

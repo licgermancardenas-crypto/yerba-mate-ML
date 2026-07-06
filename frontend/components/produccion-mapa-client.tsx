@@ -99,7 +99,7 @@ export function ProduccionMapaClient() {
 
   return (
     <div className="flex flex-col gap-3">
-      <div className="flex flex-wrap items-end gap-3 rounded-xl border border-border bg-card p-3">
+      <div className="flex flex-wrap items-end gap-3 rounded-2xl border border-border bg-card p-4 shadow-sm">
         <div className="flex flex-col gap-1">
           <label htmlFor="mapa-provincia" className="text-xs text-muted-foreground">
             Provincia
@@ -191,7 +191,7 @@ export function ProduccionMapaClient() {
         </span>
       </div>
 
-      <div className="rounded-xl border border-border bg-card overflow-hidden h-[640px] relative">
+      <div className="rounded-2xl border border-border bg-card overflow-hidden shadow-sm h-[640px] relative">
         <ProduccionMapa
           vista={vista}
           jurisdicciones={jurisdicciones}

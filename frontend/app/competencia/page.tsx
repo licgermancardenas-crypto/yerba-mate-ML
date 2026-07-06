@@ -1,6 +1,8 @@
 import { Users, Crown, Building2, Gauge, AlertTriangle } from "lucide-react";
 import { PageHeader } from "@/components/page-header";
 import { KpiCard } from "@/components/kpi-card";
+import { GaugeCard } from "@/components/gauge-card";
+import { ChartCard } from "@/components/chart-card";
 import { FilterBar } from "@/components/filter-bar";
 import { AnnualChartConFiltro } from "@/components/charts/annual-chart-con-filtro";
 import { DataTable, type ColumnaTabla } from "@/components/data-table";
@@ -155,7 +157,7 @@ export default async function CompetenciaPage({
         dimension={{ param: "empresa", label: "Empresa", opciones: todasLasEmpresas }}
       />
 
-      <div className="mb-6 rounded-xl border border-border bg-card p-4 flex gap-3">
+      <div className="mb-6 rounded-2xl border border-border bg-card p-4 shadow-sm flex gap-3">
         <AlertTriangle size={18} className="text-accent shrink-0 mt-0.5" aria-hidden="true" />
         <p className="text-xs text-muted-foreground">
           <strong className="text-card-foreground">Auditoría 2026-07-04:</strong> el histórico 2011-2024 que se mostraba antes era relleno
@@ -167,8 +169,8 @@ export default async function CompetenciaPage({
 
       {lider && (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
-          <KpiCard label={`Líder de mercado ${ultimoAnio}`} value={`${lider.empresa} (${formatPct(lider.cuota_mercado_pct!)})`} icon={Crown} />
-          <KpiCard label={`Concentración top ${TOP_N}`} value={formatPct(cuotaTop4)} icon={Building2} />
+          <KpiCard label={`Líder de mercado ${ultimoAnio}`} value={`${lider.empresa} (${formatPct(lider.cuota_mercado_pct!)})`} icon={Crown} destacado />
+          <GaugeCard label={`Concentración top ${TOP_N}`} valorPct={cuotaTop4} icon={Building2} color="var(--color-accent)" />
           <KpiCard
             label={`HHI ${ultimoAnio}`}
             value={String(Math.round(concentracion.hhi))}
@@ -189,42 +191,53 @@ export default async function CompetenciaPage({
         </p>
       )}
 
-      <div className="rounded-xl border border-border bg-card p-4">
-        <h2 className="text-sm font-semibold text-card-foreground mb-1">Cuotas de mercado por año</h2>
-        <p className="text-xs text-muted-foreground mb-3">
-          Top {TOP_N} empresas por cuota en {ultimoAnio} + &quot;Otras&quot; (resto + categoría &quot;Others&quot; de la fuente).
-          {aniosExcluidosDelChart > 0 &&
-            ` ${aniosExcluidosDelChart} año(s) del rango seleccionado no se grafican por tener menos del ${COBERTURA_MINIMA_CHART}% del mercado con dato real (quedan en la tabla histórica con "s/d").`}
-        </p>
+      <ChartCard
+        title="Cuotas de mercado por año"
+        description={
+          <>
+            Top {TOP_N} empresas por cuota en {ultimoAnio} + &quot;Otras&quot; (resto + categoría &quot;Others&quot; de la fuente).
+            {aniosExcluidosDelChart > 0 &&
+              ` ${aniosExcluidosDelChart} año(s) del rango seleccionado no se grafican por tener menos del ${COBERTURA_MINIMA_CHART}% del mercado con dato real (quedan en la tabla histórica con "s/d").`}
+          </>
+        }
+      >
         {dataChart.length > 0 ? (
           <AnnualChartConFiltro tipo="cuotas" data={dataChart} series={series} />
         ) : (
           <p className="text-sm text-muted-foreground py-12 text-center">Ningún año del rango seleccionado tiene cobertura suficiente para graficar.</p>
         )}
-      </div>
+      </ChartCard>
 
-      <div className="mt-4 rounded-xl border border-border bg-card p-4">
-        <h2 className="text-sm font-semibold text-card-foreground mb-1">HHI (Herfindahl-Hirschman) por año</h2>
-        <p className="text-xs text-muted-foreground mb-3">
-          Suma de las cuotas conocidas al cuadrado (en puntos porcentuales). Es una <strong>cota inferior</strong> del HHI real: como
-          &quot;Others&quot; agrega varias empresas chicas en un solo bloque, el HHI real es igual o mayor. Umbrales de referencia: &lt;1500 no
-          concentrado, 1500-2500 moderadamente concentrado, &gt;2500 altamente concentrado.
-        </p>
+      <ChartCard
+        title="HHI (Herfindahl-Hirschman) por año"
+        className="mt-4"
+        description={
+          <>
+            Suma de las cuotas conocidas al cuadrado (en puntos porcentuales). Es una <strong>cota inferior</strong> del HHI real: como
+            &quot;Others&quot; agrega varias empresas chicas en un solo bloque, el HHI real es igual o mayor. Umbrales de referencia: &lt;1500 no
+            concentrado, 1500-2500 moderadamente concentrado, &gt;2500 altamente concentrado.
+          </>
+        }
+      >
         {dataHhi.length > 0 ? (
           <AnnualChartConFiltro tipo="hhi" data={dataHhi} />
         ) : (
           <p className="text-sm text-muted-foreground py-12 text-center">Ningún año del rango seleccionado tiene cobertura suficiente para calcular HHI de forma confiable.</p>
         )}
-      </div>
+      </ChartCard>
 
-      <div className="mt-4 rounded-xl border border-border bg-card p-4">
-        <h2 className="text-sm font-semibold text-card-foreground mb-1">Histórico completo por empresa</h2>
-        <p className="text-xs text-muted-foreground mb-3">
-          Cuota de mercado (%) por año, desde {anios[0]} hasta {ultimoAnio}. La fuente solo publica granularidad anual (no mensual).
-          &quot;s/d&quot; = sin dato publicado para ese año (no es 0%).
-        </p>
+      <ChartCard
+        title="Histórico completo por empresa"
+        className="mt-4"
+        description={
+          <>
+            Cuota de mercado (%) por año, desde {anios[0]} hasta {ultimoAnio}. La fuente solo publica granularidad anual (no mensual).
+            &quot;s/d&quot; = sin dato publicado para ese año (no es 0%).
+          </>
+        }
+      >
         <DataTable columnas={columnasPivot} filas={filasPivot} maxHeightPx={480} />
-      </div>
+      </ChartCard>
     </main>
   );
 }

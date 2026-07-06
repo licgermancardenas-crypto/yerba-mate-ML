@@ -1,6 +1,8 @@
 import { Leaf, Factory, Globe2, Percent, CalendarRange } from "lucide-react";
 import { PageHeader } from "@/components/page-header";
 import { KpiCard } from "@/components/kpi-card";
+import { GaugeCard } from "@/components/gauge-card";
+import { ChartCard } from "@/components/chart-card";
 import { FilterBar } from "@/components/filter-bar";
 import { SerieChartConFiltro } from "@/components/charts/serie-chart-con-filtro";
 import { AnnualChartConFiltro } from "@/components/charts/annual-chart-con-filtro";
@@ -159,22 +161,25 @@ export default async function CadenaProductivaPage({
           icon={Leaf}
           deltaPct={deltaHojaVerde}
           deltaLabel={`vs. ${penultimoAnio}`}
+          destacado
         />
         <KpiCard label={`Salida molino interno ${ultimoAnio}`} value={formatMasa(molinoUltimoAnio?.interno_kg ?? 0, unidad)} icon={Factory} />
         <KpiCard label={`Salida molino externo ${ultimoAnio}`} value={formatMasa(molinoUltimoAnio?.externo_kg ?? 0, unidad)} icon={Globe2} />
-        <KpiCard label="% externo de la salida de molino" value={formatPct(pctExterno)} icon={Percent} />
+        <GaugeCard label="% externo de la salida de molino" valorPct={pctExterno} icon={Percent} color="var(--color-secondary)" />
       </div>
 
-      <div className="rounded-xl border border-border bg-card p-4 mb-4">
-        <h2 className="text-sm font-semibold text-card-foreground mb-1">Ingreso de hoja verde a secadero</h2>
-        <p className="text-xs text-muted-foreground mb-3">Total nacional, en {unidad === "t" ? "toneladas" : "kilogramos"}</p>
+      <ChartCard
+        title="Ingreso de hoja verde a secadero"
+        description={`Total nacional, en ${unidad === "t" ? "toneladas" : "kilogramos"}`}
+        className="mb-4"
+      >
         <SerieChartConFiltro
           data={serieHojaVerdeMensual.map((p) => ({ ...p, valor: p.valor * factorUnidad }))}
           color="#15803d"
           numberFormat={{ notation: "compact" }}
           suffix={sufijoUnidad}
         />
-      </div>
+      </ChartCard>
 
       <div className="mt-8 mb-4">
         <h2 className="text-lg font-semibold text-foreground">Estacionalidad de cosecha</h2>
@@ -185,27 +190,27 @@ export default async function CadenaProductivaPage({
 
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
         <KpiCard label="Mes pico de cosecha" value={mesPico.etiqueta} icon={CalendarRange} />
-        <KpiCard label="Concentración abril-septiembre" value={formatPct(pctEnCosecha)} icon={Percent} />
+        <GaugeCard label="Concentración abril-septiembre" valorPct={pctEnCosecha} icon={Percent} color="var(--color-accent)" />
       </div>
 
-      <div className="rounded-xl border border-border bg-card p-4 mb-4">
-        <h3 className="text-sm font-semibold text-card-foreground mb-1">Ingreso de hoja verde — promedio mensual</h3>
-        <p className="text-xs text-muted-foreground mb-3">
-          Total nacional, en {unidad === "t" ? "toneladas" : "kilogramos"} — la cosecha de yerba mate se concentra entre abril y septiembre
-        </p>
+      <ChartCard
+        title="Ingreso de hoja verde — promedio mensual"
+        description={`Total nacional, en ${unidad === "t" ? "toneladas" : "kilogramos"} — la cosecha de yerba mate se concentra entre abril y septiembre`}
+        className="mb-4"
+      >
         <SerieMensualChart
           data={promedioPorMes.map(({ etiqueta, valor }) => ({ etiqueta, valor }))}
           color="#a16207"
           numberFormat={{ notation: "compact" }}
           suffix={sufijoUnidad}
         />
-      </div>
+      </ChartCard>
 
-      <div className="rounded-xl border border-border bg-card p-4 mb-4">
-        <h2 className="text-sm font-semibold text-card-foreground mb-1">Salida de molino por año</h2>
-        <p className="text-xs text-muted-foreground mb-3">
-          Mercado interno vs. externo, en {unidad === "t" ? "t" : "kg"}. No coincide con consumo_interno_kg/exportaciones_kg de Producción — miden puntos distintos de la cadena.
-        </p>
+      <ChartCard
+        title="Salida de molino por año"
+        description={`Mercado interno vs. externo, en ${unidad === "t" ? "t" : "kg"}. No coincide con consumo_interno_kg/exportaciones_kg de Producción — miden puntos distintos de la cadena.`}
+        className="mb-4"
+      >
         <AnnualChartConFiltro
           tipo="cuotas"
           data={molinoStackedData}
@@ -214,41 +219,40 @@ export default async function CadenaProductivaPage({
             { key: "Externo", color: "#1d4ed8" },
           ]}
         />
-      </div>
+      </ChartCard>
 
       <div className="grid grid-cols-1 xl:grid-cols-2 gap-4 mb-4">
-        <div className="rounded-xl border border-border bg-card p-4">
-          <h2 className="text-sm font-semibold text-card-foreground mb-1">Hoja verde — histórico nacional</h2>
-          <p className="text-xs text-muted-foreground mb-3">
-            Desde {hojaVerdeAnual[hojaVerdeAnual.length - 1]?.anio} hasta {ultimoAnio}
-          </p>
+        <ChartCard
+          title="Hoja verde — histórico nacional"
+          description={<>Desde {hojaVerdeAnual[hojaVerdeAnual.length - 1]?.anio} hasta {ultimoAnio}</>}
+        >
           <HistoricalTable
             columnasAnual={COLUMNAS_HOJA_VERDE_ANUAL}
             filasAnual={hojaVerdeAnual}
             columnasMensual={COLUMNAS_HOJA_VERDE_MENSUAL}
             filasMensual={hojaVerdeMensualNacional}
           />
-        </div>
+        </ChartCard>
 
-        <div className="rounded-xl border border-border bg-card p-4">
-          <h2 className="text-sm font-semibold text-card-foreground mb-1">Salida de molino — histórico nacional</h2>
-          <p className="text-xs text-muted-foreground mb-3">
-            Desde {molinoAnual[molinoAnual.length - 1]?.anio} hasta {ultimoAnio}
-          </p>
+        <ChartCard
+          title="Salida de molino — histórico nacional"
+          description={<>Desde {molinoAnual[molinoAnual.length - 1]?.anio} hasta {ultimoAnio}</>}
+        >
           <HistoricalTable
             columnasAnual={COLUMNAS_MOLINO_ANUAL}
             filasAnual={molinoAnual}
             columnasMensual={COLUMNAS_MOLINO_MENSUAL}
             filasMensual={molinoMensual}
           />
-        </div>
+        </ChartCard>
       </div>
 
-      <div className="rounded-xl border border-border bg-card p-4">
-        <h2 className="text-sm font-semibold text-card-foreground mb-1">Hoja verde por zona</h2>
-        <p className="text-xs text-muted-foreground mb-3">Kilogramos por año (excluye la fila &quot;TOTAL&quot; nacional, ya mostrada arriba)</p>
+      <ChartCard
+        title="Hoja verde por zona"
+        description={<>Kilogramos por año (excluye la fila &quot;TOTAL&quot; nacional, ya mostrada arriba)</>}
+      >
         <DataTable columnas={columnasZona} filas={filasZona} maxHeightPx={420} />
-      </div>
+      </ChartCard>
     </main>
   );
 }

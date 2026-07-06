@@ -80,7 +80,7 @@ export function MapaGisClient({
 
   return (
     <div className="flex flex-col gap-4">
-      <div className="flex flex-wrap items-center gap-3">
+      <div className="flex flex-wrap items-center gap-3 rounded-2xl border border-border bg-card p-4 shadow-sm">
         <label className="text-sm font-medium text-foreground" htmlFor="capa-select">
           Capa
         </label>
@@ -88,7 +88,7 @@ export function MapaGisClient({
           id="capa-select"
           value={capaActual.layer_name}
           onChange={(e) => cambiarCapa(e.target.value)}
-          className="text-sm rounded-lg border border-border bg-card px-3 py-2 text-card-foreground"
+          className="text-sm rounded-lg border border-border bg-background px-3 py-2 text-foreground"
         >
           {Array.from(porCategoria.entries()).map(([categoria, capas]) => (
             <optgroup key={categoria} label={CATEGORIA_LABELS[categoria] ?? categoria}>
@@ -101,11 +101,10 @@ export function MapaGisClient({
           ))}
         </select>
         {cargando && <span className="text-xs text-muted-foreground">Cargando…</span>}
+        <p className="text-xs text-muted-foreground ml-auto">{capaActual.descripcion}</p>
       </div>
 
-      <p className="text-xs text-muted-foreground">{capaActual.descripcion}</p>
-
-      <div className="rounded-xl border border-border bg-card overflow-hidden h-[560px]">
+      <div className="rounded-2xl border border-border bg-card overflow-hidden shadow-sm h-[560px]">
         {error ? (
           <div className="flex items-center justify-center h-full text-sm text-muted-foreground">{error}</div>
         ) : (

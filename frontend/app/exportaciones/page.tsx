@@ -1,6 +1,8 @@
-import { Ship, Globe2, DollarSign, TrendingUp, PieChart } from "lucide-react";
+import { Ship, Globe2, DollarSign, TrendingUp, PieChart, Package2, Boxes, HelpCircle } from "lucide-react";
 import { PageHeader } from "@/components/page-header";
 import { KpiCard } from "@/components/kpi-card";
+import { GaugeCard } from "@/components/gauge-card";
+import { ChartCard } from "@/components/chart-card";
 import { FilterBar } from "@/components/filter-bar";
 import { SerieChartConFiltro } from "@/components/charts/serie-chart-con-filtro";
 import { HistoricalTable } from "@/components/historical-table";
@@ -107,28 +109,26 @@ export default async function ExportacionesPage({
       ) : (
         <>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
-            <KpiCard label={`Volumen exportado ${ultimoAnio}`} value={formatMasa(volumenUltimo, unidad)} icon={Ship} deltaPct={deltaVolumen} deltaLabel={`vs. ${penultimoAnio}`} />
+            <KpiCard label={`Volumen exportado ${ultimoAnio}`} value={formatMasa(volumenUltimo, unidad)} icon={Ship} deltaPct={deltaVolumen} deltaLabel={`vs. ${penultimoAnio}`} destacado />
             <KpiCard label={`Valor FOB ${ultimoAnio}`} value={formatUsd(valorFobUltimo)} icon={DollarSign} />
             <KpiCard label="Precio FOB promedio USD/kg" value={formatNumero(precioPromedioUltimo, 2)} icon={TrendingUp} />
             <KpiCard label="Países destino" value={String(destinos.length)} icon={Globe2} />
           </div>
 
           <div className="grid grid-cols-1 xl:grid-cols-3 gap-4">
-            <div className="xl:col-span-2 rounded-xl border border-border bg-card p-4">
-              <h2 className="text-sm font-semibold text-card-foreground mb-1">Volumen exportado mensual</h2>
-              <p className="text-xs text-muted-foreground mb-3">
-                Suma de {destinoFiltro ?? "todos los destinos"}, en {unidad === "t" ? "toneladas" : "kilogramos"}
-              </p>
+            <ChartCard
+              title="Volumen exportado mensual"
+              description={`Suma de ${destinoFiltro ?? "todos los destinos"}, en ${unidad === "t" ? "toneladas" : "kilogramos"}`}
+              className="xl:col-span-2"
+            >
               <SerieChartConFiltro
                 data={serieMensual.map((p) => ({ ...p, valor: p.valor * factorUnidad }))}
                 numberFormat={{ notation: "compact" }}
                 suffix={sufijoUnidad}
               />
-            </div>
+            </ChartCard>
 
-            <div className="rounded-xl border border-border bg-card p-4">
-              <h2 className="text-sm font-semibold text-card-foreground mb-1">Distribución por destino ({ultimoAnio})</h2>
-              <p className="text-xs text-muted-foreground mb-3">% del volumen total exportado</p>
+            <ChartCard title={`Distribución por destino (${ultimoAnio})`} description="% del volumen total exportado">
               <table className="w-full text-sm">
                 <thead>
                   <tr className="text-left text-xs text-muted-foreground border-b border-border">
@@ -147,46 +147,39 @@ export default async function ExportacionesPage({
                   ))}
                 </tbody>
               </table>
-            </div>
+            </ChartCard>
           </div>
 
-          <div className="mt-4 rounded-xl border border-border bg-card p-4">
-            <h2 className="text-sm font-semibold text-card-foreground mb-1 flex items-center gap-2">
-              <PieChart size={16} className="text-primary" aria-hidden="true" />
-              Composición: a granel vs. fraccionado
-            </h2>
-            <p className="text-xs text-muted-foreground mb-3">
-              Dato puntual (no serie histórica, no está en `ym.exportaciones`) — Bolsa de Comercio de Rosario, Informativo
-              Semanal N.° 2222 (28/11/2025), sobre datos de enero-septiembre 2025.
-            </p>
-            <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
-              <div>
-                <div className="text-2xl font-semibold text-card-foreground">57%</div>
-                <div className="text-xs text-muted-foreground">A granel, bolsas de 50 kg sin fraccionar</div>
-              </div>
-              <div>
-                <div className="text-2xl font-semibold text-card-foreground">29%</div>
-                <div className="text-xs text-muted-foreground">Fraccionado para consumo minorista (1/4 kg a 2 kg)</div>
-              </div>
-              <div>
-                <div className="text-2xl font-semibold text-muted-foreground">~14%</div>
-                <div className="text-xs text-muted-foreground">Resto, sin desglosar en la fuente</div>
-              </div>
-            </div>
+          <div className="mt-8 mb-4 flex items-center gap-2">
+            <PieChart size={16} className="text-primary" aria-hidden="true" />
+            <h2 className="text-lg font-semibold text-foreground">Composición: a granel vs. fraccionado</h2>
+          </div>
+          <p className="text-sm text-muted-foreground -mt-2 mb-4">
+            Dato puntual (no serie histórica, no está en <code>ym.exportaciones</code>) — Bolsa de Comercio de Rosario, Informativo
+            Semanal N.° 2222 (28/11/2025), sobre datos de enero-septiembre 2025.
+          </p>
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+            <GaugeCard label="A granel" valorPct={57} icon={Package2} color="var(--color-primary)" descripcion="Bolsas de 50 kg sin fraccionar" />
+            <GaugeCard label="Fraccionado" valorPct={29} icon={Boxes} color="var(--color-accent)" descripcion="Consumo minorista (1/4 kg a 2 kg)" />
+            <GaugeCard label="Resto" valorPct={14} displayValue="~14%" icon={HelpCircle} color="var(--color-muted-foreground)" descripcion="Sin desglosar en la fuente" />
           </div>
 
-          <div className="mt-4 rounded-xl border border-border bg-card p-4">
-            <h2 className="text-sm font-semibold text-card-foreground mb-1">Histórico completo</h2>
-            <p className="text-xs text-muted-foreground mb-3">
-              Total {destinoFiltro ?? "nacional (todos los destinos)"}, desde {anualHistorico[anualHistorico.length - 1]?.anio} hasta {ultimoAnio}
-            </p>
+          <ChartCard
+            title="Histórico completo"
+            className="mt-8"
+            description={
+              <>
+                Total {destinoFiltro ?? "nacional (todos los destinos)"}, desde {anualHistorico[anualHistorico.length - 1]?.anio} hasta {ultimoAnio}
+              </>
+            }
+          >
             <HistoricalTable
               columnasAnual={COLUMNAS_ANUAL}
               filasAnual={anualHistorico}
               columnasMensual={COLUMNAS_MENSUAL}
               filasMensual={mensualHistorico}
             />
-          </div>
+          </ChartCard>
         </>
       )}
     </main>

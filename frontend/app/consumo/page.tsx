@@ -1,6 +1,8 @@
 import { Coffee, Package, ScrollText } from "lucide-react";
 import { PageHeader } from "@/components/page-header";
 import { KpiCard } from "@/components/kpi-card";
+import { GaugeCard } from "@/components/gauge-card";
+import { ChartCard } from "@/components/chart-card";
 import { FilterBar } from "@/components/filter-bar";
 import { SerieChartConFiltro } from "@/components/charts/serie-chart-con-filtro";
 import { AnnualChartConFiltro } from "@/components/charts/annual-chart-con-filtro";
@@ -119,49 +121,51 @@ export default async function ConsumoPage({
               icon={Coffee}
               deltaPct={deltaConsumo}
               deltaLabel={`vs. ${penultimoAnio}`}
+              destacado
             />
             <KpiCard
               label="Formato preferido"
               value={formatoPreferido}
               icon={Package}
             />
-            <KpiCard
+            <GaugeCard
               label="Sin estampilla"
-              value={`${formatNumero(filaUltimoAnio.sin_estampillas_pct, 1)}%`}
+              valorPct={filaUltimoAnio.sin_estampillas_pct}
               icon={ScrollText}
+              color="var(--color-accent)"
             />
           </div>
 
           <div className="grid grid-cols-1 xl:grid-cols-2 gap-4">
-            <div className="rounded-xl border border-border bg-card p-4">
-              <h2 className="text-sm font-semibold text-card-foreground mb-1">Consumo per cápita por año</h2>
-              <p className="text-xs text-muted-foreground mb-3">Kilogramos por persona por año</p>
+            <ChartCard title="Consumo per cápita por año" description="Kilogramos por persona por año">
               <SerieChartConFiltro
                 data={serieAnual}
                 numberFormat={{ minimumFractionDigits: 1, maximumFractionDigits: 1 }}
                 suffix=" kg"
               />
-            </div>
+            </ChartCard>
 
-            <div className="rounded-xl border border-border bg-card p-4">
-              <h2 className="text-sm font-semibold text-card-foreground mb-1">Mix de envases por año</h2>
-              <p className="text-xs text-muted-foreground mb-3">% de las salidas de molino al mercado interno</p>
+            <ChartCard title="Mix de envases por año" description="% de las salidas de molino al mercado interno">
               <AnnualChartConFiltro tipo="envases" data={envasesPorAnio} />
-            </div>
+            </ChartCard>
           </div>
 
-          <div className="mt-4 rounded-xl border border-border bg-card p-4">
-            <h2 className="text-sm font-semibold text-card-foreground mb-1">Histórico completo</h2>
-            <p className="text-xs text-muted-foreground mb-3">
-              Desde {anualHistorico[anualHistorico.length - 1]?.anio} hasta {ultimoAnio}. La fuente publica el mismo valor los 12 meses de cada año (cadencia de publicación anual, no mensual).
-            </p>
+          <ChartCard
+            title="Histórico completo"
+            className="mt-4"
+            description={
+              <>
+                Desde {anualHistorico[anualHistorico.length - 1]?.anio} hasta {ultimoAnio}. La fuente publica el mismo valor los 12 meses de cada año (cadencia de publicación anual, no mensual).
+              </>
+            }
+          >
             <HistoricalTable
               columnasAnual={COLUMNAS_ANUAL}
               filasAnual={anualHistorico}
               columnasMensual={COLUMNAS_MENSUAL}
               filasMensual={mensualHistorico}
             />
-          </div>
+          </ChartCard>
         </>
       )}
     </main>

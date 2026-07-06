@@ -1,6 +1,7 @@
 import { DollarSign, Leaf, Factory, TrendingUp, Scale } from "lucide-react";
 import { PageHeader } from "@/components/page-header";
 import { KpiCard } from "@/components/kpi-card";
+import { ChartCard } from "@/components/chart-card";
 import { FilterBar } from "@/components/filter-bar";
 import { SerieChartConFiltro } from "@/components/charts/serie-chart-con-filtro";
 import { HistoricalTable } from "@/components/historical-table";
@@ -148,6 +149,7 @@ export default async function PreciosPage({
           icon={Leaf}
           deltaPct={deltaHojaVerde}
           deltaLabel="vs. año anterior"
+          destacado
         />
         <KpiCard
           label={`Canchada ${MESES[ultima.mes - 1]} ${ultima.anio}`}
@@ -164,17 +166,13 @@ export default async function PreciosPage({
       </div>
 
       <div className="grid grid-cols-1 xl:grid-cols-2 gap-4">
-        <div className="rounded-xl border border-border bg-card p-4">
-          <h2 className="text-sm font-semibold text-card-foreground mb-1">Precio hoja verde</h2>
-          <p className="text-xs text-muted-foreground mb-3">ARS/kg, serie completa</p>
+        <ChartCard title="Precio hoja verde" description="ARS/kg, serie completa">
           <SerieChartConFiltro data={serieHojaVerde} color="#15803d" prefix="$" suffix="/kg" numberFormat={{ minimumFractionDigits: 2, maximumFractionDigits: 2 }} />
-        </div>
+        </ChartCard>
 
-        <div className="rounded-xl border border-border bg-card p-4">
-          <h2 className="text-sm font-semibold text-card-foreground mb-1">Precio canchada</h2>
-          <p className="text-xs text-muted-foreground mb-3">ARS/kg, serie completa</p>
+        <ChartCard title="Precio canchada" description="ARS/kg, serie completa">
           <SerieChartConFiltro data={serieCanchada} color="#a16207" prefix="$" suffix="/kg" numberFormat={{ minimumFractionDigits: 2, maximumFractionDigits: 2 }} />
-        </div>
+        </ChartCard>
       </div>
 
       <div className="mt-8 mb-4">
@@ -202,29 +200,21 @@ export default async function PreciosPage({
       </div>
 
       <div className="grid grid-cols-1 xl:grid-cols-2 gap-4">
-        <div className="rounded-xl border border-border bg-card p-4">
-          <h3 className="text-sm font-semibold text-card-foreground mb-1">Precio real hoja verde</h3>
-          <p className="text-xs text-muted-foreground mb-3">ARS/kg deflactado, en pesos del último mes con dato de IPC</p>
+        <ChartCard title="Precio real hoja verde" description="ARS/kg deflactado, en pesos del último mes con dato de IPC">
           <SerieChartConFiltro data={serieHojaVerdeReal} color="#15803d" prefix="$" suffix="/kg" numberFormat={{ minimumFractionDigits: 2, maximumFractionDigits: 2 }} />
-        </div>
-        <div className="rounded-xl border border-border bg-card p-4">
-          <h3 className="text-sm font-semibold text-card-foreground mb-1">Precio real canchada</h3>
-          <p className="text-xs text-muted-foreground mb-3">ARS/kg deflactado, en pesos del último mes con dato de IPC</p>
+        </ChartCard>
+        <ChartCard title="Precio real canchada" description="ARS/kg deflactado, en pesos del último mes con dato de IPC">
           <SerieChartConFiltro data={serieCanchadaReal} color="#a16207" prefix="$" suffix="/kg" numberFormat={{ minimumFractionDigits: 2, maximumFractionDigits: 2 }} />
-        </div>
+        </ChartCard>
       </div>
 
       <div className="grid grid-cols-1 xl:grid-cols-2 gap-4 mt-4">
-        <div className="rounded-xl border border-border bg-card p-4">
-          <h3 className="text-sm font-semibold text-card-foreground mb-1">IPC Nacional</h3>
-          <p className="text-xs text-muted-foreground mb-3">Índice, base dic-2016=100 (INDEC)</p>
+        <ChartCard title="IPC Nacional" description="Índice, base dic-2016=100 (INDEC)">
           <SerieChartConFiltro data={serieIpcNacional} color="#1d4ed8" numberFormat={{ maximumFractionDigits: 0 }} />
-        </div>
-        <div className="rounded-xl border border-border bg-card p-4">
-          <h3 className="text-sm font-semibold text-card-foreground mb-1">IPC yerba mate (GBA)</h3>
-          <p className="text-xs text-muted-foreground mb-3">Índice, base dic-2016=100 (INDEC) — precio al consumidor</p>
+        </ChartCard>
+        <ChartCard title="IPC yerba mate (GBA)" description="Índice, base dic-2016=100 (INDEC) — precio al consumidor">
           <SerieChartConFiltro data={serieIpcYerbaMate} color="#7e22ce" numberFormat={{ maximumFractionDigits: 0 }} />
-        </div>
+        </ChartCard>
       </div>
 
       {gondolaOrdenada.length > 0 && (
@@ -236,7 +226,7 @@ export default async function PreciosPage({
             </p>
           </div>
 
-          <div className="rounded-xl border border-border bg-card p-4 overflow-x-auto">
+          <div className="rounded-2xl border border-border bg-card p-5 shadow-sm hover:shadow-md transition-shadow duration-200 overflow-x-auto">
             <table className="w-full text-sm">
               <thead>
                 <tr className="text-left text-xs text-muted-foreground border-b border-border">
@@ -273,18 +263,20 @@ export default async function PreciosPage({
         </>
       )}
 
-      <div className="mt-4 rounded-xl border border-border bg-card p-4">
-        <h2 className="text-sm font-semibold text-card-foreground mb-1">Histórico completo</h2>
-        <p className="text-xs text-muted-foreground mb-3">
-          Desde {anualHistorico[anualHistorico.length - 1]?.anio} hasta {ultima.anio}. El promedio anual ignora meses sin precio publicado por el INYM.
-        </p>
+      <ChartCard
+        title="Histórico completo"
+        className="mt-4"
+        description={
+          <>Desde {anualHistorico[anualHistorico.length - 1]?.anio} hasta {ultima.anio}. El promedio anual ignora meses sin precio publicado por el INYM.</>
+        }
+      >
         <HistoricalTable
           columnasAnual={COLUMNAS_ANUAL}
           filasAnual={anualHistorico}
           columnasMensual={COLUMNAS_MENSUAL}
           filasMensual={mensualHistorico}
         />
-      </div>
+      </ChartCard>
     </main>
   );
 }

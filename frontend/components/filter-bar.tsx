@@ -51,7 +51,7 @@ export function FilterBar({
   }
 
   return (
-    <div className="flex flex-wrap items-end gap-3 mb-6 rounded-xl border border-border bg-card p-3">
+    <div className="flex flex-wrap items-end gap-3 mb-6 rounded-2xl border border-border bg-card p-4 shadow-sm">
       <span className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground mb-1.5 mr-1">
         <SlidersHorizontal size={13} aria-hidden="true" />
         Filtros
