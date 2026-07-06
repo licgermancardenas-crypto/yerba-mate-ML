@@ -8,16 +8,18 @@ export type VistaMapa = "coropletico" | "secaderos";
 
 interface Props {
   vista: VistaMapa;
-  coropletico: GeoJSON.FeatureCollection | null;
+  jurisdicciones: GeoJSON.FeatureCollection | null;
+  departamentosContexto: GeoJSON.FeatureCollection | null; // INDEC, todos los deptos (gris)
+  departamentosDatos: GeoJSON.FeatureCollection | null; // INYM, solo los que tienen dato real (color)
+  municipios: GeoJSON.FeatureCollection | null;
   secaderos: GeoJSON.FeatureCollection | null;
   basemap: "topo" | "satelital";
+  provinciaFiltro: string | null; // 'MISIONES' | 'CORRIENTES' | null (todas)
+  bboxFoco: GeoJSON.FeatureCollection | null; // feature(s) a los que hacer fitBounds cuando cambia el filtro
 }
 
 const CENTRO_INICIAL: [number, number] = [-54.9, -27.1];
 
-// Fuentes raster gratuitas, sin API key — el IGN (ign.gob.ar / wms.ign.gob.ar)
-// no es alcanzable desde este entorno (timeout de red confirmado, reintentado
-// dos sesiones distintas).
 const ESTILO_BASE: maplibregl.StyleSpecification = {
   version: 8,
   sources: {
@@ -46,7 +48,40 @@ const ESTILO_BASE: maplibregl.StyleSpecification = {
   ],
 };
 
-export function ProduccionMapa({ vista, coropletico, secaderos, basemap }: Props) {
+const TEXT_PAINT = {
+  "text-color": "#ffffff",
+  "text-halo-color": "#052e16",
+  "text-halo-width": 1.4,
+};
+
+function extenderBounds(bounds: maplibregl.LngLatBounds, coords: unknown) {
+  if (!Array.isArray(coords)) return;
+  if (typeof coords[0] === "number" && typeof coords[1] === "number") {
+    bounds.extend([coords[0], coords[1]] as [number, number]);
+  } else {
+    for (const c of coords) extenderBounds(bounds, c);
+  }
+}
+
+function fitBoundsA(map: maplibregl.Map, fc: GeoJSON.FeatureCollection, opts?: maplibregl.FitBoundsOptions) {
+  const bounds = new maplibregl.LngLatBounds();
+  for (const f of fc.features) {
+    if (f.geometry && "coordinates" in f.geometry) extenderBounds(bounds, f.geometry.coordinates);
+  }
+  if (!bounds.isEmpty()) map.fitBounds(bounds, { padding: 40, duration: 600, ...opts });
+}
+
+export function ProduccionMapa({
+  vista,
+  jurisdicciones,
+  departamentosContexto,
+  departamentosDatos,
+  municipios,
+  secaderos,
+  basemap,
+  provinciaFiltro,
+  bboxFoco,
+}: Props) {
   const containerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<maplibregl.Map | null>(null);
   const popupRef = useRef<maplibregl.Popup | null>(null);
@@ -57,12 +92,13 @@ export function ProduccionMapa({ vista, coropletico, secaderos, basemap }: Props
       container: containerRef.current,
       style: ESTILO_BASE,
       center: CENTRO_INICIAL,
-      zoom: 7,
+      zoom: 6.8,
     });
     map.addControl(new maplibregl.NavigationControl(), "top-right");
+    map.addControl(new maplibregl.ScaleControl({ unit: "metric" }), "bottom-right");
     popupRef.current = new maplibregl.Popup({ closeButton: true, maxWidth: "260px" });
 
-    map.on("click", "coropletico-fill", (e) => {
+    map.on("click", "deptos-datos-fill", (e) => {
       const f = e.features?.[0];
       if (!f) return;
       const p = f.properties as { depto: string; pcia: string; valor: number; sup_ym: number };
@@ -72,8 +108,8 @@ export function ProduccionMapa({ vista, coropletico, secaderos, basemap }: Props
           `<div class="p-1 text-sm">
             <div class="font-semibold">${p.depto}</div>
             <div class="text-xs text-muted-foreground mb-1">${p.pcia}</div>
-            <div>${new Intl.NumberFormat("es-AR", { maximumFractionDigits: 1 }).format(p.valor)}%</div>
-            <div class="text-xs text-muted-foreground">${new Intl.NumberFormat("es-AR").format(p.sup_ym)} ha cultivadas</div>
+            <div>${new Intl.NumberFormat("es-AR", { maximumFractionDigits: 1 }).format(p.valor)}% de superficie cultivada</div>
+            <div class="text-xs text-muted-foreground">${new Intl.NumberFormat("es-AR").format(p.sup_ym)} ha</div>
           </div>`
         )
         .addTo(map);
@@ -104,7 +140,7 @@ export function ProduccionMapa({ vista, coropletico, secaderos, basemap }: Props
       });
     });
 
-    for (const layerId of ["coropletico-fill", "secaderos-puntos", "secaderos-clusters"]) {
+    for (const layerId of ["deptos-datos-fill", "secaderos-puntos", "secaderos-clusters"]) {
       map.on("mouseenter", layerId, () => {
         map.getCanvas().style.cursor = "pointer";
       });
@@ -134,55 +170,187 @@ export function ProduccionMapa({ vista, coropletico, secaderos, basemap }: Props
     else map.once("load", aplicar);
   }, [basemap]);
 
-  // Capa coroplética — departamentos coloreados por % de superficie cultivada
+  // Jurisdicciones (provincias) — contorno grueso + label grande, siempre visible
   useEffect(() => {
     const map = mapRef.current;
     if (!map) return;
-
     function render() {
       if (!map) return;
-      if (map.getLayer("coropletico-fill")) map.removeLayer("coropletico-fill");
-      if (map.getLayer("coropletico-outline")) map.removeLayer("coropletico-outline");
-      if (map.getSource("coropletico")) map.removeSource("coropletico");
-      if (!coropletico || coropletico.features.length === 0) return;
+      for (const id of ["jurisdicciones-outline", "jurisdicciones-label"]) {
+        if (map.getLayer(id)) map.removeLayer(id);
+      }
+      if (map.getSource("jurisdicciones")) map.removeSource("jurisdicciones");
+      if (!jurisdicciones) return;
 
-      const valores = coropletico.features.map((f) => (f.properties?.valor as number) ?? 0);
-      const max = Math.max(...valores, 0.01);
-
-      map.addSource("coropletico", { type: "geojson", data: coropletico });
+      map.addSource("jurisdicciones", { type: "geojson", data: jurisdicciones });
       map.addLayer({
-        id: "coropletico-fill",
-        type: "fill",
-        source: "coropletico",
-        paint: {
-          "fill-color": [
-            "interpolate", ["linear"], ["get", "valor"],
-            0, "#f0fdf4",
-            max * 0.25, "#bbf7d0",
-            max * 0.5, "#4ade80",
-            max * 0.75, "#16a34a",
-            max, "#14532d",
-          ],
-          "fill-opacity": 0.85,
-        },
+        id: "jurisdicciones-outline",
+        type: "line",
+        source: "jurisdicciones",
+        paint: { "line-color": "#052e16", "line-width": 2.2 },
       });
       map.addLayer({
-        id: "coropletico-outline",
-        type: "line",
-        source: "coropletico",
-        paint: { "line-color": "#052e16", "line-width": 1 },
+        id: "jurisdicciones-label",
+        type: "symbol",
+        source: "jurisdicciones",
+        layout: {
+          "text-field": ["get", "nam"],
+          "text-size": 16,
+          "text-font": ["Open Sans Bold", "Arial Unicode MS Bold"],
+          "text-transform": "uppercase",
+          "text-letter-spacing": 0.05,
+        },
+        paint: TEXT_PAINT,
       });
     }
-
     if (map.isStyleLoaded()) render();
     else map.once("load", render);
-  }, [coropletico]);
+  }, [jurisdicciones]);
+
+  // Departamentos — contexto gris (todos, INDEC) por debajo del color con datos
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map) return;
+    function render() {
+      if (!map) return;
+      for (const id of ["deptos-contexto-fill", "deptos-contexto-outline", "deptos-contexto-label"]) {
+        if (map.getLayer(id)) map.removeLayer(id);
+      }
+      if (map.getSource("deptos-contexto")) map.removeSource("deptos-contexto");
+      if (!departamentosContexto) return;
+
+      map.addSource("deptos-contexto", { type: "geojson", data: departamentosContexto });
+      // Se inserta antes de jurisdicciones-outline para que el borde de provincia quede arriba
+      const antesDe = map.getLayer("jurisdicciones-outline") ? "jurisdicciones-outline" : undefined;
+      map.addLayer(
+        {
+          id: "deptos-contexto-fill",
+          type: "fill",
+          source: "deptos-contexto",
+          paint: { "fill-color": "#94a3b8", "fill-opacity": 0.18 },
+        },
+        antesDe
+      );
+      map.addLayer(
+        {
+          id: "deptos-contexto-outline",
+          type: "line",
+          source: "deptos-contexto",
+          paint: { "line-color": "#475569", "line-width": 0.8, "line-opacity": 0.7 },
+        },
+        antesDe
+      );
+      map.addLayer({
+        id: "deptos-contexto-label",
+        type: "symbol",
+        source: "deptos-contexto",
+        minzoom: 7,
+        layout: {
+          "text-field": ["get", "nam"],
+          "text-size": 11,
+          "text-font": ["Open Sans Regular", "Arial Unicode MS Regular"],
+        },
+        paint: { "text-color": "#1e293b", "text-halo-color": "#ffffff", "text-halo-width": 1.2 },
+      });
+    }
+    if (map.isStyleLoaded()) render();
+    else map.once("load", render);
+  }, [departamentosContexto]);
+
+  // Departamentos con dato real (INYM) — coloreados por % cultivado, SOLO estos
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map) return;
+    function render() {
+      if (!map) return;
+      if (map.getLayer("deptos-datos-fill")) map.removeLayer("deptos-datos-fill");
+      if (map.getLayer("deptos-datos-outline")) map.removeLayer("deptos-datos-outline");
+      if (map.getSource("deptos-datos")) map.removeSource("deptos-datos");
+      if (!departamentosDatos || departamentosDatos.features.length === 0) return;
+
+      const valores = departamentosDatos.features.map((f) => (f.properties?.valor as number) ?? 0);
+      const max = Math.max(...valores, 0.01);
+      const antesDe = map.getLayer("jurisdicciones-outline") ? "jurisdicciones-outline" : undefined;
+
+      map.addSource("deptos-datos", { type: "geojson", data: departamentosDatos });
+      map.addLayer(
+        {
+          id: "deptos-datos-fill",
+          type: "fill",
+          source: "deptos-datos",
+          paint: {
+            "fill-color": [
+              "interpolate", ["linear"], ["get", "valor"],
+              0, "#f0fdf4",
+              max * 0.25, "#bbf7d0",
+              max * 0.5, "#4ade80",
+              max * 0.75, "#16a34a",
+              max, "#14532d",
+            ],
+            "fill-opacity": 0.88,
+          },
+        },
+        antesDe
+      );
+      map.addLayer(
+        {
+          id: "deptos-datos-outline",
+          type: "line",
+          source: "deptos-datos",
+          paint: { "line-color": "#052e16", "line-width": 1.1 },
+        },
+        antesDe
+      );
+    }
+    if (map.isStyleLoaded()) render();
+    else map.once("load", render);
+  }, [departamentosDatos]);
+
+  // Municipios — solo contorno fino + nombre, aparece al acercar el zoom
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map) return;
+    function render() {
+      if (!map) return;
+      for (const id of ["municipios-outline", "municipios-label"]) {
+        if (map.getLayer(id)) map.removeLayer(id);
+      }
+      if (map.getSource("municipios")) map.removeSource("municipios");
+      if (!municipios) return;
+
+      map.addSource("municipios", { type: "geojson", data: municipios });
+      const antesDe = map.getLayer("jurisdicciones-outline") ? "jurisdicciones-outline" : undefined;
+      map.addLayer(
+        {
+          id: "municipios-outline",
+          type: "line",
+          source: "municipios",
+          minzoom: 9,
+          paint: { "line-color": "#065f46", "line-width": 0.6, "line-dasharray": [2, 1.5] },
+        },
+        antesDe
+      );
+      map.addLayer({
+        id: "municipios-label",
+        type: "symbol",
+        source: "municipios",
+        minzoom: 9.5,
+        layout: {
+          "text-field": ["get", "municipio"],
+          "text-size": 10,
+          "text-font": ["Open Sans Regular", "Arial Unicode MS Regular"],
+        },
+        paint: { "text-color": "#052e16", "text-halo-color": "#ffffff", "text-halo-width": 1.2 },
+      });
+    }
+    if (map.isStyleLoaded()) render();
+    else map.once("load", render);
+  }, [municipios]);
 
   // Clústeres de secaderos
   useEffect(() => {
     const map = mapRef.current;
     if (!map) return;
-
     function render() {
       if (!map) return;
       for (const id of ["secaderos-clusters", "secaderos-cluster-count", "secaderos-puntos"]) {
@@ -191,13 +359,7 @@ export function ProduccionMapa({ vista, coropletico, secaderos, basemap }: Props
       if (map.getSource("secaderos")) map.removeSource("secaderos");
       if (!secaderos) return;
 
-      map.addSource("secaderos", {
-        type: "geojson",
-        data: secaderos,
-        cluster: true,
-        clusterMaxZoom: 12,
-        clusterRadius: 45,
-      });
+      map.addSource("secaderos", { type: "geojson", data: secaderos, cluster: true, clusterMaxZoom: 12, clusterRadius: 45 });
 
       map.addLayer({
         id: "secaderos-clusters",
@@ -205,12 +367,7 @@ export function ProduccionMapa({ vista, coropletico, secaderos, basemap }: Props
         source: "secaderos",
         filter: ["has", "point_count"],
         paint: {
-          "circle-color": [
-            "step", ["get", "point_count"],
-            "#fdba74", 5,
-            "#fb923c", 15,
-            "#ea580c",
-          ],
+          "circle-color": ["step", ["get", "point_count"], "#fdba74", 5, "#fb923c", 15, "#ea580c"],
           "circle-radius": ["step", ["get", "point_count"], 16, 5, 22, 15, 28],
           "circle-stroke-width": 2,
           "circle-stroke-color": "#ffffff",
@@ -233,20 +390,14 @@ export function ProduccionMapa({ vista, coropletico, secaderos, basemap }: Props
         type: "circle",
         source: "secaderos",
         filter: ["!", ["has", "point_count"]],
-        paint: {
-          "circle-radius": 7,
-          "circle-color": "#ea580c",
-          "circle-stroke-width": 1.5,
-          "circle-stroke-color": "#ffffff",
-        },
+        paint: { "circle-radius": 7, "circle-color": "#ea580c", "circle-stroke-width": 1.5, "circle-stroke-color": "#ffffff" },
       });
     }
-
     if (map.isStyleLoaded()) render();
     else map.once("load", render);
   }, [secaderos]);
 
-  // Mostrar/ocultar según la vista elegida
+  // Vista activa: coroplético vs secaderos
   useEffect(() => {
     const map = mapRef.current;
     if (!map) return;
@@ -254,7 +405,7 @@ export function ProduccionMapa({ vista, coropletico, secaderos, basemap }: Props
       if (!map) return;
       const visCoropletico = vista === "coropletico" ? "visible" : "none";
       const visSecaderos = vista === "secaderos" ? "visible" : "none";
-      for (const id of ["coropletico-fill", "coropletico-outline"]) {
+      for (const id of ["deptos-datos-fill", "deptos-datos-outline"]) {
         if (map.getLayer(id)) map.setLayoutProperty(id, "visibility", visCoropletico);
       }
       for (const id of ["secaderos-clusters", "secaderos-cluster-count", "secaderos-puntos"]) {
@@ -263,7 +414,38 @@ export function ProduccionMapa({ vista, coropletico, secaderos, basemap }: Props
     }
     if (map.isStyleLoaded()) aplicar();
     else map.once("load", aplicar);
-  }, [vista, coropletico, secaderos]);
+  }, [vista, departamentosDatos, secaderos]);
+
+  // Filtro de provincia: atenúa lo que no pertenece a la selección
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map) return;
+    function aplicar() {
+      if (!map) return;
+      const activo = provinciaFiltro !== null;
+      const opacidadFuera = activo ? 0.08 : 0.18;
+      const opacidadDentro = 0.18;
+      const filtroGris: number | maplibregl.ExpressionSpecification = activo
+        ? ["case", ["==", ["upcase", ["get", "jur"]], provinciaFiltro as string], opacidadDentro, opacidadFuera]
+        : opacidadDentro;
+      if (map.getLayer("deptos-contexto-fill")) map.setPaintProperty("deptos-contexto-fill", "fill-opacity", filtroGris);
+
+      const opacidadColor: number | maplibregl.ExpressionSpecification = activo
+        ? ["case", ["==", ["upcase", ["get", "pcia"]], provinciaFiltro as string], 0.88, 0.12]
+        : 0.88;
+      if (map.getLayer("deptos-datos-fill")) map.setPaintProperty("deptos-datos-fill", "fill-opacity", opacidadColor);
+    }
+    if (map.isStyleLoaded()) aplicar();
+    else map.once("load", aplicar);
+  }, [provinciaFiltro]);
+
+  // Foco (fitBounds) cuando cambia el filtro de provincia/departamento
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map || !bboxFoco || bboxFoco.features.length === 0) return;
+    if (map.isStyleLoaded()) fitBoundsA(map, bboxFoco);
+    else map.once("load", () => fitBoundsA(map, bboxFoco));
+  }, [bboxFoco]);
 
   return <div ref={containerRef} className="w-full h-full" />;
 }
