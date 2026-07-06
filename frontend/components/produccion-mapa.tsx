@@ -42,6 +42,13 @@ interface Props {
   // usuario clickea una burbuja o una línea de flujo.
   onSeleccionarBurbuja?: (b: { ciudad: string; provincia: string; produccion_kg: number }) => void;
   onSeleccionarFlujo?: (r: { ciudad: string; produccion_kg: number; distancia_km: number }) => void;
+  // Scrubbing en vivo: se disparan con cada feature nueva que el mouse
+  // sobrevuela (no con cada pixel -- se dedupea por id) y con `null` al
+  // salir de la capa, para que el panel lateral reaccione mientras el
+  // usuario mueve el mouse, no solo al hacer click.
+  onHoverDepartamento?: (deptoNorm: string | null) => void;
+  onHoverBurbuja?: (b: { ciudad: string; provincia: string; produccion_kg: number } | null) => void;
+  onHoverFlujo?: (r: { ciudad: string; produccion_kg: number; distancia_km: number } | null) => void;
 }
 
 const CENTRO_INICIAL: [number, number] = [-54.9, -27.1];
@@ -158,6 +165,9 @@ export function ProduccionMapa({
   onSeleccionarDepartamento,
   onSeleccionarBurbuja,
   onSeleccionarFlujo,
+  onHoverDepartamento,
+  onHoverBurbuja,
+  onHoverFlujo,
 }: Props) {
   const containerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<maplibregl.Map | null>(null);
@@ -177,6 +187,23 @@ export function ProduccionMapa({
   useEffect(() => {
     onSeleccionarFlujoRef.current = onSeleccionarFlujo;
   }, [onSeleccionarFlujo]);
+  const onHoverDepartamentoRef = useRef(onHoverDepartamento);
+  useEffect(() => {
+    onHoverDepartamentoRef.current = onHoverDepartamento;
+  }, [onHoverDepartamento]);
+  const onHoverBurbujaRef = useRef(onHoverBurbuja);
+  useEffect(() => {
+    onHoverBurbujaRef.current = onHoverBurbuja;
+  }, [onHoverBurbuja]);
+  const onHoverFlujoRef = useRef(onHoverFlujo);
+  useEffect(() => {
+    onHoverFlujoRef.current = onHoverFlujo;
+  }, [onHoverFlujo]);
+  // Dedupean el mousemove (dispara decenas de veces por segundo) para solo
+  // avisar al panel cuando la feature sobrevolada realmente cambió.
+  const hoverDeptoIdRef = useRef<string | number | null>(null);
+  const hoverBurbujaIdRef = useRef<string | number | null>(null);
+  const hoverFlujoIdRef = useRef<string | number | null>(null);
 
   useEffect(() => {
     if (!containerRef.current) return;
@@ -215,6 +242,22 @@ export function ProduccionMapa({
       if (p.depto_norm) onSeleccionarDeptoRef.current?.(p.depto_norm);
     });
 
+    // Scrubbing en vivo: mover el mouse sobre un departamento con dato real
+    // actualiza el panel sin necesidad de click. Solo en deptos-datos-fill
+    // (no en el contexto gris) porque es la única capa con un valor real
+    // que mostrar -- los departamentos sin dato no tienen nada que "tirar".
+    map.on("mousemove", "deptos-datos-fill", (e) => {
+      const f = e.features?.[0];
+      if (!f || f.id === hoverDeptoIdRef.current) return;
+      hoverDeptoIdRef.current = f.id ?? null;
+      const norm = f.properties?.depto_norm as string | undefined;
+      if (norm) onHoverDepartamentoRef.current?.(norm);
+    });
+    map.on("mouseleave", "deptos-datos-fill", () => {
+      hoverDeptoIdRef.current = null;
+      onHoverDepartamentoRef.current?.(null);
+    });
+
     map.on("click", "secaderos-puntos", (e) => {
       const f = e.features?.[0];
       if (!f) return;
@@ -246,6 +289,17 @@ export function ProduccionMapa({
       onSeleccionarBurbujaRef.current?.(p);
     });
 
+    map.on("mousemove", "burbujas-puntos", (e) => {
+      const f = e.features?.[0];
+      if (!f || f.id === hoverBurbujaIdRef.current) return;
+      hoverBurbujaIdRef.current = f.id ?? null;
+      onHoverBurbujaRef.current?.(f.properties as { ciudad: string; provincia: string; produccion_kg: number });
+    });
+    map.on("mouseleave", "burbujas-puntos", () => {
+      hoverBurbujaIdRef.current = null;
+      onHoverBurbujaRef.current?.(null);
+    });
+
     map.on("click", "flujo-lineas", (e) => {
       const f = e.features?.[0];
       if (!f) return;
@@ -265,6 +319,17 @@ export function ProduccionMapa({
         )
         .addTo(map);
       onSeleccionarFlujoRef.current?.(p);
+    });
+
+    map.on("mousemove", "flujo-lineas", (e) => {
+      const f = e.features?.[0];
+      if (!f || f.id === hoverFlujoIdRef.current) return;
+      hoverFlujoIdRef.current = f.id ?? null;
+      onHoverFlujoRef.current?.(f.properties as { ciudad: string; produccion_kg: number; distancia_km: number });
+    });
+    map.on("mouseleave", "flujo-lineas", () => {
+      hoverFlujoIdRef.current = null;
+      onHoverFlujoRef.current?.(null);
     });
 
     for (const layerId of [

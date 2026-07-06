@@ -112,6 +112,13 @@ export function ProduccionMapaClient({ produccionPorCiudadAnio }: { produccionPo
   const [maxPct, setMaxPct] = useState(0);
   const [ciudadSeleccionada, setCiudadSeleccionada] = useState<BurbujaSeleccionada | null>(null);
   const [rutaSeleccionada, setRutaSeleccionada] = useState<RutaFlujo | null>(null);
+  // Hover: scrubbing en vivo mientras el mouse se mueve por el mapa, sin
+  // necesidad de click. Tiene prioridad sobre la selección "fija" (dropdown
+  // o último click) mientras el mouse está sobre una feature; al salir,
+  // vuelve a mostrar lo que esté fijado.
+  const [deptoHover, setDeptoHover] = useState<string | null>(null);
+  const [ciudadHover, setCiudadHover] = useState<BurbujaSeleccionada | null>(null);
+  const [rutaHover, setRutaHover] = useState<RutaFlujo | null>(null);
 
   // Limpia la selección puntual (burbuja/ruta) al cambiar de vista o de año
   // -- evita mostrar en el panel el detalle de una ciudad que ya no
@@ -119,6 +126,9 @@ export function ProduccionMapaClient({ produccionPorCiudadAnio }: { produccionPo
   useEffect(() => {
     setCiudadSeleccionada(null);
     setRutaSeleccionada(null);
+    setDeptoHover(null);
+    setCiudadHover(null);
+    setRutaHover(null);
   }, [vista, anio]);
 
   useEffect(() => {
@@ -250,6 +260,10 @@ export function ProduccionMapaClient({ produccionPorCiudadAnio }: { produccionPo
 
   const flujoPlano: RutaFlujo[] = (flujo?.features ?? []).map((f) => f.properties as unknown as RutaFlujo);
 
+  const deptoNormActivo = deptoHover ?? (departamento ? normalizar(departamento) : null);
+  const ciudadActiva = ciudadHover ?? ciudadSeleccionada;
+  const rutaActiva = rutaHover ?? rutaSeleccionada;
+
   const leyendaTexto =
     vista === "coropletico"
       ? "Color = % de superficie departamental cultivada con yerba mate (gris = sin dato en el INYM). Click en un departamento para seleccionarlo."
@@ -363,11 +377,14 @@ export function ProduccionMapaClient({ produccionPorCiudadAnio }: { produccionPo
           vista={vista}
           anio={anio}
           departamentosDatos={departamentosDatos}
-          departamento={departamento}
+          deptoNormActivo={deptoNormActivo}
+          deptoEsHover={deptoHover !== null}
           burbujas={burbujas}
-          ciudadSeleccionada={ciudadSeleccionada}
+          ciudadActiva={ciudadActiva}
+          ciudadEsHover={ciudadHover !== null}
           flujo={flujoPlano}
-          rutaSeleccionada={rutaSeleccionada}
+          rutaActiva={rutaActiva}
+          rutaEsHover={rutaHover !== null}
           nSecaderos={nSecaderos}
         />
 
@@ -388,6 +405,9 @@ export function ProduccionMapaClient({ produccionPorCiudadAnio }: { produccionPo
           onSeleccionarDepartamento={manejarClickDepartamentoEnMapa}
           onSeleccionarBurbuja={setCiudadSeleccionada}
           onSeleccionarFlujo={setRutaSeleccionada}
+          onHoverDepartamento={setDeptoHover}
+          onHoverBurbuja={setCiudadHover}
+          onHoverFlujo={setRutaHover}
         />
 
         {vista === "coropletico" && (

@@ -2,7 +2,7 @@
 
 import { KpiRow, PanelCard, RankingChart } from "@/components/mapa-kpi";
 import { formatNumero, formatPct } from "@/lib/format";
-import { normalizar, tituloCase } from "@/lib/texto";
+import { tituloCase } from "@/lib/texto";
 import type { VistaMapa } from "@/components/produccion-mapa";
 
 interface DeptoDatoProps {
@@ -28,25 +28,35 @@ export interface RutaFlujo {
 
 const nf0 = (v: number) => formatNumero(v, 0);
 
+function ordinal(n: number): string {
+  return `${n}°`;
+}
+
 export function ProduccionPanel({
   vista,
   anio,
   departamentosDatos,
-  departamento,
+  deptoNormActivo,
+  deptoEsHover,
   burbujas,
-  ciudadSeleccionada,
+  ciudadActiva,
+  ciudadEsHover,
   flujo,
-  rutaSeleccionada,
+  rutaActiva,
+  rutaEsHover,
   nSecaderos,
 }: {
   vista: VistaMapa;
   anio: number;
   departamentosDatos: GeoJSON.FeatureCollection | null;
-  departamento: string; // nombre mostrado en el selector, "" = ninguno
+  deptoNormActivo: string | null;
+  deptoEsHover: boolean;
   burbujas: { ciudad: string; provincia: string; produccion_kg: number }[];
-  ciudadSeleccionada: BurbujaSeleccionada | null;
+  ciudadActiva: BurbujaSeleccionada | null;
+  ciudadEsHover: boolean;
   flujo: RutaFlujo[];
-  rutaSeleccionada: RutaFlujo | null;
+  rutaActiva: RutaFlujo | null;
+  rutaEsHover: boolean;
   nSecaderos: number;
 }) {
   if (vista === "coropletico") {
@@ -58,9 +68,16 @@ export function ProduccionPanel({
       .map((f) => ({ nombre: tituloCase(f.properties.depto), valor: f.properties.valor }))
       .sort((a, b) => b.valor - a.valor)
       .slice(0, 8);
-    const seleccionado = departamento
-      ? feats.find((f) => f.properties.depto_norm === normalizar(departamento))?.properties
-      : undefined;
+    const activo = deptoNormActivo ? feats.find((f) => f.properties.depto_norm === deptoNormActivo)?.properties : undefined;
+
+    let insight: string | null = null;
+    if (activo) {
+      const mismaProvincia = feats.filter((f) => f.properties.pcia === activo.pcia);
+      const totalProvincia = mismaProvincia.reduce((acc, f) => acc + f.properties.sup_ym, 0);
+      const participacion = totalProvincia ? (activo.sup_ym / totalProvincia) * 100 : 0;
+      const posicion = [...mismaProvincia].sort((a, b) => b.properties.valor - a.properties.valor).findIndex((f) => f.properties.depto_norm === activo.depto_norm) + 1;
+      insight = `Concentra el ${formatPct(participacion)} de la superficie con yerba mate de ${tituloCase(activo.pcia)}, y es el ${ordinal(posicion)} departamento de ${mismaProvincia.length} por % cultivado en la provincia.`;
+    }
 
     return (
       <div className="flex flex-col gap-4 lg:w-[340px] lg:shrink-0">
@@ -76,15 +93,18 @@ export function ProduccionPanel({
           </PanelCard>
         )}
 
-        <PanelCard titulo="Departamento seleccionado">
-          {!seleccionado ? (
-            <p className="text-xs text-muted-foreground">Elegí un departamento en el filtro o clickealo en el mapa.</p>
+        <PanelCard titulo={activo ? (deptoEsHover ? "En vivo — pasando el mouse" : "Departamento seleccionado") : "Departamento seleccionado"}>
+          {!activo ? (
+            <p className="text-xs text-muted-foreground">Pasá el mouse o clickeá un departamento en el mapa para ver su detalle acá.</p>
           ) : (
             <>
-              <div className="text-sm font-semibold text-card-foreground mb-2">{tituloCase(seleccionado.depto)}</div>
-              <KpiRow label="Superficie con yerba mate" valor={`${nf0(seleccionado.sup_ym)} ha`} />
-              <KpiRow label="Superficie total" valor={`${nf0(seleccionado.superficie)} ha`} />
-              <KpiRow label="% cultivada" valor={formatPct(seleccionado.valor)} />
+              <div className="text-sm font-semibold text-card-foreground mb-2">{tituloCase(activo.depto)}</div>
+              <KpiRow label="Superficie con yerba mate" valor={`${nf0(activo.sup_ym)} ha`} />
+              <KpiRow label="Superficie total" valor={`${nf0(activo.superficie)} ha`} />
+              <KpiRow label="% cultivada" valor={formatPct(activo.valor)} />
+              {insight && (
+                <p className="text-xs text-foreground/80 leading-snug mt-2 pt-2 border-t border-border">{insight}</p>
+              )}
             </>
           )}
         </PanelCard>
@@ -100,6 +120,13 @@ export function ProduccionPanel({
       .sort((a, b) => b.valor - a.valor)
       .slice(0, 8);
 
+    let insight: string | null = null;
+    if (ciudadActiva) {
+      const participacion = total ? (ciudadActiva.produccion_kg / total) * 100 : 0;
+      const posicion = [...burbujas].sort((a, b) => b.produccion_kg - a.produccion_kg).findIndex((b) => b.ciudad === ciudadActiva.ciudad) + 1;
+      insight = `Representa el ${formatPct(participacion)} de la producción nacional de ${anio}, siendo la ${ordinal(posicion)} ciudad productora de ${burbujas.length}.`;
+    }
+
     return (
       <div className="flex flex-col gap-4 lg:w-[340px] lg:shrink-0">
         <PanelCard titulo="Resumen de producción" subtitulo={`Ciudades productoras, año ${anio}`}>
@@ -114,14 +141,17 @@ export function ProduccionPanel({
           </PanelCard>
         )}
 
-        <PanelCard titulo="Ciudad seleccionada">
-          {!ciudadSeleccionada ? (
-            <p className="text-xs text-muted-foreground">Clickeá una burbuja en el mapa para ver su detalle acá.</p>
+        <PanelCard titulo={ciudadActiva ? (ciudadEsHover ? "En vivo — pasando el mouse" : "Ciudad seleccionada") : "Ciudad seleccionada"}>
+          {!ciudadActiva ? (
+            <p className="text-xs text-muted-foreground">Pasá el mouse o clickeá una burbuja en el mapa para ver su detalle acá.</p>
           ) : (
             <>
-              <div className="text-sm font-semibold text-card-foreground">{ciudadSeleccionada.ciudad}</div>
-              <div className="text-xs text-muted-foreground mb-2">{ciudadSeleccionada.provincia}</div>
-              <KpiRow label="Producción" valor={`${nf0(ciudadSeleccionada.produccion_kg)} kg`} />
+              <div className="text-sm font-semibold text-card-foreground">{ciudadActiva.ciudad}</div>
+              <div className="text-xs text-muted-foreground mb-2">{ciudadActiva.provincia}</div>
+              <KpiRow label="Producción" valor={`${nf0(ciudadActiva.produccion_kg)} kg`} />
+              {insight && (
+                <p className="text-xs text-foreground/80 leading-snug mt-2 pt-2 border-t border-border">{insight}</p>
+              )}
             </>
           )}
         </PanelCard>
@@ -138,6 +168,13 @@ export function ProduccionPanel({
       .sort((a, b) => b.valor - a.valor)
       .slice(0, 8);
 
+    let insight: string | null = null;
+    if (rutaActiva && distProm) {
+      const diffPct = ((rutaActiva.distancia_km - distProm) / distProm) * 100;
+      const comparacion = diffPct >= 0 ? "más lejos" : "más cerca";
+      insight = `Su secadero más cercano está a ${formatPct(Math.abs(diffPct))} ${comparacion} que el promedio de las ciudades productoras (${formatNumero(distProm, 1)} km).`;
+    }
+
     return (
       <div className="flex flex-col gap-4 lg:w-[340px] lg:shrink-0">
         <PanelCard titulo="Resumen de flujo" subtitulo={`Ciudad → secadero más cercano, año ${anio}`}>
@@ -153,14 +190,17 @@ export function ProduccionPanel({
           </PanelCard>
         )}
 
-        <PanelCard titulo="Ruta seleccionada">
-          {!rutaSeleccionada ? (
-            <p className="text-xs text-muted-foreground">Clickeá una línea en el mapa para ver su detalle acá.</p>
+        <PanelCard titulo={rutaActiva ? (rutaEsHover ? "En vivo — pasando el mouse" : "Ruta seleccionada") : "Ruta seleccionada"}>
+          {!rutaActiva ? (
+            <p className="text-xs text-muted-foreground">Pasá el mouse o clickeá una línea en el mapa para ver su detalle acá.</p>
           ) : (
             <>
-              <div className="text-sm font-semibold text-card-foreground mb-2">{rutaSeleccionada.ciudad}</div>
-              <KpiRow label="Distancia en línea recta" valor={`${formatNumero(rutaSeleccionada.distancia_km, 1)} km`} />
-              <KpiRow label="Producción de origen" valor={`${nf0(rutaSeleccionada.produccion_kg)} kg`} />
+              <div className="text-sm font-semibold text-card-foreground mb-2">{rutaActiva.ciudad}</div>
+              <KpiRow label="Distancia en línea recta" valor={`${formatNumero(rutaActiva.distancia_km, 1)} km`} />
+              <KpiRow label="Producción de origen" valor={`${nf0(rutaActiva.produccion_kg)} kg`} />
+              {insight && (
+                <p className="text-xs text-foreground/80 leading-snug mt-2 pt-2 border-t border-border">{insight}</p>
+              )}
               <p className="text-[10px] text-muted-foreground italic mt-2 pt-2 border-t border-border">
                 Proximidad geográfica calculada, no es una ruta logística verificada.
               </p>
