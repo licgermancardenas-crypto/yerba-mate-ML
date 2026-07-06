@@ -19,18 +19,6 @@ import {
   type ProduccionMensualNacionalRow,
 } from "@/lib/agregaciones";
 
-// Coordenadas de las 6 ciudades productoras puntuales (mismas usadas en
-// backend/etl/etl_nasa_power.py) — 'Otros' queda afuera del mapa, no tiene
-// ubicación puntual.
-const COORDENADAS_CIUDAD: Record<string, [number, number]> = {
-  "Colonia Liebig": [-55.72, -27.53],
-  "Gobernador Virasoro": [-56.03, -28.07],
-  "Apóstoles": [-55.75, -27.9],
-  "Montecarlo": [-54.77, -26.57],
-  "Oberá": [-55.12, -27.49],
-  "Santo Pipó": [-55.05, -27.2],
-};
-
 const COLUMNAS_ANUAL: ColumnaTabla<ProduccionAnualRow>[] = [
   { key: "anio", label: "Año", align: "left" },
   { key: "produccion_kg", label: "Producción (kg)", align: "right", format: "entero" },
@@ -110,20 +98,6 @@ export default async function ProduccionPage({
   const anualHistorico = agregarProduccionAnual(filas);
   const mensualHistorico = agregarProduccionMensualNacional(filas);
 
-  const produccionPorCiudadAnio = Object.entries(
-    filasCompletas
-      .filter((f) => !provinciaFiltro || f.provincia === provinciaFiltro)
-      .reduce<Record<string, { anio: number; ciudad: string; provincia: string; produccion_kg: number }>>((acc, f) => {
-        const clave = `${f.anio}|${f.ciudad}`;
-        if (!acc[clave]) acc[clave] = { anio: f.anio, ciudad: f.ciudad, provincia: f.provincia, produccion_kg: 0 };
-        acc[clave].produccion_kg += f.produccion_kg;
-        return acc;
-      }, {})
-  )
-    .map(([, v]) => v)
-    .filter((v) => v.ciudad in COORDENADAS_CIUDAD)
-    .map((v) => ({ ...v, lng: COORDENADAS_CIUDAD[v.ciudad][0], lat: COORDENADAS_CIUDAD[v.ciudad][1] }));
-
   const rendimientoAnual = agregarRendimientoAnual(filas, filasSuperficie);
   const rendimientoUltimo = rendimientoAnual.find((f) => f.anio === ultimoAnio);
   const rendimientoPenultimo = rendimientoAnual.find((f) => f.anio === penultimoAnio);
@@ -161,7 +135,7 @@ export default async function ProduccionPage({
       </div>
 
       {vista === "mapa" ? (
-        <ProduccionMapaClient produccionPorCiudadAnio={produccionPorCiudadAnio} />
+        <ProduccionMapaClient />
       ) : (
         <>
         <FilterBar
