@@ -6,7 +6,7 @@ import { ChartCard } from "@/components/chart-card";
 import { FilterBar } from "@/components/filter-bar";
 import { SerieChartConFiltro } from "@/components/charts/serie-chart-con-filtro";
 import { HistoricalTable } from "@/components/historical-table";
-import { ProduccionMapaClient } from "@/components/produccion-mapa-client";
+import { ProduccionMapaLoader } from "@/components/produccion-mapa-loader";
 import type { ColumnaTabla } from "@/components/data-table";
 import { formatMasa, formatNumero, formatPct, formatUsd, type UnidadMasa } from "@/lib/format";
 import { getProduccion, getSuperficie } from "@/lib/api";
@@ -162,7 +162,7 @@ export default async function ProduccionPage({
       </div>
 
       {vista === "mapa" ? (
-        <ProduccionMapaClient produccionPorCiudadAnio={produccionPorCiudadAnio} />
+        <ProduccionMapaLoader produccionPorCiudadAnio={produccionPorCiudadAnio} />
       ) : (
         <>
         <FilterBar

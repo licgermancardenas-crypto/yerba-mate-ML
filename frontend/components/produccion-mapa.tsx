@@ -5,6 +5,7 @@ import "maplibre-gl/dist/maplibre-gl.css";
 import { useEffect, useRef } from "react";
 
 export type VistaMapa = "coropletico" | "secaderos" | "heatmap" | "burbujas" | "flujo";
+export type Basemap = "topo" | "satelital" | "calles";
 
 export interface BurbujaProduccion {
   ciudad: string;
@@ -17,16 +18,25 @@ export interface BurbujaProduccion {
 interface Props {
   vista: VistaMapa;
   jurisdicciones: GeoJSON.FeatureCollection | null;
-  departamentosContexto: GeoJSON.FeatureCollection | null; // INDEC, todos los deptos (gris)
-  departamentosDatos: GeoJSON.FeatureCollection | null; // INYM, solo los que tienen dato real (color)
+  // INDEC, todos los departamentos (contexto gris) — properties enriquecidas
+  // por el cliente con `nam_norm` (nombre sin acentos, mayúsculas) para poder
+  // cruzar con la nomenclatura del INYM sin depender de que coincidan tildes.
+  departamentosContexto: GeoJSON.FeatureCollection | null;
+  // INYM, solo los departamentos con dato real (coroplético) — enriquecidas
+  // con `depto_norm` por el mismo motivo.
+  departamentosDatos: GeoJSON.FeatureCollection | null;
   municipios: GeoJSON.FeatureCollection | null;
   secaderos: GeoJSON.FeatureCollection | null;
   burbujas: BurbujaProduccion[];
   flujo: GeoJSON.FeatureCollection | null; // LineString ciudad -> secadero más cercano
-  basemap: "topo" | "satelital";
+  basemap: Basemap;
   provinciaFiltro: string | null; // 'MISIONES' | 'CORRIENTES' | null (todas)
-  departamentoFiltro: string | null; // nombre del depto (case-insensitive) o null (todos)
+  departamentoFiltro: string | null; // nombre normalizado (sin acentos, mayúsculas) o null (todos)
   bboxFoco: GeoJSON.FeatureCollection | null; // feature(s) a los que hacer fitBounds cuando cambia el filtro
+  // Se dispara cuando el usuario clickea un departamento directamente en el
+  // mapa (contexto o coroplético) — permite sincronizar los selectores de la
+  // barra de control con la interacción sobre el mapa.
+  onSeleccionarDepartamento?: (deptoNorm: string) => void;
 }
 
 const CENTRO_INICIAL: [number, number] = [-54.9, -27.1];
@@ -52,10 +62,23 @@ const ESTILO_BASE: maplibregl.StyleSpecification = {
       maxzoom: 19,
       attribution: "© Esri, Maxar, Earthstar Geographics",
     },
+    calles: {
+      type: "raster",
+      tiles: [
+        "https://a.basemaps.cartocdn.com/light_all/{z}/{x}/{y}.png",
+        "https://b.basemaps.cartocdn.com/light_all/{z}/{x}/{y}.png",
+        "https://c.basemaps.cartocdn.com/light_all/{z}/{x}/{y}.png",
+        "https://d.basemaps.cartocdn.com/light_all/{z}/{x}/{y}.png",
+      ],
+      tileSize: 256,
+      maxzoom: 20,
+      attribution: "© CARTO, © OpenStreetMap contributors",
+    },
   },
   layers: [
     { id: "topo", type: "raster", source: "topo", layout: { visibility: "visible" } },
     { id: "satelital", type: "raster", source: "satelital", layout: { visibility: "none" } },
+    { id: "calles", type: "raster", source: "calles", layout: { visibility: "none" } },
   ],
 };
 
@@ -64,6 +87,33 @@ const TEXT_PAINT = {
   "text-halo-color": "#052e16",
   "text-halo-width": 1.4,
 };
+
+const nf0 = new Intl.NumberFormat("es-AR", { maximumFractionDigits: 0 });
+const nf1 = new Intl.NumberFormat("es-AR", { maximumFractionDigits: 1 });
+
+// El INYM guarda los nombres de departamento en mayúsculas y sin acentos
+// ("OBERA"); el INDEC los publica con su grafía correcta ("Oberá"). Para
+// mostrarlos en un popup sin gritar en mayúsculas (aunque sin poder
+// restituir la tilde que no está en la fuente).
+function tituloCase(s: string): string {
+  return s.toLowerCase().replace(/(^|\s)\S/g, (c) => c.toUpperCase());
+}
+
+function popupHTML(titulo: string, subtitulo: string | null, filas: { label: string; valor: string }[], nota?: string): string {
+  const filasHtml = filas
+    .map(
+      (f) =>
+        `<div class="flex items-baseline justify-between gap-4 text-xs py-0.5"><span class="text-muted-foreground">${f.label}</span><span class="font-semibold text-card-foreground tabular-nums">${f.valor}</span></div>`
+    )
+    .join("");
+  return `
+    <div class="px-3.5 py-3 min-w-[190px]">
+      <div class="text-sm font-semibold text-card-foreground leading-tight">${titulo}</div>
+      ${subtitulo ? `<div class="text-[11px] uppercase tracking-wide text-muted-foreground font-medium mt-0.5 mb-2">${subtitulo}</div>` : `<div class="mb-2"></div>`}
+      ${filasHtml}
+      ${nota ? `<div class="mt-1.5 pt-1.5 border-t border-border text-[10px] text-muted-foreground italic leading-snug">${nota}</div>` : ""}
+    </div>`;
+}
 
 function extenderBounds(bounds: maplibregl.LngLatBounds, coords: unknown) {
   if (!Array.isArray(coords)) return;
@@ -108,10 +158,18 @@ export function ProduccionMapa({
   provinciaFiltro,
   departamentoFiltro,
   bboxFoco,
+  onSeleccionarDepartamento,
 }: Props) {
   const containerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<maplibregl.Map | null>(null);
   const popupRef = useRef<maplibregl.Popup | null>(null);
+  // El callback vive en un ref porque los listeners de MapLibre se registran
+  // una sola vez (efecto de montaje con deps []); sin el ref quedarían
+  // atados para siempre a la referencia de la primera renderización.
+  const onSeleccionarDeptoRef = useRef(onSeleccionarDepartamento);
+  useEffect(() => {
+    onSeleccionarDeptoRef.current = onSeleccionarDepartamento;
+  }, [onSeleccionarDepartamento]);
 
   useEffect(() => {
     if (!containerRef.current) return;
@@ -123,23 +181,31 @@ export function ProduccionMapa({
     });
     map.addControl(new maplibregl.NavigationControl(), "top-right");
     map.addControl(new maplibregl.ScaleControl({ unit: "metric" }), "bottom-right");
-    popupRef.current = new maplibregl.Popup({ closeButton: true, maxWidth: "260px" });
+    popupRef.current = new maplibregl.Popup({ closeButton: true, maxWidth: "280px" });
+
+    // Contexto (gris, todos los departamentos): solo sincroniza el selector,
+    // sin popup propio -- evita que compita con el popup rico de
+    // deptos-datos-fill cuando ambas capas coinciden en el mismo punto.
+    map.on("click", "deptos-contexto-fill", (e) => {
+      const f = e.features?.[0];
+      const norm = f?.properties?.nam_norm as string | undefined;
+      if (norm) onSeleccionarDeptoRef.current?.(norm);
+    });
 
     map.on("click", "deptos-datos-fill", (e) => {
       const f = e.features?.[0];
       if (!f) return;
-      const p = f.properties as { depto: string; pcia: string; valor: number; sup_ym: number };
+      const p = f.properties as { depto: string; depto_norm: string; pcia: string; valor: number; sup_ym: number };
       popupRef.current
         ?.setLngLat(e.lngLat)
         .setHTML(
-          `<div class="p-1 text-sm">
-            <div class="font-semibold">${p.depto}</div>
-            <div class="text-xs text-muted-foreground mb-1">${p.pcia}</div>
-            <div>${new Intl.NumberFormat("es-AR", { maximumFractionDigits: 1 }).format(p.valor)}% de superficie cultivada</div>
-            <div class="text-xs text-muted-foreground">${new Intl.NumberFormat("es-AR").format(p.sup_ym)} ha</div>
-          </div>`
+          popupHTML(tituloCase(p.depto), tituloCase(p.pcia), [
+            { label: "Superficie cultivada", valor: `${nf1.format(p.valor)}%` },
+            { label: "Superficie con yerba mate", valor: `${nf0.format(p.sup_ym)} ha` },
+          ])
         )
         .addTo(map);
+      if (p.depto_norm) onSeleccionarDeptoRef.current?.(p.depto_norm);
     });
 
     map.on("click", "secaderos-puntos", (e) => {
@@ -148,12 +214,7 @@ export function ProduccionMapa({
       const p = f.properties as { idplanta: number; dir_catastral: string | null };
       popupRef.current
         ?.setLngLat(e.lngLat)
-        .setHTML(
-          `<div class="p-1 text-sm">
-            <div class="font-semibold">Secadero #${p.idplanta}</div>
-            ${p.dir_catastral ? `<div class="text-xs text-muted-foreground">${p.dir_catastral}</div>` : ""}
-          </div>`
-        )
+        .setHTML(popupHTML(`Secadero #${p.idplanta}`, p.dir_catastral ? p.dir_catastral : null, []))
         .addTo(map);
     });
 
@@ -173,13 +234,7 @@ export function ProduccionMapa({
       const p = f.properties as { ciudad: string; provincia: string; produccion_kg: number };
       popupRef.current
         ?.setLngLat(e.lngLat)
-        .setHTML(
-          `<div class="p-1 text-sm">
-            <div class="font-semibold">${p.ciudad}</div>
-            <div class="text-xs text-muted-foreground mb-1">${p.provincia}</div>
-            <div>${new Intl.NumberFormat("es-AR").format(p.produccion_kg)} kg</div>
-          </div>`
-        )
+        .setHTML(popupHTML(p.ciudad, p.provincia, [{ label: "Producción", valor: `${nf0.format(p.produccion_kg)} kg` }]))
         .addTo(map);
     });
 
@@ -190,16 +245,27 @@ export function ProduccionMapa({
       popupRef.current
         ?.setLngLat(e.lngLat)
         .setHTML(
-          `<div class="p-1 text-sm">
-            <div class="font-semibold">${p.ciudad} → secadero más cercano</div>
-            <div class="text-xs text-muted-foreground mb-1">${p.distancia_km.toFixed(1)} km en línea recta (proximidad, no ruta logística verificada)</div>
-            <div>${new Intl.NumberFormat("es-AR").format(p.produccion_kg)} kg producidos en la ciudad de origen</div>
-          </div>`
+          popupHTML(
+            p.ciudad,
+            "Secadero más cercano",
+            [
+              { label: "Distancia en línea recta", valor: `${nf1.format(p.distancia_km)} km` },
+              { label: "Producción de origen", valor: `${nf0.format(p.produccion_kg)} kg` },
+            ],
+            "Proximidad geográfica calculada, no es una ruta logística verificada."
+          )
         )
         .addTo(map);
     });
 
-    for (const layerId of ["deptos-datos-fill", "secaderos-puntos", "secaderos-clusters", "burbujas-puntos", "flujo-lineas"]) {
+    for (const layerId of [
+      "deptos-contexto-fill",
+      "deptos-datos-fill",
+      "secaderos-puntos",
+      "secaderos-clusters",
+      "burbujas-puntos",
+      "flujo-lineas",
+    ]) {
       map.on("mouseenter", layerId, () => {
         map.getCanvas().style.cursor = "pointer";
       });
@@ -224,6 +290,7 @@ export function ProduccionMapa({
       if (!map!.getLayer("topo")) return;
       map!.setLayoutProperty("topo", "visibility", basemap === "topo" ? "visible" : "none");
       map!.setLayoutProperty("satelital", "visibility", basemap === "satelital" ? "visible" : "none");
+      map!.setLayoutProperty("calles", "visibility", basemap === "calles" ? "visible" : "none");
     }
     if (map.isStyleLoaded()) aplicar();
     else map.once("load", aplicar);
@@ -305,7 +372,7 @@ export function ProduccionMapa({
           id: "deptos-seleccionado-outline",
           type: "line",
           source: "deptos-contexto",
-          filter: ["==", ["get", "nam"], "__ninguno__"],
+          filter: ["==", ["get", "nam_norm"], "__ninguno__"],
           paint: { "line-color": "#eab308", "line-width": 3.5 },
         },
         antesDe
@@ -622,7 +689,10 @@ export function ProduccionMapa({
   }, [vista, departamentosDatos, secaderos, burbujas, flujo]);
 
   // Filtro de provincia/departamento: atenúa lo que no pertenece a la selección
-  // y resalta con borde amarillo el departamento elegido.
+  // y resalta con borde amarillo el departamento elegido. Compara siempre por
+  // los campos "_norm" (mayúsculas, sin acentos) para que la comparación no
+  // dependa de que el INYM y el INDEC escriban el nombre igual (no lo hacen:
+  // "OBERA" vs "Oberá").
   useEffect(() => {
     const map = mapRef.current;
     if (!map) return;
@@ -635,7 +705,7 @@ export function ProduccionMapa({
       // si solo hay provincia, se atenúa el resto de provincias.
       let opacidadContexto: number | maplibregl.ExpressionSpecification = 0.18;
       if (deptoActivo) {
-        opacidadContexto = ["case", ["==", ["get", "nam"], departamentoFiltro as string], 0.05, 0.22];
+        opacidadContexto = ["case", ["==", ["get", "nam_norm"], departamentoFiltro as string], 0.05, 0.22];
       } else if (provActivo) {
         opacidadContexto = ["case", ["==", ["upcase", ["get", "jur"]], provinciaFiltro as string], 0.18, 0.06];
       }
@@ -643,14 +713,14 @@ export function ProduccionMapa({
 
       let opacidadDatos: number | maplibregl.ExpressionSpecification = 0.88;
       if (deptoActivo) {
-        opacidadDatos = ["case", ["==", ["upcase", ["get", "depto"]], (departamentoFiltro as string).toUpperCase()], 0.92, 0.06];
+        opacidadDatos = ["case", ["==", ["get", "depto_norm"], departamentoFiltro as string], 0.92, 0.06];
       } else if (provActivo) {
         opacidadDatos = ["case", ["==", ["upcase", ["get", "pcia"]], provinciaFiltro as string], 0.88, 0.1];
       }
       if (map.getLayer("deptos-datos-fill")) map.setPaintProperty("deptos-datos-fill", "fill-opacity", opacidadDatos);
 
       if (map.getLayer("deptos-seleccionado-outline")) {
-        map.setFilter("deptos-seleccionado-outline", ["==", ["get", "nam"], deptoActivo ? (departamentoFiltro as string) : "__ninguno__"]);
+        map.setFilter("deptos-seleccionado-outline", ["==", ["get", "nam_norm"], deptoActivo ? (departamentoFiltro as string) : "__ninguno__"]);
       }
     }
     if (map.isStyleLoaded()) aplicar();
