@@ -68,6 +68,16 @@ const VISTAS: { id: VistaMapa; label: string; icon: typeof MapIcon }[] = [
 // grupos de controles según cuánto texto tenga cada <option> seleccionada.
 const SELECT_CLASS = "text-sm rounded-lg border border-border bg-background px-2.5 py-1.5 text-foreground w-[172px]";
 
+// Píldoras independientes (no una caja con borde + botón relleno adentro) --
+// mismo lenguaje visual que el toggle Datos/Mapa y el kg/t del FilterBar.
+function pillClass(activo: boolean): string {
+  return `flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium rounded-full border transition-colors cursor-pointer ${
+    activo
+      ? "bg-primary border-primary text-on-primary shadow-sm"
+      : "border-border bg-card text-foreground/70 hover:text-foreground hover:border-primary/40"
+  }`;
+}
+
 // Ancla siempre abajo-a-la-izquierda, con z-index explícito y un ancho
 // máximo -- el zoom (NavigationControl) vive arriba-a-la-derecha y la escala
 // (ScaleControl) abajo-a-la-derecha, así que por diseño nunca se solapan;
@@ -301,47 +311,39 @@ export function ProduccionMapaClient({ produccionPorCiudadAnio }: { produccionPo
           <div className="hidden sm:block w-px self-stretch bg-border" aria-hidden="true" />
 
           <GrupoControl titulo="Capas / tipo de análisis">
-            <div className="flex items-center rounded-lg border border-border bg-background p-0.5">
-              {VISTAS.map(({ id, label, icon: Icon }) => (
-                <button
-                  key={id}
-                  type="button"
-                  onClick={() => setVista(id)}
-                  aria-label={label}
-                  aria-pressed={vista === id}
-                  title={label}
-                  className={`flex items-center gap-1.5 px-2.5 py-1.5 text-sm rounded-md transition-colors cursor-pointer ${
-                    vista === id ? "bg-primary text-on-primary" : "text-foreground/70 hover:text-foreground"
-                  }`}
-                >
-                  <Icon size={14} aria-hidden="true" />
-                  <span className="hidden xl:inline">{label}</span>
-                </button>
-              ))}
-            </div>
+            {VISTAS.map(({ id, label, icon: Icon }) => (
+              <button
+                key={id}
+                type="button"
+                onClick={() => setVista(id)}
+                aria-label={label}
+                aria-pressed={vista === id}
+                title={label}
+                className={pillClass(vista === id)}
+              >
+                <Icon size={14} aria-hidden="true" />
+                <span className="hidden xl:inline">{label}</span>
+              </button>
+            ))}
           </GrupoControl>
 
           <div className="hidden sm:block w-px self-stretch bg-border" aria-hidden="true" />
 
           <GrupoControl titulo="Mapa base">
-            <div className="flex items-center rounded-lg border border-border bg-background p-0.5">
-              {BASEMAPS.map(({ id, label, icon: Icon }) => (
-                <button
-                  key={id}
-                  type="button"
-                  onClick={() => setBasemap(id)}
-                  aria-label={label}
-                  aria-pressed={basemap === id}
-                  title={label}
-                  className={`flex items-center gap-1.5 px-3 py-1.5 text-sm rounded-md transition-colors cursor-pointer ${
-                    basemap === id ? "bg-primary text-on-primary" : "text-foreground/70 hover:text-foreground"
-                  }`}
-                >
-                  <Icon size={14} aria-hidden="true" />
-                  <span className="hidden lg:inline">{label}</span>
-                </button>
-              ))}
-            </div>
+            {BASEMAPS.map(({ id, label, icon: Icon }) => (
+              <button
+                key={id}
+                type="button"
+                onClick={() => setBasemap(id)}
+                aria-label={label}
+                aria-pressed={basemap === id}
+                title={label}
+                className={pillClass(basemap === id)}
+              >
+                <Icon size={14} aria-hidden="true" />
+                <span className="hidden lg:inline">{label}</span>
+              </button>
+            ))}
           </GrupoControl>
         </div>
 
