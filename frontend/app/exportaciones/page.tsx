@@ -6,6 +6,7 @@ import { ChartCard } from "@/components/chart-card";
 import { FilterBar } from "@/components/filter-bar";
 import { SerieChartConFiltro } from "@/components/charts/serie-chart-con-filtro";
 import { HistoricalTable } from "@/components/historical-table";
+import { ExportacionesFlowMapLoader } from "@/components/exportaciones-flow-map-loader";
 import type { ColumnaTabla } from "@/components/data-table";
 import { formatMasa, formatNumero, formatPct, formatUsd, type UnidadMasa } from "@/lib/format";
 import { getExportaciones } from "@/lib/api";
@@ -72,12 +73,15 @@ export default async function ExportacionesPage({
   const valorFobUltimo = filasUltimoAnio.reduce((acc, f) => acc + f.valor_fob_usd, 0);
   const precioPromedioUltimo = valorFobUltimo / volumenUltimo;
 
-  const porDestino = new Map<string, number>();
+  const porDestino = new Map<string, { volumen_kg: number; valor_fob_usd: number }>();
   for (const f of filasUltimoAnio) {
-    porDestino.set(f.destino, (porDestino.get(f.destino) ?? 0) + f.volumen_kg);
+    const acc = porDestino.get(f.destino) ?? { volumen_kg: 0, valor_fob_usd: 0 };
+    acc.volumen_kg += f.volumen_kg;
+    acc.valor_fob_usd += f.valor_fob_usd;
+    porDestino.set(f.destino, acc);
   }
   const destinos = Array.from(porDestino.entries())
-    .map(([destino, volumen_kg]) => ({ destino, volumen_kg, porcentaje: (volumen_kg / volumenUltimo) * 100 }))
+    .map(([destino, acc]) => ({ destino, ...acc, porcentaje: (acc.volumen_kg / volumenUltimo) * 100 }))
     .sort((a, b) => b.volumen_kg - a.volumen_kg);
 
   const totales = new Map<string, number>();
@@ -149,6 +153,16 @@ export default async function ExportacionesPage({
               </table>
             </ChartCard>
           </div>
+
+          <ChartCard
+            title="Mapa de flujos de exportación"
+            description={`Argentina → ${destinoFiltro ?? "principales destinos"} (${ultimoAnio}) — grosor y opacidad del arco = % del volumen total. Click en un destino para filtrar toda la página.`}
+            className="mt-4"
+          >
+            <div className="h-[420px] -m-1">
+              <ExportacionesFlowMapLoader destinos={destinos} destinoFiltro={destinoFiltro ?? null} />
+            </div>
+          </ChartCard>
 
           <div className="mt-8 mb-4 flex items-center gap-2">
             <PieChart size={16} className="text-primary" aria-hidden="true" />
