@@ -66,7 +66,7 @@ export default async function ResumenPage({
       <FilterBar anios={todosLosAnios} anioUnico />
 
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
-        <KpiCard label={`Producción ${anioSeleccionado}`} value={formatKg(totalProduccionUltimoAnio)} icon={Sprout} />
+        <KpiCard label={`Producción ${anioSeleccionado}`} value={formatKg(totalProduccionUltimoAnio)} icon={Sprout} destacado />
         <KpiCard
           label={`Consumo per cápita ${anioSeleccionado}`}
           value={consumoPerCapitaUltimoAnio != null ? `${formatNumero(consumoPerCapitaUltimoAnio, 2)} kg` : "Sin dato"}
@@ -88,9 +88,9 @@ export default async function ResumenPage({
           <Link
             key={href}
             href={href}
-            className="group rounded-xl border border-border bg-card p-4 flex items-start gap-3 transition-colors duration-150 hover:border-primary"
+            className="group rounded-2xl border border-border bg-card p-4 flex items-start gap-3 shadow-sm transition-all duration-200 hover:shadow-md hover:-translate-y-0.5 hover:border-primary/40"
           >
-            <span className="flex items-center justify-center size-9 rounded-lg bg-primary/10 text-primary shrink-0">
+            <span className="flex items-center justify-center size-10 rounded-full bg-primary/10 text-primary shrink-0 ring-4 ring-primary/5 transition-colors duration-200 group-hover:bg-primary group-hover:text-on-primary">
               <Icon size={18} aria-hidden="true" />
             </span>
             <div className="flex-1 min-w-0">

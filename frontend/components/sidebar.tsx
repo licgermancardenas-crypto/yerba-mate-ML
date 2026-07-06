@@ -43,10 +43,10 @@ function NavLinks({ pathname, onNavigate }: { pathname: string; onNavigate?: () 
             href={href}
             onClick={onNavigate}
             aria-current={active ? "page" : undefined}
-            className={`flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors duration-150 ${
+            className={`flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition-all duration-150 ${
               active
-                ? "bg-primary text-on-primary"
-                : "text-foreground/80 hover:bg-primary/10 hover:text-foreground"
+                ? "bg-white text-primary shadow-md"
+                : "text-white/70 hover:bg-white/10 hover:text-white"
             }`}
           >
             <Icon size={18} strokeWidth={2} aria-hidden="true" />
@@ -58,6 +58,8 @@ function NavLinks({ pathname, onNavigate }: { pathname: string; onNavigate?: () 
   );
 }
 
+const SIDEBAR_BG = "bg-gradient-to-b from-[#14532d] via-[#0d3d1f] to-[#052e16]";
+
 export function Sidebar() {
   const pathname = usePathname();
   const [open, setOpen] = useState(false);
@@ -65,9 +67,11 @@ export function Sidebar() {
   return (
     <>
       {/* Barra superior mobile */}
-      <header className="md:hidden fixed top-0 inset-x-0 z-40 flex items-center justify-between h-14 px-4 bg-primary text-on-primary">
+      <header className={`md:hidden fixed top-0 inset-x-0 z-40 flex items-center justify-between h-14 px-4 text-white ${SIDEBAR_BG}`}>
         <span className="flex items-center gap-2 font-semibold">
-          <Leaf size={20} aria-hidden="true" />
+          <span className="flex items-center justify-center size-7 rounded-lg bg-white/15">
+            <Leaf size={16} aria-hidden="true" />
+          </span>
           Yerba Mate Intelligence
         </span>
         <button
@@ -81,10 +85,16 @@ export function Sidebar() {
       </header>
 
       {/* Sidebar desktop */}
-      <aside className="hidden md:flex md:flex-col md:w-64 md:shrink-0 border-r border-border bg-card">
-        <div className="flex items-center gap-2 h-16 px-5 border-b border-border">
-          <Leaf size={22} className="text-primary" aria-hidden="true" />
-          <span className="font-semibold text-card-foreground">Yerba Mate Intelligence</span>
+      <aside className={`hidden md:flex md:flex-col md:w-64 md:shrink-0 text-white ${SIDEBAR_BG}`}>
+        <div className="flex items-center gap-2.5 h-16 px-5 border-b border-white/10">
+          <span className="flex items-center justify-center size-9 rounded-xl bg-white/15 shrink-0">
+            <Leaf size={20} aria-hidden="true" />
+          </span>
+          <span className="font-semibold text-white text-sm leading-tight">
+            Yerba Mate
+            <br />
+            Intelligence
+          </span>
         </div>
         <div className="flex-1 overflow-y-auto py-4">
           <NavLinks pathname={pathname} />
@@ -100,12 +110,11 @@ export function Sidebar() {
             className="absolute inset-0 bg-black/50"
             onClick={() => setOpen(false)}
           />
-          <aside className="absolute left-0 top-14 bottom-0 w-72 bg-card overflow-y-auto py-4 shadow-xl">
+          <aside className={`absolute left-0 top-14 bottom-0 w-72 overflow-y-auto py-4 shadow-xl text-white ${SIDEBAR_BG}`}>
             <NavLinks pathname={pathname} onNavigate={() => setOpen(false)} />
           </aside>
         </div>
       )}
-
     </>
   );
 }
