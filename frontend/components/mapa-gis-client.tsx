@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { GisMap } from "@/components/gis-map";
+import { GisPanel } from "@/components/gis-panel";
 import type { CapaCatalogo, GeoFeatureCollection } from "@/lib/types";
 
 const CATEGORIA_LABELS: Record<string, string> = {
@@ -46,11 +47,13 @@ export function MapaGisClient({
   const [datos, setDatos] = useState(datosIniciales);
   const [cargando, setCargando] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [featureSeleccionada, setFeatureSeleccionada] = useState<Record<string, unknown> | null>(null);
 
   async function cambiarCapa(layerName: string) {
     const capa = catalogo.find((c) => c.layer_name === layerName);
     if (!capa) return;
     setCapaActual(capa);
+    setFeatureSeleccionada(null);
     setCargando(true);
     setError(null);
 
@@ -104,12 +107,16 @@ export function MapaGisClient({
         <p className="text-xs text-muted-foreground ml-auto">{capaActual.descripcion}</p>
       </div>
 
-      <div className="rounded-2xl border border-border bg-card overflow-hidden shadow-sm h-[560px]">
-        {error ? (
-          <div className="flex items-center justify-center h-full text-sm text-muted-foreground">{error}</div>
-        ) : (
-          <GisMap data={datos} geomType={capaActual.geom_type} />
-        )}
+      <div className="flex flex-col lg:flex-row gap-4 items-start">
+        <GisPanel capa={capaActual} datos={datos} featureSeleccionada={featureSeleccionada} />
+
+        <div className="rounded-2xl border border-border bg-card overflow-hidden shadow-sm h-[720px] w-full flex-1">
+          {error ? (
+            <div className="flex items-center justify-center h-full text-sm text-muted-foreground">{error}</div>
+          ) : (
+            <GisMap data={datos} geomType={capaActual.geom_type} onSeleccionarFeature={setFeatureSeleccionada} />
+          )}
+        </div>
       </div>
     </div>
   );

@@ -18,10 +18,25 @@ function extenderBounds(bounds: maplibregl.LngLatBounds, coords: unknown) {
   }
 }
 
-export function GisMap({ data, geomType }: { data: GeoFeatureCollection; geomType: "MultiPolygon" | "Point" }) {
+interface Props {
+  data: GeoFeatureCollection;
+  geomType: "MultiPolygon" | "Point";
+  // El detalle de la zona clickeada se muestra en el panel lateral (ver
+  // GisPanel), no en un popup -- así que solo se necesita avisar cuál se
+  // clickeó, no renderizar nada acá.
+  onSeleccionarFeature?: (props: Record<string, unknown>) => void;
+}
+
+export function GisMap({ data, geomType, onSeleccionarFeature }: Props) {
   const containerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<maplibregl.Map | null>(null);
-  const popupRef = useRef<maplibregl.Popup | null>(null);
+  // El listener de click se registra una sola vez (efecto de montaje); sin
+  // el ref quedaría atado para siempre a la referencia de la primera
+  // renderización.
+  const onSeleccionarFeatureRef = useRef(onSeleccionarFeature);
+  useEffect(() => {
+    onSeleccionarFeatureRef.current = onSeleccionarFeature;
+  }, [onSeleccionarFeature]);
 
   useEffect(() => {
     if (!containerRef.current) return;
@@ -33,20 +48,29 @@ export function GisMap({ data, geomType }: { data: GeoFeatureCollection; geomTyp
     });
     map.addControl(new maplibregl.NavigationControl(), "top-right");
 
-    popupRef.current = new maplibregl.Popup({ closeButton: true, maxWidth: "280px" });
-
     map.on("click", (e) => {
       const feature = map.queryRenderedFeatures(e.point).find((f) => f.source === "capa");
-      if (!feature) return;
-      const filas = Object.entries(feature.properties ?? {})
-        .filter(([, v]) => v !== null && v !== undefined)
-        .map(([k, v]) => `<div class="flex justify-between gap-3 text-xs py-0.5"><span class="text-muted-foreground">${k}</span><span class="font-medium">${v}</span></div>`)
-        .join("");
-      popupRef.current?.setLngLat(e.lngLat).setHTML(`<div class="p-1">${filas}</div>`).addTo(map);
+      const id = feature?.id ?? "__ninguno__";
+      if (map.getLayer("capa-seleccionada-outline")) {
+        map.setFilter("capa-seleccionada-outline", ["==", ["id"], id]);
+      }
+      if (map.getLayer("capa-seleccionada-punto")) {
+        map.setFilter("capa-seleccionada-punto", ["==", ["id"], id]);
+      }
+      if (feature) onSeleccionarFeatureRef.current?.(feature.properties ?? {});
     });
 
-    map.on("mouseenter", () => {
-      map.getCanvas().style.cursor = "default";
+    map.on("mouseenter", "capa-fill", () => {
+      map.getCanvas().style.cursor = "pointer";
+    });
+    map.on("mouseleave", "capa-fill", () => {
+      map.getCanvas().style.cursor = "";
+    });
+    map.on("mouseenter", "capa-puntos", () => {
+      map.getCanvas().style.cursor = "pointer";
+    });
+    map.on("mouseleave", "capa-puntos", () => {
+      map.getCanvas().style.cursor = "";
     });
 
     mapRef.current = map;
@@ -62,7 +86,7 @@ export function GisMap({ data, geomType }: { data: GeoFeatureCollection; geomTyp
 
     function render() {
       if (!map) return;
-      for (const id of ["capa-fill", "capa-outline", "capa-puntos"]) {
+      for (const id of ["capa-fill", "capa-outline", "capa-seleccionada-outline", "capa-puntos", "capa-seleccionada-punto"]) {
         if (map.getLayer(id)) map.removeLayer(id);
       }
       if (map.getSource("capa")) map.removeSource("capa");
@@ -81,6 +105,18 @@ export function GisMap({ data, geomType }: { data: GeoFeatureCollection; geomTyp
             "circle-stroke-color": "#ffffff",
           },
         });
+        map.addLayer({
+          id: "capa-seleccionada-punto",
+          type: "circle",
+          source: "capa",
+          filter: ["==", ["id"], "__ninguno__"],
+          paint: {
+            "circle-radius": 9,
+            "circle-color": "#15803d",
+            "circle-stroke-width": 3,
+            "circle-stroke-color": "#eab308",
+          },
+        });
       } else {
         map.addLayer({
           id: "capa-fill",
@@ -93,6 +129,13 @@ export function GisMap({ data, geomType }: { data: GeoFeatureCollection; geomTyp
           type: "line",
           source: "capa",
           paint: { "line-color": "#15803d", "line-width": 1 },
+        });
+        map.addLayer({
+          id: "capa-seleccionada-outline",
+          type: "line",
+          source: "capa",
+          filter: ["==", ["id"], "__ninguno__"],
+          paint: { "line-color": "#eab308", "line-width": 3.5 },
         });
       }
 
