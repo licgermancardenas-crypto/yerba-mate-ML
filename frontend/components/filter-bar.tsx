@@ -139,14 +139,17 @@ export function FilterBar({
       {mostrarUnidad && (
         <div className="flex flex-col gap-1">
           <span className="text-xs text-muted-foreground">Unidad</span>
-          <div className="flex items-center rounded-lg border border-border bg-background p-0.5">
+          <div className="flex items-center gap-1.5">
             {(["kg", "t"] as const).map((u) => (
               <button
                 key={u}
                 type="button"
                 onClick={() => actualizar("unidad", u === "kg" ? "" : u)}
-                className={`px-2.5 py-1 text-sm rounded-md transition-colors ${
-                  unidad === u ? "bg-primary text-on-primary" : "text-foreground/70 hover:text-foreground"
+                aria-pressed={unidad === u}
+                className={`px-3 py-1 text-sm font-medium rounded-full border transition-colors ${
+                  unidad === u
+                    ? "bg-primary border-primary text-on-primary shadow-sm"
+                    : "border-border bg-background text-foreground/70 hover:text-foreground hover:border-primary/40"
                 }`}
               >
                 {u}

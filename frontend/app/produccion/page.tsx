@@ -140,11 +140,14 @@ export default async function ProduccionPage({
         description="Serie mensual y distribución geográfica de la producción de yerba mate elaborada."
       />
 
-      <div className="flex items-center gap-1 rounded-xl border border-border bg-card p-1 mb-6 w-fit shadow-sm">
+      <div className="flex items-center gap-2 mb-6">
         <Link
           href={hrefDatos}
-          className={`flex items-center gap-1.5 px-3 py-1.5 text-sm rounded-md transition-colors ${
-            vista === "datos" ? "bg-primary text-on-primary" : "text-foreground/70 hover:text-foreground"
+          aria-current={vista === "datos" ? "page" : undefined}
+          className={`flex items-center gap-1.5 px-4 py-1.5 text-sm font-medium rounded-full border transition-colors ${
+            vista === "datos"
+              ? "bg-primary border-primary text-on-primary shadow-sm"
+              : "border-border bg-card text-foreground/70 hover:text-foreground hover:border-primary/40"
           }`}
         >
           <BarChart3 size={14} aria-hidden="true" />
@@ -152,8 +155,11 @@ export default async function ProduccionPage({
         </Link>
         <Link
           href={hrefMapa}
-          className={`flex items-center gap-1.5 px-3 py-1.5 text-sm rounded-md transition-colors ${
-            vista === "mapa" ? "bg-primary text-on-primary" : "text-foreground/70 hover:text-foreground"
+          aria-current={vista === "mapa" ? "page" : undefined}
+          className={`flex items-center gap-1.5 px-4 py-1.5 text-sm font-medium rounded-full border transition-colors ${
+            vista === "mapa"
+              ? "bg-primary border-primary text-on-primary shadow-sm"
+              : "border-border bg-card text-foreground/70 hover:text-foreground hover:border-primary/40"
           }`}
         >
           <MapIcon size={14} aria-hidden="true" />
