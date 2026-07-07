@@ -6,16 +6,41 @@ import { formatNumero } from "@/lib/format";
 const GRID_COLOR = "#e2e8e4";
 const TICK_COLOR = "#64748b";
 
+// Notación compacta en español para ejes con números grandes (300000000 ->
+// "300 M") -- Intl ya resuelve el espacio/abreviatura correctos para es-AR.
+const nfCompacto = new Intl.NumberFormat("es-AR", { notation: "compact", maximumFractionDigits: 1 });
+
+// Ciudades/departamentos largos ("Gobernador Virasoro") se truncan en el
+// tick del eje (con elipsis) para no encimarse con las barras ni cortarse a
+// la mitad -- el nombre completo se ve igual en el tooltip al hacer hover.
+function truncarNombre(s: string, max = 15): string {
+  return s.length > max ? `${s.slice(0, max - 1)}…` : s;
+}
+
 // Bar chart horizontal reutilizado por los paneles laterales de Mapa GIS y
 // Producción -- ranking (top-N) o desglose de una feature seleccionada.
 export function RankingChart({ data, color = "#15803d" }: { data: { nombre: string; valor: number }[]; color?: string }) {
   if (data.length === 0) return null;
   return (
     <ResponsiveContainer width="100%" height={Math.max(140, data.length * 26)}>
-      <BarChart data={data} layout="vertical" margin={{ top: 4, right: 16, bottom: 0, left: 0 }}>
+      <BarChart data={data} layout="vertical" margin={{ top: 4, right: 16, bottom: 0, left: 4 }}>
         <CartesianGrid stroke={GRID_COLOR} horizontal={false} />
-        <XAxis type="number" tick={{ fontSize: 10, fill: TICK_COLOR }} tickLine={false} axisLine={{ stroke: GRID_COLOR }} />
-        <YAxis type="category" dataKey="nombre" tick={{ fontSize: 11, fill: TICK_COLOR }} tickLine={false} axisLine={false} width={92} />
+        <XAxis
+          type="number"
+          tick={{ fontSize: 10, fill: TICK_COLOR }}
+          tickLine={false}
+          axisLine={{ stroke: GRID_COLOR }}
+          tickFormatter={(v) => nfCompacto.format(Number(v))}
+        />
+        <YAxis
+          type="category"
+          dataKey="nombre"
+          tick={{ fontSize: 10, fill: TICK_COLOR }}
+          tickLine={false}
+          axisLine={false}
+          width={112}
+          tickFormatter={(v: string) => truncarNombre(v)}
+        />
         <Tooltip cursor={{ fill: color, fillOpacity: 0.06 }} formatter={(v) => formatNumero(Number(v), 0)} />
         <Bar dataKey="valor" fill={color} radius={[0, 4, 4, 0]} maxBarSize={16} isAnimationActive={false} />
       </BarChart>

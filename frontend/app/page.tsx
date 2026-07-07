@@ -106,7 +106,7 @@ export default async function ResumenPage({
             </div>
             <ArrowRight
               size={16}
-              className="text-muted-foreground shrink-0 mt-1 transition-transform duration-150 group-hover:translate-x-0.5 group-hover:text-primary"
+              className="text-muted-foreground shrink-0 mt-1 transition-transform duration-200 group-hover:translate-x-1 group-hover:text-primary"
               aria-hidden="true"
             />
           </Link>
