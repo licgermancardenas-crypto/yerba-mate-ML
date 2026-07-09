@@ -1,9 +1,10 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { Mountain, Satellite, Signpost, Map as MapIcon, Factory, Flame, Circle, Route, Info } from "lucide-react";
+import { Map as MapIcon, Factory, Flame, Circle, Route, Info } from "lucide-react";
 import { ProduccionMapa, type VistaMapa, type Basemap, type BurbujaProduccion } from "@/components/produccion-mapa";
 import { ProduccionPanel, type BurbujaSeleccionada, type RutaFlujo } from "@/components/produccion-panel";
+import { GrupoControl, BasemapToggle, pillClass, SELECT_CLASS, LEYENDA_CLASS } from "@/components/mapa-controles";
 import { normalizar } from "@/lib/texto";
 
 interface DeptoContextoFeature {
@@ -55,43 +56,6 @@ const VISTAS: { id: VistaMapa; label: string; icon: typeof MapIcon }[] = [
   { id: "secaderos", label: "Clústeres", icon: Factory },
   { id: "flujo", label: "Flujo", icon: Route },
 ];
-
-// Ancho fijo (no "lo que ocupe el texto") para que la columna de Filtros
-// tenga un tamaño predecible y no desalinee la cuadrícula de los otros dos
-// grupos de controles según cuánto texto tenga cada <option> seleccionada.
-const SELECT_CLASS = "text-sm rounded-lg border border-border bg-background px-2.5 py-1.5 text-foreground w-[172px]";
-
-// Píldoras independientes (no una caja con borde + botón relleno adentro) --
-// mismo lenguaje visual que el toggle Datos/Mapa y el kg/t del FilterBar.
-function pillClass(activo: boolean): string {
-  return `flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium rounded-full border transition-colors cursor-pointer ${
-    activo
-      ? "bg-primary border-primary text-on-primary shadow-sm"
-      : "border-border bg-card text-foreground/70 hover:text-foreground hover:border-primary/40"
-  }`;
-}
-
-// Ancla siempre abajo-a-la-izquierda, con z-index explícito y un ancho
-// máximo -- el zoom (NavigationControl) vive arriba-a-la-derecha y la escala
-// (ScaleControl) abajo-a-la-derecha, así que por diseño nunca se solapan;
-// el max-w es un cinturón de seguridad para que en pantallas angostas esta
-// leyenda tampoco llegue a invadir ese lado.
-const LEYENDA_CLASS = "absolute bottom-3 left-3 z-10 max-w-[210px] rounded-lg border border-border bg-card/95 backdrop-blur px-3 py-2 text-xs shadow-lg";
-
-const BASEMAPS: { id: Basemap; label: string; icon: typeof Mountain }[] = [
-  { id: "topo", label: "Topográfico", icon: Mountain },
-  { id: "satelital", label: "Satelital", icon: Satellite },
-  { id: "calles", label: "Calles", icon: Signpost },
-];
-
-function GrupoControl({ titulo, children }: { titulo: string; children: React.ReactNode }) {
-  return (
-    <div className="flex flex-col gap-1.5">
-      <span className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">{titulo}</span>
-      <div className="flex flex-wrap items-center gap-2">{children}</div>
-    </div>
-  );
-}
 
 export function ProduccionMapaClient({ produccionPorCiudadAnio }: { produccionPorCiudadAnio: ProduccionPorCiudadAnio[] }) {
   const anios = useMemo(
@@ -348,22 +312,7 @@ export function ProduccionMapaClient({ produccionPorCiudadAnio }: { produccionPo
 
           <div className="hidden sm:block w-px self-stretch bg-border" aria-hidden="true" />
 
-          <GrupoControl titulo="Mapa base">
-            {BASEMAPS.map(({ id, label, icon: Icon }) => (
-              <button
-                key={id}
-                type="button"
-                onClick={() => setBasemap(id)}
-                aria-label={label}
-                aria-pressed={basemap === id}
-                title={label}
-                className={pillClass(basemap === id)}
-              >
-                <Icon size={14} aria-hidden="true" />
-                <span className="hidden lg:inline">{label}</span>
-              </button>
-            ))}
-          </GrupoControl>
+          <BasemapToggle basemap={basemap} onChange={setBasemap} />
         </div>
 
         <div className="flex items-start gap-2 rounded-2xl border border-border bg-muted px-3.5 py-2.5">

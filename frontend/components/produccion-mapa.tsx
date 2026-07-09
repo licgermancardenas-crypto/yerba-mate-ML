@@ -4,9 +4,11 @@ import maplibregl from "maplibre-gl";
 import "maplibre-gl/dist/maplibre-gl.css";
 import { useEffect, useRef } from "react";
 import { tituloCase } from "@/lib/texto";
+import { ESTILO_BASE, CENTRO_ZONA_YERBATERA, aplicarBasemap, type Basemap } from "@/lib/basemap";
+import { fitBoundsA, popupHTML } from "@/lib/mapa-geo-utils";
 
+export type { Basemap };
 export type VistaMapa = "coropletico" | "secaderos" | "heatmap" | "burbujas" | "flujo";
-export type Basemap = "topo" | "satelital" | "calles";
 
 export interface BurbujaProduccion {
   ciudad: string;
@@ -51,48 +53,7 @@ interface Props {
   onHoverFlujo?: (r: { ciudad: string; produccion_kg: number; distancia_km: number } | null) => void;
 }
 
-const CENTRO_INICIAL: [number, number] = [-54.9, -27.1];
-
-const ESTILO_BASE: maplibregl.StyleSpecification = {
-  version: 8,
-  sources: {
-    topo: {
-      type: "raster",
-      tiles: [
-        "https://a.tile.opentopomap.org/{z}/{x}/{y}.png",
-        "https://b.tile.opentopomap.org/{z}/{x}/{y}.png",
-        "https://c.tile.opentopomap.org/{z}/{x}/{y}.png",
-      ],
-      tileSize: 256,
-      maxzoom: 17,
-      attribution: "© OpenTopoMap (CC-BY-SA), SRTM",
-    },
-    satelital: {
-      type: "raster",
-      tiles: ["https://services.arcgisonline.com/arcgis/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}"],
-      tileSize: 256,
-      maxzoom: 19,
-      attribution: "© Esri, Maxar, Earthstar Geographics",
-    },
-    calles: {
-      type: "raster",
-      tiles: [
-        "https://a.basemaps.cartocdn.com/light_all/{z}/{x}/{y}.png",
-        "https://b.basemaps.cartocdn.com/light_all/{z}/{x}/{y}.png",
-        "https://c.basemaps.cartocdn.com/light_all/{z}/{x}/{y}.png",
-        "https://d.basemaps.cartocdn.com/light_all/{z}/{x}/{y}.png",
-      ],
-      tileSize: 256,
-      maxzoom: 20,
-      attribution: "© CARTO, © OpenStreetMap contributors",
-    },
-  },
-  layers: [
-    { id: "topo", type: "raster", source: "topo", layout: { visibility: "visible" } },
-    { id: "satelital", type: "raster", source: "satelital", layout: { visibility: "none" } },
-    { id: "calles", type: "raster", source: "calles", layout: { visibility: "none" } },
-  ],
-};
+const CENTRO_INICIAL = CENTRO_ZONA_YERBATERA;
 
 const TEXT_PAINT = {
   "text-color": "#ffffff",
@@ -102,39 +63,6 @@ const TEXT_PAINT = {
 
 const nf0 = new Intl.NumberFormat("es-AR", { maximumFractionDigits: 0 });
 const nf1 = new Intl.NumberFormat("es-AR", { maximumFractionDigits: 1 });
-
-function popupHTML(titulo: string, subtitulo: string | null, filas: { label: string; valor: string }[], nota?: string): string {
-  const filasHtml = filas
-    .map(
-      (f) =>
-        `<div class="flex items-baseline justify-between gap-4 text-xs py-0.5"><span class="text-muted-foreground">${f.label}</span><span class="font-semibold text-card-foreground tabular-nums">${f.valor}</span></div>`
-    )
-    .join("");
-  return `
-    <div class="px-3.5 py-3 min-w-[190px]">
-      <div class="text-sm font-semibold text-card-foreground leading-tight">${titulo}</div>
-      ${subtitulo ? `<div class="text-[11px] uppercase tracking-wide text-muted-foreground font-medium mt-0.5 mb-2">${subtitulo}</div>` : `<div class="mb-2"></div>`}
-      ${filasHtml}
-      ${nota ? `<div class="mt-1.5 pt-1.5 border-t border-border text-[10px] text-muted-foreground italic leading-snug">${nota}</div>` : ""}
-    </div>`;
-}
-
-function extenderBounds(bounds: maplibregl.LngLatBounds, coords: unknown) {
-  if (!Array.isArray(coords)) return;
-  if (typeof coords[0] === "number" && typeof coords[1] === "number") {
-    bounds.extend([coords[0], coords[1]] as [number, number]);
-  } else {
-    for (const c of coords) extenderBounds(bounds, c);
-  }
-}
-
-function fitBoundsA(map: maplibregl.Map, fc: GeoJSON.FeatureCollection, opts?: maplibregl.FitBoundsOptions) {
-  const bounds = new maplibregl.LngLatBounds();
-  for (const f of fc.features) {
-    if (f.geometry && "coordinates" in f.geometry) extenderBounds(bounds, f.geometry.coordinates);
-  }
-  if (!bounds.isEmpty()) map.fitBounds(bounds, { padding: 40, duration: 600, ...opts });
-}
 
 function crearPuntosBurbujas(burbujas: BurbujaProduccion[]): GeoJSON.FeatureCollection<GeoJSON.Point> {
   return {
@@ -353,19 +281,13 @@ export function ProduccionMapa({
       map.remove();
       mapRef.current = null;
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // Toggle de basemap
   useEffect(() => {
     const map = mapRef.current;
     if (!map) return;
-    function aplicar() {
-      if (!map!.getLayer("topo")) return;
-      map!.setLayoutProperty("topo", "visibility", basemap === "topo" ? "visible" : "none");
-      map!.setLayoutProperty("satelital", "visibility", basemap === "satelital" ? "visible" : "none");
-      map!.setLayoutProperty("calles", "visibility", basemap === "calles" ? "visible" : "none");
-    }
+    const aplicar = () => aplicarBasemap(map, basemap);
     if (map.isStyleLoaded()) aplicar();
     else map.once("load", aplicar);
   }, [basemap]);
@@ -801,12 +723,19 @@ export function ProduccionMapa({
     else map.once("load", aplicar);
   }, [provinciaFiltro, departamentoFiltro]);
 
-  // Foco (fitBounds) cuando cambia el filtro de provincia/departamento
+  // Foco (fitBounds) cuando cambia el filtro de provincia/departamento. A
+  // diferencia de los efectos que agregan fuentes/capas, fitBounds es
+  // puramente una animación de cámara -- no depende de que el estilo esté
+  // cargado, así que se llama directo. Esperar a `isStyleLoaded()` acá era
+  // un bug real: ese flag vuelve a `false` mientras cargan tiles del
+  // basemap (frecuente, no solo en el montaje), y el fallback
+  // `map.once("load", ...)` nunca vuelve a disparar porque el evento "load"
+  // ya ocurrió una sola vez -- el fitBounds quedaba mudo cada vez que
+  // coincidía con una carga de tiles.
   useEffect(() => {
     const map = mapRef.current;
     if (!map || !bboxFoco || bboxFoco.features.length === 0) return;
-    if (map.isStyleLoaded()) fitBoundsA(map, bboxFoco);
-    else map.once("load", () => fitBoundsA(map, bboxFoco));
+    fitBoundsA(map, bboxFoco);
   }, [bboxFoco]);
 
   return <div ref={containerRef} className="w-full h-full" />;

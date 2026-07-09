@@ -1,6 +1,6 @@
 "use client";
 
-import { useId, useState } from "react";
+import { useEffect, useId, useState } from "react";
 import {
   Area,
   AreaChart,
@@ -12,14 +12,23 @@ import {
   Tooltip,
   XAxis,
   YAxis,
+  useActiveTooltipLabel,
+  useIsTooltipActive,
 } from "recharts";
 import { BarChart3, LineChart as LineChartIcon } from "lucide-react";
+import { generarInsightHover } from "@/lib/insights";
 
 const GRID_COLOR = "#e2e8e4";
 const TICK_COLOR = "#64748b";
 
+interface PuntoSerie {
+  anio?: number;
+  etiqueta: string;
+  valor: number;
+}
+
 interface SerieMensualChartProps {
-  data: { etiqueta: string; valor: number }[];
+  data: PuntoSerie[];
   color?: string;
   prefix?: string;
   suffix?: string;
@@ -53,11 +62,43 @@ function ChartTooltip({
   );
 }
 
+// Sin salida visual propia -- vive dentro del árbol del chart solo para leer
+// los hooks "headless" de Recharts 3 (activeTooltipLabel/isTooltipActive),
+// que dependen del Context interno del chart y por eso no se pueden leer
+// desde el componente padre. El prop `onMouseMove` del chart existe todavía
+// pero en la v3 entrega un snapshot que no refleja el estado final del hover
+// -- estos hooks son la fuente de verdad real.
+function SincronizarHover({ data, onCambio }: { data: PuntoSerie[]; onCambio: (idx: number | null) => void }) {
+  const label = useActiveTooltipLabel();
+  const activo = useIsTooltipActive();
+
+  useEffect(() => {
+    if (!activo || label === undefined) {
+      onCambio(null);
+      return;
+    }
+    const idx = data.findIndex((d) => d.etiqueta === label);
+    onCambio(idx === -1 ? null : idx);
+  }, [activo, label, data, onCambio]);
+
+  return null;
+}
+
 export function SerieMensualChart({ data, color = "#15803d", prefix = "", suffix = "", numberFormat }: SerieMensualChartProps) {
   const [tipo, setTipo] = useState<"linea" | "barra">("linea");
+  const [hoverIdx, setHoverIdx] = useState<number | null>(null);
   const gradientId = useId();
   const formatear = (v: number) => `${prefix}${new Intl.NumberFormat("es-AR", numberFormat).format(v)}${suffix}`;
   const ultimo = data[data.length - 1];
+
+  // Reactivo al hover: se recalcula solo con la serie que ya está en
+  // pantalla (nunca datos fuera de rango), así el insight no puede afirmar
+  // nada que el usuario no pueda verificar mirando el propio gráfico. Sin
+  // hover, se muestra el insight del último punto (estático) en vez de
+  // dejar el espacio vacío -- así el dato relevante es visible de entrada,
+  // no solo para quien interactúa con el gráfico.
+  const idxInsight = hoverIdx ?? (data.length ? data.length - 1 : null);
+  const insight = idxInsight !== null ? generarInsightHover(data, idxInsight) : null;
 
   return (
     <div className="flex flex-col gap-2">
@@ -130,6 +171,7 @@ export function SerieMensualChart({ data, color = "#15803d", prefix = "", suffix
                 label={{ value: formatear(ultimo.valor), position: "top", fill: "#14532d", fontSize: 12, fontWeight: 600 }}
               />
             )}
+            <SincronizarHover data={data} onCambio={setHoverIdx} />
           </AreaChart>
         ) : (
           <BarChart data={data} margin={{ top: 16, right: 16, bottom: 0, left: 0 }}>
@@ -150,9 +192,14 @@ export function SerieMensualChart({ data, color = "#15803d", prefix = "", suffix
             />
             <Tooltip content={<ChartTooltip color={color} formatear={formatear} />} cursor={{ fill: color, fillOpacity: 0.06 }} />
             <Bar dataKey="valor" fill={color} radius={[4, 4, 0, 0]} maxBarSize={24} isAnimationActive={false} />
+            <SincronizarHover data={data} onCambio={setHoverIdx} />
           </BarChart>
         )}
       </ResponsiveContainer>
+
+      <div className={`min-h-[16px] pt-2 border-t text-xs text-foreground/80 ${insight ? "border-border" : "border-transparent"}`}>
+        {insight}
+      </div>
     </div>
   );
 }

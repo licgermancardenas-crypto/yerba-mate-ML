@@ -90,6 +90,25 @@ export function parseDensidad(s: unknown): Bucket[] {
 const nf0 = (v: number) => formatNumero(v, 0);
 const nf1 = (v: number) => formatNumero(v, 1);
 
+// Campo numérico real que corresponde colorear en el coroplético de cada
+// categoría -- null cuando la capa no trae ningún valor cuantitativo propio
+// (las administrativas puras del INDEC, o secaderos puntuales, que se
+// visualizan como clústeres en vez de relleno).
+export function campoChoropleto(categoria: CapaCatalogo["categoria"], geomType: CapaCatalogo["geom_type"]): string | null {
+  switch (categoria) {
+    case "limites":
+    case "edad":
+    case "densidad":
+      return "sup_ym";
+    case "consociado":
+      return "sup_cons";
+    case "secaderos":
+      return geomType === "MultiPolygon" ? "cant" : null;
+    default:
+      return null;
+  }
+}
+
 export function resumirCapa(capa: CapaCatalogo, datos: GeoFeatureCollection): ResumenCapa {
   const feats = datos.features;
   const totalFeatures = feats.length;

@@ -65,7 +65,10 @@ export function SerieChartConFiltro({ data, ...chartProps }: Props) {
           ))}
         </select>
       </div>
-      <SerieMensualChart data={filtrada.map(({ etiqueta, valor }) => ({ etiqueta, valor }))} {...chartProps} />
+      {/* Se conserva `anio` (no solo etiqueta/valor) -- lo usa SerieMensualChart
+          para el insight reactivo al hover (delta interanual real, verificado
+          por año, no asumido por la posición del punto en el arreglo). */}
+      <SerieMensualChart data={filtrada} {...chartProps} />
     </div>
   );
 }

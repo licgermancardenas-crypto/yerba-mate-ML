@@ -115,7 +115,8 @@ export interface CapaCatalogo {
     | "indec_departamentos"
     | "indec_fracciones"
     | "indec_radios_censales"
-    | "indec_localidades";
+    | "indec_localidades"
+    | "censo_poblacion";
   nivel_espacial: "municipio" | "departamento" | "provincia" | "zona" | "punto" | "fraccion" | "radio" | "localidad";
   geom_type: "MultiPolygon" | "Point";
   activa: boolean;
