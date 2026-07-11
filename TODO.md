@@ -201,14 +201,16 @@ Stack: Next.js (Vercel) · FastAPI (Render/Railway) · Postgres+PostGIS (Supabas
 ---
 
 ## FASE 7 — Deploy y operaciones
-**Estado: PENDIENTE** · Dependencias: Fases 4-6
+**Estado: EN PROGRESO** (base en vivo confirmada 2026-07-11) · Dependencias: Fases 4-6
 
-- [ ] Frontend → Vercel (auto-deploy desde main)
-- [ ] Backend API → Render o Railway (Docker o buildpack Python)
+- [x] Frontend → Vercel (auto-deploy desde main) — proyecto `yerba-mate-intelligence`, live en `https://frontend-peach-five-64.vercel.app`
+- [x] Backend API → Render — servicio `yerba-mate-ml-api` (`render.yaml`, plan free), live en `https://yerba-mate-ml-api.onrender.com`, `/health` responde 200
+- [x] Variables de entorno: `DATABASE_URL` en Render; `NEXT_PUBLIC_API_URL` en Vercel — **bug real encontrado y corregido 2026-07-11**: `NEXT_PUBLIC_API_URL` estaba seteada pero vacía en Production y Preview (el frontend estaba deployado y andando desde hace ~8 días pero sin poder llegar al backend). Corregida a `https://yerba-mate-ml-api.onrender.com` en ambos entornos y redeployado — verificado con datos reales en `/produccion`
 - [ ] GitHub Actions: cron jobs para ETL (frecuencia por fuente) y reentrenamiento ML (mensual)
-- [ ] Variables de entorno: `DATABASE_URL`, `MAPBOX_TOKEN`, API keys INDEC/BCRA si aplica
 - [ ] Monitoreo básico: Sentry para errores frontend + backend
 - [ ] Rate limiting en FastAPI para evitar abusos
+- [ ] Backend en plan free de Render duerme por inactividad (cold start ~30-50s) — evaluar upgrade de plan o keep-alive si molesta en uso real
+- [ ] Dominio custom (hoy solo subdominios `.vercel.app`/`.onrender.com`)
 
 ---
 
