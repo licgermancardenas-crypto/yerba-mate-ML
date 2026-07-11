@@ -153,35 +153,72 @@ CREATE SCHEMA IF NOT EXISTS ym;
 -- 1) dataset_principal — producción/consumo/exportaciones/precio por
 --    provincia y ciudad productora, mensual (2011–presente)
 -- ----------------------------------------------------------------------------
+-- AUDITORÍA 2026-07-11 (docs/auditoria_datos.md): el desglose MENSUAL de
+-- produccion_kg/consumo_interno_kg/exportaciones_kg/valor_fob_usd es 100%
+-- sintético (T5: correlación de estacionalidad 1.000 exacta entre TODOS los
+-- años) y el año 2025 completo era un clon byte a byte de 2024 (T1, 7/7
+-- ciudades). Esas 4 columnas se anularon (NULL = sin dato, nunca inventado)
+-- y pasaron a nullable. precio_usd_kg NO se tocó (categoría C, dato anual
+-- real con cadencia mensual, ya documentado). Los totales anuales reales
+-- 2011-2024 (validados contra ym.inym_hoja_verde_zona/inym_salida_molino y
+-- comunicados oficiales del INYM) se preservaron en ym.dataset_principal_anual
+-- antes de anular -- esa es la fuente para vistas anuales/nacionales.
 CREATE TABLE IF NOT EXISTS ym.dataset_principal (
     anio                SMALLINT NOT NULL,
     mes                 SMALLINT NOT NULL CHECK (mes BETWEEN 1 AND 12),
     mes_nombre          TEXT NOT NULL,
     provincia           TEXT NOT NULL,
     ciudad              TEXT NOT NULL,
-    produccion_kg       NUMERIC(14,2) NOT NULL,
-    consumo_interno_kg  NUMERIC(14,2) NOT NULL,
-    exportaciones_kg    NUMERIC(14,2) NOT NULL,
+    produccion_kg       NUMERIC(14,2),      -- NULL: desglose mensual sintético, anulado (ver nota arriba)
+    consumo_interno_kg  NUMERIC(14,2),      -- idem
+    exportaciones_kg    NUMERIC(14,2),      -- idem
     precio_usd_kg       NUMERIC(8,2) NOT NULL,
-    valor_fob_usd       NUMERIC(14,2) NOT NULL,
+    valor_fob_usd       NUMERIC(14,2),      -- idem
     PRIMARY KEY (anio, mes, provincia, ciudad)
 );
 CREATE INDEX IF NOT EXISTS idx_dataset_principal_anio ON ym.dataset_principal (anio);
 
 -- ----------------------------------------------------------------------------
+-- 1b) dataset_principal_anual — totales anuales reales, preservados antes de
+--     anular el desglose mensual sintético de arriba. Ver comentario de tabla.
+-- ----------------------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS ym.dataset_principal_anual (
+    anio                    SMALLINT NOT NULL,
+    provincia               TEXT NOT NULL DEFAULT '(nacional)',
+    ciudad                  TEXT NOT NULL DEFAULT '(nacional)',
+    produccion_kg           NUMERIC(14,2),
+    consumo_interno_kg      NUMERIC(14,2),
+    exportaciones_kg        NUMERIC(14,2),
+    precio_usd_kg_promedio  NUMERIC(8,4),
+    valor_fob_usd           NUMERIC(14,2),
+    fuente                  TEXT NOT NULL,      -- 'dataset_principal_original' | 'inym_comunicado_oficial'
+    fuente_url              TEXT,
+    PRIMARY KEY (anio, provincia, ciudad)
+);
+COMMENT ON TABLE ym.dataset_principal_anual IS
+    'Totales anuales reales (categoría C de docs/auditoria_datos.md). El total NACIONAL de cada año está validado contra fuente independiente (hoja_verde_zona/salida_molino/comunicados INYM); el desglose por ciudad 2011-2024 suma correcto al total nacional pero NO tiene validación independiente propia a nivel ciudad -- ver caso E (Producción por ciudad) en la auditoría. 2025 solo tiene fila nacional (provincia/ciudad=''(nacional)''), sin desglose por ciudad real todavía.';
+
+-- ----------------------------------------------------------------------------
 -- 2) consumo_interno — consumo per cápita nacional y mix de envases, mensual
 -- ----------------------------------------------------------------------------
+-- AUDITORÍA 2026-07-11: el mix de envases (6 columnas de abajo) estaba
+-- congelado idéntico 2011-2021 (11 años), saltaba a otro valor fijo fake
+-- 2022-2024 (3 años) y solo cambiaba en 2025 -- T1/T4, mismo patrón de
+-- relleno hacia atrás que se encontró y confirmó fabricado en Competencia
+-- (Fase 8). Anulado 2011-2024, columnas pasaron a nullable. consumo_per_capita_kg
+-- NO se tocó (categoría B: real, sin fuente documentada todavía, pero no
+-- fabricado -- ver docs/auditoria_datos.md).
 CREATE TABLE IF NOT EXISTS ym.consumo_interno (
     anio                        SMALLINT NOT NULL,
     mes                         SMALLINT NOT NULL CHECK (mes BETWEEN 1 AND 12),
     mes_nombre                  TEXT NOT NULL,
     consumo_per_capita_kg       NUMERIC(6,2) NOT NULL,
-    envase_05kg_pct             NUMERIC(5,2) NOT NULL,
-    envase_1kg_pct              NUMERIC(5,2) NOT NULL,
-    envase_2kg_pct              NUMERIC(5,2) NOT NULL,
-    envase_025kg_pct            NUMERIC(5,2) NOT NULL,
-    otros_envases_pct           NUMERIC(5,2) NOT NULL,
-    sin_estampillas_pct         NUMERIC(5,2) NOT NULL,
+    envase_05kg_pct             NUMERIC(5,2),      -- NULL 2011-2024: congelado/fabricado, anulado (ver nota arriba)
+    envase_1kg_pct              NUMERIC(5,2),
+    envase_2kg_pct              NUMERIC(5,2),
+    envase_025kg_pct            NUMERIC(5,2),
+    otros_envases_pct           NUMERIC(5,2),
+    sin_estampillas_pct         NUMERIC(5,2),
     PRIMARY KEY (anio, mes)
 );
 CREATE INDEX IF NOT EXISTS idx_consumo_interno_anio ON ym.consumo_interno (anio);
@@ -189,27 +226,52 @@ CREATE INDEX IF NOT EXISTS idx_consumo_interno_anio ON ym.consumo_interno (anio)
 -- ----------------------------------------------------------------------------
 -- 3) exportaciones — volumen y valor FOB por país destino, mensual
 -- ----------------------------------------------------------------------------
+-- AUDITORÍA 2026-07-11: mismo hallazgo y mismo tratamiento que
+-- dataset_principal -- desglose mensual sintético (T5=1.000 en las 6
+-- entidades) + 2025 clonado (T1=5/8 destinos), anulados. Totales anuales
+-- reales 2011-2024 por destino preservados en ym.exportaciones_anual.
 CREATE TABLE IF NOT EXISTS ym.exportaciones (
     anio                SMALLINT NOT NULL,
     mes                 SMALLINT NOT NULL CHECK (mes BETWEEN 1 AND 12),
     mes_nombre          TEXT NOT NULL,
     destino             TEXT NOT NULL,     -- incluye 'Others' como categoría agregada
-    volumen_kg          NUMERIC(14,2) NOT NULL,
-    valor_fob_usd       NUMERIC(14,2) NOT NULL,
-    precio_fob_usd_kg   NUMERIC(8,2) NOT NULL,
+    volumen_kg          NUMERIC(14,2),     -- NULL: desglose mensual sintético, anulado (ver nota arriba)
+    valor_fob_usd       NUMERIC(14,2),     -- idem
+    precio_fob_usd_kg   NUMERIC(8,2),      -- idem
     PRIMARY KEY (anio, mes, destino)
 );
 CREATE INDEX IF NOT EXISTS idx_exportaciones_anio ON ym.exportaciones (anio);
 CREATE INDEX IF NOT EXISTS idx_exportaciones_destino ON ym.exportaciones (destino);
 
 -- ----------------------------------------------------------------------------
+-- 3b) exportaciones_anual — totales anuales reales por destino, preservados
+--     antes de anular el desglose mensual sintético de arriba.
+-- ----------------------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS ym.exportaciones_anual (
+    anio                SMALLINT NOT NULL,
+    destino             TEXT NOT NULL DEFAULT '(nacional)',
+    volumen_kg          NUMERIC(14,2),
+    valor_fob_usd       NUMERIC(14,2),
+    precio_fob_usd_kg   NUMERIC(8,4),
+    fuente              TEXT NOT NULL,
+    fuente_url          TEXT,
+    PRIMARY KEY (anio, destino)
+);
+COMMENT ON TABLE ym.exportaciones_anual IS
+    'Totales anuales reales por destino 2011-2024 (suman correcto al total nacional validado, sin validación independiente propia por destino) + total nacional 2025 (sin desglose por destino real todavía) -- ver docs/auditoria_datos.md.';
+
+-- ----------------------------------------------------------------------------
 -- 4) importaciones — volumen mensual, sin desagregar por origen
 -- ----------------------------------------------------------------------------
+-- AUDITORÍA 2026-07-11: 2011-2018 estaba congelado en el mismo total anual
+-- exacto (999.996 kg, 7 años seguidos, T1/T2) -- contradice la doc previa
+-- de "cambia año a año", que solo es cierta desde 2019. Anulado 2011-2018,
+-- columna pasó a nullable.
 CREATE TABLE IF NOT EXISTS ym.importaciones (
     anio                SMALLINT NOT NULL,
     mes                 SMALLINT NOT NULL CHECK (mes BETWEEN 1 AND 12),
     mes_nombre          TEXT NOT NULL,
-    volumen_kg          NUMERIC(14,2) NOT NULL,
+    volumen_kg          NUMERIC(14,2),     -- NULL 2011-2018: congelado/sin fuente, anulado (ver nota arriba)
     PRIMARY KEY (anio, mes)
 );
 CREATE INDEX IF NOT EXISTS idx_importaciones_anio ON ym.importaciones (anio);
@@ -308,14 +370,22 @@ CREATE INDEX IF NOT EXISTS idx_despachos_empresa_anio ON ym.despachos_empresa (a
 -- 7) superficie_productores — cantidad de productores y hectáreas cultivadas,
 --    por provincia y ciudad, mensual (2010–presente)
 -- ----------------------------------------------------------------------------
+-- AUDITORÍA 2026-07-11: `productores` tenía 8 corridas de interpolación
+-- lineal perfecta (T3), la más larga de 9 años seguidos (Apóstoles
+-- 2010-2019, +1.164 productores/año exacto) -- mismo patrón que Playadito
+-- en Competencia. Anulados los tramos interiores (se conservan los años
+-- ancla en los extremos). `superficie_ha`/`productores` de 2025 también
+-- anulados (clon exacto de 2024, T1, y 2025 solo tenía 8/12 meses cargados).
+-- El total nacional real (177.533 ha, 2020-2024) SÍ está validado -- ver
+-- docs/auditoria_datos.md §2.6.
 CREATE TABLE IF NOT EXISTS ym.superficie_productores (
     anio                SMALLINT NOT NULL,
     mes                 SMALLINT NOT NULL CHECK (mes BETWEEN 1 AND 12),
     mes_nombre          TEXT NOT NULL,
     provincia           TEXT NOT NULL,
     ciudad              TEXT NOT NULL,
-    productores         INTEGER NOT NULL,
-    superficie_ha       NUMERIC(12,2) NOT NULL,
+    productores         INTEGER,           -- NULL: interpolado/fabricado o 2025, anulado (ver nota arriba)
+    superficie_ha       NUMERIC(12,2),     -- NULL: 2025 (clon 2024), anulado
     PRIMARY KEY (anio, mes, provincia, ciudad)
 );
 CREATE INDEX IF NOT EXISTS idx_superficie_productores_anio ON ym.superficie_productores (anio);
