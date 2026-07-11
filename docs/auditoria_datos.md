@@ -3,7 +3,7 @@
 **Fecha:** 2026-07-11
 **Alcance:** todas las tablas `ym.*` e `inym_gis.*` en Supabase + los 7 CSVs de `data/raw/`.
 **Estado:** SOLO DIAGNÓSTICO. No se modificó ningún dato ni código de producción.
-**Script:** `backend/etl/audit_datos.py` (reutilizable, de solo lectura — ver §6).
+**Script:** `backend/etl/audit_datos.py` (reutilizable, de solo lectura — ver §8).
 
 ---
 
@@ -70,7 +70,7 @@ enteramente falsos** — el patrón es consistente en casi todos:
 | `dataset_principal.exportaciones_kg` | Producción (tabla) | 2011-2025 | Anual (ídem) | CSV seed, sin cita | **NO** | T1=7/7, T5=1.000 en 105/105 |
 | `dataset_principal.precio_usd_kg` | Producción (KPI, tabla) | 2011-2025 | Anual, publicado mensual (documentado) | CSV seed, sin cita | **NO** | T1=35 (esperado, ya documentado), T6=180 (mismo precio las 7 ciudades cada mes — precio nacional único, plausible) |
 | `dataset_principal.valor_fob_usd` | Producción (KPI, tabla) | 2011-2025 | Anual (derivado: precio×kg) | CSV seed, sin cita | **NO** | T5=1.000 en 105/105 (hereda de kg) |
-| `consumo_interno.consumo_per_capita_kg` | Consumo (KPI, tabla, heatmap) | 2011-2025 | Anual, publicado mensual (documentado) | CSV seed, sin cita | **NO** | T2=15 (esperado); 2025=5,59 es proyección vieja, no cierre (ver §4.2) |
+| `consumo_interno.consumo_per_capita_kg` | Consumo (KPI, tabla, heatmap) | 2011-2025 | Anual, publicado mensual (documentado) | CSV seed, sin cita | **NO** | T2=15 (esperado); 2025=5,59 sin confirmar contra fuente primaria, ni a favor ni en contra (ver §4.2) |
 | `consumo_interno.mix_envases` (6 cols) | Consumo (chart, tabla) | 2011-2025 | Debería ser anual real | CSV seed, sin cita | **NO** | **Congelado 2011-2021, otro valor 2022-2024, cambia 2025** — T1=72, T4=100% exacto siempre |
 | `exportaciones.volumen_kg` (por destino) | Exportaciones (tabla, mapa de flujos) | 2011-2025 | Anual (mensual sintético) | CSV seed, sin cita | **NO** | T1=5/8 destinos (2025=2024), T5=1.000 en 105/105 |
 | `importaciones.volumen_kg` | Importaciones | 2011-2025 | Anual, publicado mensual | CSV seed, sin cita | **NO** | **T1=7 años consecutivos congelados 2011-2018** (999.996 exacto) — contradice la documentación existente ("cambia año a año"), que solo es cierta desde 2019 |
