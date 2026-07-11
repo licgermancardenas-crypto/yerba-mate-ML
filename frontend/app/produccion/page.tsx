@@ -6,10 +6,11 @@ import { ChartCard } from "@/components/chart-card";
 import { FilterBar } from "@/components/filter-bar";
 import { SerieChartConFiltro } from "@/components/charts/serie-chart-con-filtro";
 import { HistoricalTable } from "@/components/historical-table";
+import { HeatmapTable } from "@/components/heatmap-table";
 import { ProduccionMapaLoader } from "@/components/produccion-mapa-loader";
 import type { ColumnaTabla } from "@/components/data-table";
 import { formatMasa, formatNumero, formatPct, formatUsd, type UnidadMasa } from "@/lib/format";
-import { getProduccion, getSuperficie } from "@/lib/api";
+import { getProduccion, getSuperficie, getHojaVerde } from "@/lib/api";
 import {
   agregarProduccionMensual,
   agregarProduccionPorCiudad,
@@ -72,7 +73,14 @@ export default async function ProduccionPage({
   paramsMapa.set("vista", "mapa");
   const hrefMapa = `/produccion?${paramsMapa.toString()}`;
 
-  const [filasCompletas, superficieCompletas] = await Promise.all([getProduccion(), getSuperficie()]);
+  const [filasCompletas, superficieCompletas, hojaVerdeCompleta] = await Promise.all([
+    getProduccion(),
+    getSuperficie(),
+    getHojaVerde(),
+  ]);
+  const hojaVerdeTotalPorZona = hojaVerdeCompleta.filter(
+    (f) => f.zona === "TOTAL" && (!anioDesde || f.anio >= anioDesde) && (!anioHasta || f.anio <= anioHasta)
+  );
   const todosLosAnios = Array.from(new Set(filasCompletas.map((f) => f.anio))).sort((a, b) => a - b);
   const todasLasProvincias = Array.from(new Set(filasCompletas.map((f) => f.provincia))).sort();
 
@@ -276,6 +284,26 @@ export default async function ProduccionPage({
                 filasAnual={anualHistorico}
                 columnasMensual={COLUMNAS_MENSUAL}
                 filasMensual={mensualHistorico}
+              />
+            </ChartCard>
+
+            <ChartCard
+              title="Mapa de calor — ingreso de hoja verde a secadero"
+              className="mt-4"
+              description={
+                <>
+                  Cosecha real mes a mes (INYM, zona TOTAL), no el desglose mensual de &ldquo;Producción (kg)&rdquo; de arriba —
+                  ese total anual es real, pero su reparto entre los 12 meses es una curva estimada, no una medición (se repite
+                  idéntica todos los años). Acá cada año se colorea de mínimo a máximo, resaltando el pico real de cosecha
+                  (abril-septiembre) y la caída de floración (octubre-diciembre). Algunos meses sin publicación quedan &ldquo;s/d&rdquo;.
+                </>
+              }
+            >
+              <HeatmapTable
+                filas={hojaVerdeTotalPorZona.map((f) => ({ anio: f.anio, mes: f.mes, valor: f.hoja_verde_kg * factorUnidad }))}
+                formatearValor={(v) => formatNumero(v, unidad === "t" ? 1 : 0)}
+                formatearTotal={(v) => formatMasa(v, unidad)}
+                escala="fila"
               />
             </ChartCard>
           </>

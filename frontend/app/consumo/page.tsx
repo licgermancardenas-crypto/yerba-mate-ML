@@ -8,6 +8,7 @@ import { SerieChartConFiltro } from "@/components/charts/serie-chart-con-filtro"
 import { AnnualChartConFiltro } from "@/components/charts/annual-chart-con-filtro";
 import type { EnvasesPunto } from "@/components/charts/envases-stacked-chart";
 import { HistoricalTable } from "@/components/historical-table";
+import { HeatmapTable } from "@/components/heatmap-table";
 import type { ColumnaTabla } from "@/components/data-table";
 import { formatNumero } from "@/lib/format";
 import { getConsumo } from "@/lib/api";
@@ -164,6 +165,19 @@ export default async function ConsumoPage({
               filasAnual={anualHistorico}
               columnasMensual={COLUMNAS_MENSUAL}
               filasMensual={mensualHistorico}
+            />
+          </ChartCard>
+
+          <ChartCard
+            title="Mapa de calor — consumo per cápita"
+            className="mt-4"
+            description="Escala de color por toda la serie (no por año): la fuente publica el mismo valor los 12 meses de cada año, así que el color acá muestra la tendencia entre años, no estacionalidad mensual."
+          >
+            <HeatmapTable
+              filas={mensualHistorico.map((f) => ({ anio: f.anio, mes: f.mes, valor: f.consumo_per_capita_kg }))}
+              formatearValor={(v) => formatNumero(v, 2)}
+              formatearTotal={(v) => `${formatNumero(v / 12, 2)} kg prom.`}
+              escala="global"
             />
           </ChartCard>
         </>
