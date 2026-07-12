@@ -2,12 +2,14 @@ import type {
   CapaCatalogo,
   CompetenciaRow,
   ConsumoRow,
+  ExportacionAnualRealRow,
   ExportacionRow,
   GeoFeatureCollection,
   HojaVerdeRow,
   ImportacionRow,
   PrecioGondolaRow,
   PrecioRow,
+  ProduccionAnualRealRow,
   ProduccionRow,
   SalidaMolinoRow,
   SuperficieRow,
@@ -39,6 +41,15 @@ export function getProduccion(params?: { anioDesde?: number; anioHasta?: number;
   return apiFetch<ProduccionRow[]>(`/produccion${query ? `?${query}` : ""}`);
 }
 
+/** Totales anuales reales -- ver docs/auditoria_datos.md. Fuente correcta para vistas anuales/nacionales. */
+export function getProduccionAnualReal(params?: { anioDesde?: number; anioHasta?: number }) {
+  const qs = new URLSearchParams();
+  if (params?.anioDesde) qs.set("anio_desde", String(params.anioDesde));
+  if (params?.anioHasta) qs.set("anio_hasta", String(params.anioHasta));
+  const query = qs.toString();
+  return apiFetch<ProduccionAnualRealRow[]>(`/produccion/anual-real${query ? `?${query}` : ""}`);
+}
+
 export function getSuperficie(params?: { anioDesde?: number; anioHasta?: number; provincia?: string }) {
   const qs = new URLSearchParams();
   if (params?.anioDesde) qs.set("anio_desde", String(params.anioDesde));
@@ -63,6 +74,15 @@ export function getExportaciones(params?: { anioDesde?: number; anioHasta?: numb
   if (params?.destino) qs.set("destino", params.destino);
   const query = qs.toString();
   return apiFetch<ExportacionRow[]>(`/exportaciones${query ? `?${query}` : ""}`);
+}
+
+/** Totales anuales reales por destino -- ver docs/auditoria_datos.md. */
+export function getExportacionesAnualReal(params?: { anioDesde?: number; anioHasta?: number }) {
+  const qs = new URLSearchParams();
+  if (params?.anioDesde) qs.set("anio_desde", String(params.anioDesde));
+  if (params?.anioHasta) qs.set("anio_hasta", String(params.anioHasta));
+  const query = qs.toString();
+  return apiFetch<ExportacionAnualRealRow[]>(`/exportaciones/anual-real${query ? `?${query}` : ""}`);
 }
 
 export function getPrecios(params?: { anioDesde?: number; anioHasta?: number }) {

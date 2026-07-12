@@ -327,34 +327,45 @@ incorrecto** en las tres columnas (producción, consumo, exportaciones), no solo
 
 ---
 
-## 7. Lista priorizada para el saneamiento (Etapa 4 — pendiente de tu OK)
+## 7. Lista priorizada para el saneamiento (Etapa 4)
 
-1. **2025 completo de `dataset_principal`** (produccion/consumo/exportaciones_kg, 7 ciudades):
-   NULL, reemplazar producción y consumo por las fuentes reales ya cargadas (hoja_verde_zona,
-   salida_molino). Exportaciones queda NULL hasta conseguir fuente real.
-2. **Desglose mensual de `dataset_principal`** (produccion/consumo/exportaciones/valor_fob, todos
-   los años): NULL a nivel mensual, conservar el total anual (categoría C). El heatmap de
-   Producción ya migró a la fuente real — falta hacer lo mismo en el resto de los charts/tablas
-   mensuales de Producción, Consumo y Exportaciones.
-3. **`ym.exportaciones` por destino**: mismo tratamiento que el punto 1/2 en cuanto a mensual/2025;
-   buscar fuente real para exportaciones (mayor prioridad de research, no hay reemplazo cargado).
-4. **`consumo_interno.mix_envases` 2011-2024**: NULL, conservar solo si se consigue año real del
-   cambio.
-5. **`superficie_productores.productores`**: NULL en los 8 tramos interpolados, conservar los años
-   ancla.
-6. **`superficie_productores` 2024=2025**: NULL 2025 hasta reconfirmar contra fuente real (además,
-   completar los 4 meses faltantes de 2025 u homogeneizar el criterio de "año incompleto").
-7. **`importaciones.volumen_kg` 2011-2018**: confirmar si hay fuente real o degradar a NULL.
-8. **Relabel "Producción por ciudad" → caso E**: aclarar que son 7 buckets de reporte, no unidades
-   geográficas reales; evaluar migrar a las capas GIS por departamento.
-9. **Fix del bug de frontend** (§5): agregar "Otros" a `COORDENADAS_CIUDAD` o excluirlo también del
-   KPI con nota visible.
-10. **Documentar fuente primaria** de todo lo que hoy es categoría B (precio_usd_kg/valor_fob_usd,
-    consumo per cápita, importaciones post-2019, precios hoja verde/canchada, superficie/productores
-    en sus tramos válidos) — sin esto, quedan indocumentados aunque no se toquen los valores.
+**Ejecutado 2026-07-11**, con OK del usuario, migraciones `backend/db/migrations/002` y `003`:
 
-No se tocó ningún dato ni componente todavía. Quedo a la espera de tu OK sobre este informe antes
-de tocar código o valores en la base.
+1. ✅ **2025 completo de `dataset_principal`**: NULL a nivel ciudad; total nacional real cargado en
+   `ym.dataset_principal_anual` (producción 889.253.083 kg, consumo 266.788.512 kg, exportaciones
+   57.980.911 kg — INYM oficial). Exportaciones sin desglose por ciudad (no había fuente real a ese
+   nivel para 2025).
+2. ✅ **Desglose mensual de `dataset_principal`**: anulado 2011-2025, totales anuales reales
+   2011-2024 preservados en `ym.dataset_principal_anual` antes de anular. Frontend de Producción
+   reescrito: mensual → `ym.inym_hoja_verde_zona`, anual → `ym.dataset_principal_anual`. Consumo e
+   Importaciones también reescritos (ver 4 y 7).
+3. ✅ **`ym.exportaciones` por destino**: mismo tratamiento (anulado, total anual real preservado en
+   `ym.exportaciones_anual`). Fuente real de reemplazo para el mensual **identificada y validada**
+   (INDEC Comercio Exterior, NCM 09030010/09030090, 96% cobertura vs. INYM) — **ETL todavía sin
+   construir**, ver TODO.md Fase 3e. Mientras tanto, `/exportaciones` muestra el total anual real
+   con nota explícita de que no hay desglose mensual.
+4. ✅ **`consumo_interno.mix_envases` 2011-2024**: anulado. Chart y tabla del frontend ya excluyen/
+   marcan "s/d" esos años.
+5. ✅ **`superficie_productores.productores`**: anulados los 8 tramos interpolados, conservados los
+   años ancla.
+6. ✅ **`superficie_productores` 2025**: anulado (superficie_ha y productores).
+7. ✅ **`importaciones.volumen_kg` 2011-2018**: anulado (sin fuente real encontrada). Frontend
+   actualizado para no graficar/sumarlo como si fuera dato real.
+8. ✅ **Relabel "Producción por ciudad" → caso E**: descripción actualizada en el frontend aclarando
+   que son 7 buckets de reporte del INYM, no unidades geográficas exactas, con referencia al Mapa
+   GIS para el detalle real por departamento. Migrar la vista en sí a las capas GIS queda como
+   mejora de UX futura, no bloqueante.
+9. ✅ **Fix del bug de frontend** (§5): el mapa de Producción ahora muestra una nota explícita de
+   cuánto excluye "Otros" y por qué, en vez de una discrepancia silenciosa entre mapa y KPI.
+10. ⏳ **Documentar fuente primaria de categoría B** (precio_usd_kg/valor_fob_usd, consumo per
+    cápita, importaciones post-2019, precios hoja verde/canchada, superficie/productores en sus
+    tramos válidos): pendiente — no bloqueante, esos valores no se tocaron por no estar
+    confirmados como fabricados, solo por no tener cita de fuente.
+
+**Reglas permanentes de la Etapa 4 (aún no implementadas)**: tabla de provenance formal por fuente_id
+(hoy se usa `fuente`/`fuente_url` en las tablas `_anual` como versión liviana), footer "Fuentes de
+esta vista" por pantalla, `audit_datos.py` enganchado a CI, y formalizar T7/T8 dentro del script
+(hoy son queries ad-hoc, ver §8). Quedan para una sesión futura si se decide priorizarlas.
 
 ---
 

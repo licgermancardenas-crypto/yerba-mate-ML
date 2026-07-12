@@ -4,37 +4,18 @@ import { KpiCard } from "@/components/kpi-card";
 import { GaugeCard } from "@/components/gauge-card";
 import { ChartCard } from "@/components/chart-card";
 import { FilterBar } from "@/components/filter-bar";
-import { SerieChartConFiltro } from "@/components/charts/serie-chart-con-filtro";
 import { HistoricalTable } from "@/components/historical-table";
 import { ExportacionesFlowMapLoader } from "@/components/exportaciones-flow-map-loader";
 import type { ColumnaTabla } from "@/components/data-table";
 import { formatMasa, formatNumero, formatPct, formatUsd, type UnidadMasa } from "@/lib/format";
-import { getExportaciones } from "@/lib/api";
-import {
-  agregarExportacionesAnual,
-  agregarExportacionesMensual,
-  type ExportacionAnualRow,
-  type ExportacionMensualRow,
-} from "@/lib/agregaciones";
+import { getExportacionesAnualReal } from "@/lib/api";
+import { agregarExportacionesAnualNacional, type ExportacionAnualRow } from "@/lib/agregaciones";
 
 const COLUMNAS_ANUAL: ColumnaTabla<ExportacionAnualRow>[] = [
   { key: "anio", label: "Año", align: "left" },
   { key: "volumen_kg", label: "Volumen (kg)", align: "right", format: "entero" },
   { key: "valor_fob_usd", label: "Valor FOB", align: "right", format: "usd" },
   { key: "precio_fob_usd_kg_promedio", label: "Precio prom. FOB USD/kg", align: "right", format: "decimal2" },
-];
-
-const COLUMNAS_MENSUAL: ColumnaTabla<ExportacionMensualRow>[] = [
-  { key: "anio", label: "Año", align: "left" },
-  { key: "mes_nombre", label: "Mes", align: "left" },
-  { key: "volumen_kg", label: "Volumen (kg)", align: "right", format: "entero" },
-  { key: "valor_fob_usd", label: "Valor FOB", align: "right", format: "usd" },
-  { key: "precio_fob_usd_kg_promedio", label: "Precio prom. FOB USD/kg", align: "right", format: "decimal2" },
-];
-
-const MESES = [
-  "Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio",
-  "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre",
 ];
 
 export default async function ExportacionesPage({
@@ -47,57 +28,45 @@ export default async function ExportacionesPage({
   const anioHasta = Number(sp.anio_hasta) || undefined;
   const destinoFiltro = typeof sp.destino === "string" ? sp.destino : undefined;
   const unidad: UnidadMasa = sp.unidad === "t" ? "t" : "kg";
-  const sufijoUnidad = unidad === "t" ? " t" : " kg";
-  const factorUnidad = unidad === "t" ? 1 / 1000 : 1;
 
-  const filasCompletas = await getExportaciones();
-  const todosLosAnios = Array.from(new Set(filasCompletas.map((f) => f.anio))).sort((a, b) => a - b);
-  const todosLosDestinos = Array.from(new Set(filasCompletas.map((f) => f.destino))).sort();
+  const anualRealCompleta = await getExportacionesAnualReal();
+  const todosLosAnios = Array.from(new Set(anualRealCompleta.map((f) => f.anio))).sort((a, b) => a - b);
+  const todosLosDestinos = Array.from(
+    new Set(anualRealCompleta.filter((f) => f.destino !== "(nacional)").map((f) => f.destino))
+  ).sort();
 
-  const filas = filasCompletas.filter(
+  const filas = anualRealCompleta.filter(
     (f) =>
       (!anioDesde || f.anio >= anioDesde) &&
       (!anioHasta || f.anio <= anioHasta) &&
-      (!destinoFiltro || f.destino === destinoFiltro)
+      (!destinoFiltro || f.destino === destinoFiltro || f.destino === "(nacional)")
   );
 
   const anios = Array.from(new Set(filas.map((f) => f.anio))).sort((a, b) => a - b);
   const ultimoAnio = anios[anios.length - 1];
   const penultimoAnio = anios[anios.length - 2];
 
-  const filasUltimoAnio = filas.filter((f) => f.anio === ultimoAnio);
-  const filasPenultimoAnio = filas.filter((f) => f.anio === penultimoAnio);
-  const volumenUltimo = filasUltimoAnio.reduce((acc, f) => acc + f.volumen_kg, 0);
-  const volumenPenultimo = filasPenultimoAnio.reduce((acc, f) => acc + f.volumen_kg, 0);
-  const deltaVolumen = volumenPenultimo ? ((volumenUltimo - volumenPenultimo) / volumenPenultimo) * 100 : undefined;
-  const valorFobUltimo = filasUltimoAnio.reduce((acc, f) => acc + f.valor_fob_usd, 0);
-  const precioPromedioUltimo = valorFobUltimo / volumenUltimo;
+  const anualHistorico = agregarExportacionesAnualNacional(filas);
+  const anualUltimo = anualHistorico.find((f) => f.anio === ultimoAnio);
+  const anualPenultimo = anualHistorico.find((f) => f.anio === penultimoAnio);
 
-  const porDestino = new Map<string, { volumen_kg: number; valor_fob_usd: number }>();
-  for (const f of filasUltimoAnio) {
-    const acc = porDestino.get(f.destino) ?? { volumen_kg: 0, valor_fob_usd: 0 };
-    acc.volumen_kg += f.volumen_kg;
-    acc.valor_fob_usd += f.valor_fob_usd;
-    porDestino.set(f.destino, acc);
-  }
-  const destinos = Array.from(porDestino.entries())
-    .map(([destino, acc]) => ({ destino, ...acc, porcentaje: (acc.volumen_kg / volumenUltimo) * 100 }))
+  const volumenUltimo = anualUltimo?.volumen_kg ?? null;
+  const deltaVolumen =
+    volumenUltimo != null && anualPenultimo?.volumen_kg
+      ? ((volumenUltimo - anualPenultimo.volumen_kg) / anualPenultimo.volumen_kg) * 100
+      : undefined;
+  const valorFobUltimo = anualUltimo?.valor_fob_usd ?? null;
+  const precioPromedioUltimo = anualUltimo?.precio_fob_usd_kg_promedio ?? null;
+
+  const destinos = filas
+    .filter((f) => f.anio === ultimoAnio && f.destino !== "(nacional)" && f.volumen_kg != null)
+    .map((f) => ({
+      destino: f.destino,
+      volumen_kg: f.volumen_kg!,
+      valor_fob_usd: f.valor_fob_usd ?? 0,
+      porcentaje: volumenUltimo ? (f.volumen_kg! / volumenUltimo) * 100 : 0,
+    }))
     .sort((a, b) => b.volumen_kg - a.volumen_kg);
-
-  const totales = new Map<string, number>();
-  for (const f of filas) {
-    const clave = `${f.anio}-${String(f.mes).padStart(2, "0")}`;
-    totales.set(clave, (totales.get(clave) ?? 0) + f.volumen_kg);
-  }
-  const serieMensual = Array.from(totales.entries())
-    .sort(([a], [b]) => a.localeCompare(b))
-    .map(([clave, volumen_kg]) => {
-      const [anio, mes] = clave.split("-");
-      return { anio: Number(anio), etiqueta: `${MESES[Number(mes) - 1].slice(0, 3)} ${anio.slice(2)}`, valor: volumen_kg };
-    });
-
-  const anualHistorico = agregarExportacionesAnual(filas);
-  const mensualHistorico = agregarExportacionesMensual(filas);
 
   return (
     <main className="p-6 md:p-8">
@@ -113,26 +82,38 @@ export default async function ExportacionesPage({
       ) : (
         <>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
-            <KpiCard label={`Volumen exportado ${ultimoAnio}`} value={formatMasa(volumenUltimo, unidad)} icon={Ship} deltaPct={deltaVolumen} deltaLabel={`vs. ${penultimoAnio}`} destacado />
-            <KpiCard label={`Valor FOB ${ultimoAnio}`} value={formatUsd(valorFobUltimo)} icon={DollarSign} />
-            <KpiCard label="Precio FOB promedio USD/kg" value={formatNumero(precioPromedioUltimo, 2)} icon={TrendingUp} />
-            <KpiCard label="Países destino" value={String(destinos.length)} icon={Globe2} />
+            <KpiCard
+              label={`Volumen exportado ${ultimoAnio}`}
+              value={volumenUltimo != null ? formatMasa(volumenUltimo, unidad) : "Sin dato"}
+              icon={Ship}
+              deltaPct={deltaVolumen}
+              deltaLabel={`vs. ${penultimoAnio}`}
+              destacado
+            />
+            <KpiCard label={`Valor FOB ${ultimoAnio}`} value={valorFobUltimo != null ? formatUsd(valorFobUltimo) : "Sin dato"} icon={DollarSign} />
+            <KpiCard label="Precio FOB promedio USD/kg" value={precioPromedioUltimo != null ? formatNumero(precioPromedioUltimo, 2) : "Sin dato"} icon={TrendingUp} />
+            <KpiCard label="Países destino" value={destinos.length ? String(destinos.length) : "Sin dato"} icon={Globe2} />
           </div>
 
-          <div className="grid grid-cols-1 xl:grid-cols-3 gap-4">
-            <ChartCard
-              title="Volumen exportado mensual"
-              description={`Suma de ${destinoFiltro ?? "todos los destinos"}, en ${unidad === "t" ? "toneladas" : "kilogramos"}`}
-              className="xl:col-span-2"
-            >
-              <SerieChartConFiltro
-                data={serieMensual.map((p) => ({ ...p, valor: p.valor * factorUnidad }))}
-                numberFormat={{ notation: "compact" }}
-                suffix={sufijoUnidad}
-              />
-            </ChartCard>
+          <ChartCard
+            title="Sin desglose mensual real todavía"
+            description="El desglose mensual de exportaciones anterior era 100% sintético (ver docs/auditoria_datos.md) y se anuló. El total anual de arriba sí es real."
+            className="mb-4"
+          >
+            <p className="text-sm text-muted-foreground">
+              Fuente real identificada y validada (96% de cobertura vs. el total oficial INYM 2025): INDEC Comercio
+              Exterior, posiciones NCM 09030010/09030090, mensual por país, 2002-presente
+              (<code>comexbe.indec.gob.ar/public-api/search</code>). Falta construir el ETL para cargarla — pendiente
+              en TODO.md.
+            </p>
+          </ChartCard>
 
-            <ChartCard title={`Distribución por destino (${ultimoAnio})`} description="% del volumen total exportado">
+          <ChartCard title={`Distribución por destino (${ultimoAnio})`} description="% del volumen total exportado" className="mb-4">
+            {destinos.length === 0 ? (
+              <p className="text-sm text-muted-foreground py-4">
+                Sin desglose por destino para {ultimoAnio} todavía — solo hay total nacional (ver KPI arriba).
+              </p>
+            ) : (
               <table className="w-full text-sm">
                 <thead>
                   <tr className="text-left text-xs text-muted-foreground border-b border-border">
@@ -151,18 +132,19 @@ export default async function ExportacionesPage({
                   ))}
                 </tbody>
               </table>
-            </ChartCard>
-          </div>
-
-          <ChartCard
-            title="Mapa de flujos de exportación"
-            description={`Argentina → ${destinoFiltro ?? "principales destinos"} (${ultimoAnio}) — grosor y opacidad del arco = % del volumen total. Click en un destino para filtrar toda la página.`}
-            className="mt-4"
-          >
-            <div className="h-[420px] -m-1">
-              <ExportacionesFlowMapLoader destinos={destinos} destinoFiltro={destinoFiltro ?? null} />
-            </div>
+            )}
           </ChartCard>
+
+          {destinos.length > 0 && (
+            <ChartCard
+              title="Mapa de flujos de exportación"
+              description={`Argentina → ${destinoFiltro ?? "principales destinos"} (${ultimoAnio}) — grosor y opacidad del arco = % del volumen total. Click en un destino para filtrar toda la página.`}
+            >
+              <div className="h-[420px] -m-1">
+                <ExportacionesFlowMapLoader destinos={destinos} destinoFiltro={destinoFiltro ?? null} />
+              </div>
+            </ChartCard>
+          )}
 
           <div className="mt-8 mb-4 flex items-center gap-2">
             <PieChart size={16} className="text-primary" aria-hidden="true" />
@@ -179,20 +161,16 @@ export default async function ExportacionesPage({
           </div>
 
           <ChartCard
-            title="Histórico completo"
+            title="Histórico anual"
             className="mt-8"
             description={
               <>
-                Total {destinoFiltro ?? "nacional (todos los destinos)"}, desde {anualHistorico[anualHistorico.length - 1]?.anio} hasta {ultimoAnio}
+                Total {destinoFiltro ?? "nacional (todos los destinos)"} real, desde{" "}
+                {anualHistorico[anualHistorico.length - 1]?.anio} hasta {ultimoAnio}
               </>
             }
           >
-            <HistoricalTable
-              columnasAnual={COLUMNAS_ANUAL}
-              filasAnual={anualHistorico}
-              columnasMensual={COLUMNAS_MENSUAL}
-              filasMensual={mensualHistorico}
-            />
+            <HistoricalTable columnasAnual={COLUMNAS_ANUAL} filasAnual={anualHistorico} />
           </ChartCard>
         </>
       )}

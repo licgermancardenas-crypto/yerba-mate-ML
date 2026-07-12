@@ -1,18 +1,24 @@
 import type {
   ConsumoRow,
-  ExportacionRow,
+  ExportacionAnualRealRow,
   HojaVerdeRow,
   ImportacionRow,
   PrecioRow,
-  ProduccionRow,
+  ProduccionAnualRealRow,
   SalidaMolinoRow,
   SuperficieRow,
 } from "@/lib/types";
 
-const MESES = [
+export const MESES = [
   "Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio",
   "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre",
 ];
+
+// ----------------------------------------------------------------------------
+// Producción mensual nacional — AUDITORÍA 2026-07-11: el desglose mensual de
+// ym.dataset_principal era sintético y se anuló (ver docs/auditoria_datos.md).
+// La fuente mensual real de cosecha es ym.inym_hoja_verde_zona (zona TOTAL).
+// ----------------------------------------------------------------------------
 
 export interface SerieMensualPunto {
   anio: number;
@@ -20,19 +26,24 @@ export interface SerieMensualPunto {
   produccion_kg: number;
 }
 
-export function agregarProduccionMensual(filas: ProduccionRow[]): SerieMensualPunto[] {
-  const totales = new Map<string, number>();
-  for (const fila of filas) {
-    const clave = `${fila.anio}-${String(fila.mes).padStart(2, "0")}`;
-    totales.set(clave, (totales.get(clave) ?? 0) + fila.produccion_kg);
-  }
-  return Array.from(totales.entries())
-    .sort(([a], [b]) => a.localeCompare(b))
-    .map(([clave, produccion_kg]) => {
-      const [anio, mes] = clave.split("-");
-      return { anio: Number(anio), etiqueta: `${MESES[Number(mes) - 1].slice(0, 3)} ${anio.slice(2)}`, produccion_kg };
-    });
+export function agregarHojaVerdeMensualNacional(filas: HojaVerdeRow[]): SerieMensualPunto[] {
+  return filas
+    .filter((f) => f.zona === "TOTAL")
+    .sort((a, b) => a.anio - b.anio || a.mes - b.mes)
+    .map((f) => ({
+      anio: f.anio,
+      etiqueta: `${MESES[f.mes - 1].slice(0, 3)} ${String(f.anio).slice(2)}`,
+      produccion_kg: f.hoja_verde_kg,
+    }));
 }
+
+// ----------------------------------------------------------------------------
+// Producción por ciudad — a partir de ym.dataset_principal_anual (real,
+// preservado antes de anular el mensual). Son 7 "buckets" de reporte del
+// INYM, no unidades geográficas reales -- ver caso E de la auditoría. No
+// hay desglose por ciudad para años sin fila con provincia/ciudad propias
+// (2025 en adelante): esos años solo tienen la fila '(nacional)'.
+// ----------------------------------------------------------------------------
 
 export interface ProduccionPorCiudad {
   provincia: string;
@@ -41,97 +52,73 @@ export interface ProduccionPorCiudad {
   porcentaje: number;
 }
 
-export function agregarProduccionPorCiudad(filas: ProduccionRow[], anio: number): ProduccionPorCiudad[] {
-  const delAnio = filas.filter((f) => f.anio === anio);
-  const total = delAnio.reduce((acc, f) => acc + f.produccion_kg, 0);
-  const porCiudad = new Map<string, { provincia: string; ciudad: string; produccion_kg: number }>();
-  for (const fila of delAnio) {
-    const clave = `${fila.provincia}|${fila.ciudad}`;
-    const actual = porCiudad.get(clave);
-    porCiudad.set(clave, {
-      provincia: fila.provincia,
-      ciudad: fila.ciudad,
-      produccion_kg: (actual?.produccion_kg ?? 0) + fila.produccion_kg,
-    });
-  }
-  return Array.from(porCiudad.values())
-    .map((r) => ({ ...r, porcentaje: (r.produccion_kg / total) * 100 }))
+export function agregarProduccionPorCiudad(filasAnualReal: ProduccionAnualRealRow[], anio: number): ProduccionPorCiudad[] {
+  const delAnio = filasAnualReal.filter((f) => f.anio === anio && f.ciudad !== "(nacional)" && f.produccion_kg != null);
+  const total = delAnio.reduce((acc, f) => acc + (f.produccion_kg ?? 0), 0);
+  if (total === 0) return [];
+  return delAnio
+    .map((f) => ({
+      provincia: f.provincia,
+      ciudad: f.ciudad,
+      produccion_kg: f.produccion_kg!,
+      porcentaje: (f.produccion_kg! / total) * 100,
+    }))
     .sort((a, b) => b.produccion_kg - a.produccion_kg);
 }
 
 // ----------------------------------------------------------------------------
-// Producción — tablas históricas nacionales (suma de todas las ciudades)
+// Producción — histórico anual nacional, a partir de ym.dataset_principal_anual.
+// Si el año tiene fila '(nacional)' (sin desglose por ciudad, ej. 2025) se usa
+// directo; si no, se suman las ciudades.
 // ----------------------------------------------------------------------------
 
 export interface ProduccionAnualRow {
   anio: number;
-  produccion_kg: number;
-  consumo_interno_kg: number;
-  exportaciones_kg: number;
-  precio_usd_kg_promedio: number;
-  valor_fob_usd: number;
+  produccion_kg: number | null;
+  consumo_interno_kg: number | null;
+  exportaciones_kg: number | null;
+  precio_usd_kg_promedio: number | null;
+  valor_fob_usd: number | null;
 }
 
-export function agregarProduccionAnual(filas: ProduccionRow[]): ProduccionAnualRow[] {
-  const porAnio = new Map<number, { produccion_kg: number; consumo_interno_kg: number; exportaciones_kg: number; valor_fob_usd: number; sumaPrecio: number; n: number }>();
-  for (const f of filas) {
-    const acc = porAnio.get(f.anio) ?? { produccion_kg: 0, consumo_interno_kg: 0, exportaciones_kg: 0, valor_fob_usd: 0, sumaPrecio: 0, n: 0 };
-    acc.produccion_kg += f.produccion_kg;
-    acc.consumo_interno_kg += f.consumo_interno_kg;
-    acc.exportaciones_kg += f.exportaciones_kg;
-    acc.valor_fob_usd += f.valor_fob_usd;
-    acc.sumaPrecio += f.precio_usd_kg;
-    acc.n += 1;
-    porAnio.set(f.anio, acc);
+export function agregarProduccionAnualNacional(filasAnualReal: ProduccionAnualRealRow[]): ProduccionAnualRow[] {
+  const porAnio = new Map<number, ProduccionAnualRealRow[]>();
+  for (const f of filasAnualReal) {
+    const arr = porAnio.get(f.anio) ?? [];
+    arr.push(f);
+    porAnio.set(f.anio, arr);
   }
+  const sumar = (filas: ProduccionAnualRealRow[], campo: keyof ProduccionAnualRealRow) => {
+    const valores = filas.map((f) => f[campo]).filter((v): v is number => typeof v === "number");
+    return valores.length ? valores.reduce((a, b) => a + b, 0) : null;
+  };
+  const promediar = (filas: ProduccionAnualRealRow[]) => {
+    const valores = filas.map((f) => f.precio_usd_kg_promedio).filter((v): v is number => v != null);
+    return valores.length ? valores.reduce((a, b) => a + b, 0) / valores.length : null;
+  };
   return Array.from(porAnio.entries())
-    .map(([anio, a]) => ({
-      anio,
-      produccion_kg: a.produccion_kg,
-      consumo_interno_kg: a.consumo_interno_kg,
-      exportaciones_kg: a.exportaciones_kg,
-      precio_usd_kg_promedio: a.sumaPrecio / a.n,
-      valor_fob_usd: a.valor_fob_usd,
-    }))
+    .map(([anio, filas]) => {
+      const nacional = filas.find((f) => f.ciudad === "(nacional)");
+      if (nacional) {
+        return {
+          anio,
+          produccion_kg: nacional.produccion_kg,
+          consumo_interno_kg: nacional.consumo_interno_kg,
+          exportaciones_kg: nacional.exportaciones_kg,
+          precio_usd_kg_promedio: nacional.precio_usd_kg_promedio,
+          valor_fob_usd: nacional.valor_fob_usd,
+        };
+      }
+      return {
+        anio,
+        produccion_kg: sumar(filas, "produccion_kg"),
+        consumo_interno_kg: sumar(filas, "consumo_interno_kg"),
+        exportaciones_kg: sumar(filas, "exportaciones_kg"),
+        precio_usd_kg_promedio: promediar(filas),
+        valor_fob_usd: sumar(filas, "valor_fob_usd"),
+      };
+    })
     .sort((a, b) => b.anio - a.anio);
-}
-
-export interface ProduccionMensualNacionalRow {
-  anio: number;
-  mes: number;
-  mes_nombre: string;
-  produccion_kg: number;
-  consumo_interno_kg: number;
-  exportaciones_kg: number;
-  precio_usd_kg_promedio: number;
-  valor_fob_usd: number;
-}
-
-export function agregarProduccionMensualNacional(filas: ProduccionRow[]): ProduccionMensualNacionalRow[] {
-  const porMes = new Map<string, { anio: number; mes: number; produccion_kg: number; consumo_interno_kg: number; exportaciones_kg: number; valor_fob_usd: number; sumaPrecio: number; n: number }>();
-  for (const f of filas) {
-    const clave = `${f.anio}-${f.mes}`;
-    const acc = porMes.get(clave) ?? { anio: f.anio, mes: f.mes, produccion_kg: 0, consumo_interno_kg: 0, exportaciones_kg: 0, valor_fob_usd: 0, sumaPrecio: 0, n: 0 };
-    acc.produccion_kg += f.produccion_kg;
-    acc.consumo_interno_kg += f.consumo_interno_kg;
-    acc.exportaciones_kg += f.exportaciones_kg;
-    acc.valor_fob_usd += f.valor_fob_usd;
-    acc.sumaPrecio += f.precio_usd_kg;
-    acc.n += 1;
-    porMes.set(clave, acc);
-  }
-  return Array.from(porMes.values())
-    .map((a) => ({
-      anio: a.anio,
-      mes: a.mes,
-      mes_nombre: MESES[a.mes - 1],
-      produccion_kg: a.produccion_kg,
-      consumo_interno_kg: a.consumo_interno_kg,
-      exportaciones_kg: a.exportaciones_kg,
-      precio_usd_kg_promedio: a.sumaPrecio / a.n,
-      valor_fob_usd: a.valor_fob_usd,
-    }))
-    .sort((a, b) => b.anio - a.anio || b.mes - a.mes);
 }
 
 // ----------------------------------------------------------------------------
@@ -150,17 +137,18 @@ export interface RendimientoAnualRow {
 }
 
 export function agregarRendimientoAnual(
-  filasProduccion: ProduccionRow[],
+  filasAnualReal: ProduccionAnualRealRow[],
   filasSuperficie: SuperficieRow[]
 ): RendimientoAnualRow[] {
   const produccionPorAnio = new Map<number, number>();
-  for (const f of filasProduccion) {
-    produccionPorAnio.set(f.anio, (produccionPorAnio.get(f.anio) ?? 0) + f.produccion_kg);
+  for (const f of agregarProduccionAnualNacional(filasAnualReal)) {
+    if (f.produccion_kg != null) produccionPorAnio.set(f.anio, f.produccion_kg);
   }
 
   // Toma un solo mes por (año, ciudad) para no sumar la misma superficie 12 veces.
   const haPorAnioCiudad = new Map<string, number>();
   for (const f of filasSuperficie) {
+    if (f.superficie_ha == null) continue;
     const clave = `${f.anio}|${f.provincia}|${f.ciudad}`;
     if (!haPorAnioCiudad.has(clave)) haPorAnioCiudad.set(clave, f.superficie_ha);
   }
@@ -182,62 +170,43 @@ export function agregarRendimientoAnual(
 }
 
 // ----------------------------------------------------------------------------
-// Exportaciones — tablas históricas nacionales (suma de todos los destinos)
+// Exportaciones — histórico anual por destino, a partir de
+// ym.exportaciones_anual (real, preservado antes de anular el mensual
+// sintético). No hay reemplazo mensual real todavía -- ver
+// docs/auditoria_datos.md, tarea de investigación de fuente pendiente.
 // ----------------------------------------------------------------------------
 
 export interface ExportacionAnualRow {
   anio: number;
-  volumen_kg: number;
-  valor_fob_usd: number;
-  precio_fob_usd_kg_promedio: number;
+  volumen_kg: number | null;
+  valor_fob_usd: number | null;
+  precio_fob_usd_kg_promedio: number | null;
 }
 
-export function agregarExportacionesAnual(filas: ExportacionRow[]): ExportacionAnualRow[] {
-  const porAnio = new Map<number, { volumen_kg: number; valor_fob_usd: number }>();
-  for (const f of filas) {
-    const acc = porAnio.get(f.anio) ?? { volumen_kg: 0, valor_fob_usd: 0 };
-    acc.volumen_kg += f.volumen_kg;
-    acc.valor_fob_usd += f.valor_fob_usd;
-    porAnio.set(f.anio, acc);
+export function agregarExportacionesAnualNacional(filasAnualReal: ExportacionAnualRealRow[]): ExportacionAnualRow[] {
+  const porAnio = new Map<number, ExportacionAnualRealRow[]>();
+  for (const f of filasAnualReal) {
+    const arr = porAnio.get(f.anio) ?? [];
+    arr.push(f);
+    porAnio.set(f.anio, arr);
   }
+  const sumar = (filas: ExportacionAnualRealRow[], campo: "volumen_kg" | "valor_fob_usd") => {
+    const valores = filas.map((f) => f[campo]).filter((v): v is number => v != null);
+    return valores.length ? valores.reduce((a, b) => a + b, 0) : null;
+  };
   return Array.from(porAnio.entries())
-    .map(([anio, a]) => ({
-      anio,
-      volumen_kg: a.volumen_kg,
-      valor_fob_usd: a.valor_fob_usd,
-      precio_fob_usd_kg_promedio: a.valor_fob_usd / a.volumen_kg,
-    }))
+    .map(([anio, filas]) => {
+      const nacional = filas.find((f) => f.destino === "(nacional)");
+      const volumen_kg = nacional ? nacional.volumen_kg : sumar(filas, "volumen_kg");
+      const valor_fob_usd = nacional ? nacional.valor_fob_usd : sumar(filas, "valor_fob_usd");
+      return {
+        anio,
+        volumen_kg,
+        valor_fob_usd,
+        precio_fob_usd_kg_promedio: volumen_kg && valor_fob_usd ? valor_fob_usd / volumen_kg : null,
+      };
+    })
     .sort((a, b) => b.anio - a.anio);
-}
-
-export interface ExportacionMensualRow {
-  anio: number;
-  mes: number;
-  mes_nombre: string;
-  volumen_kg: number;
-  valor_fob_usd: number;
-  precio_fob_usd_kg_promedio: number;
-}
-
-export function agregarExportacionesMensual(filas: ExportacionRow[]): ExportacionMensualRow[] {
-  const porMes = new Map<string, { anio: number; mes: number; volumen_kg: number; valor_fob_usd: number }>();
-  for (const f of filas) {
-    const clave = `${f.anio}-${f.mes}`;
-    const acc = porMes.get(clave) ?? { anio: f.anio, mes: f.mes, volumen_kg: 0, valor_fob_usd: 0 };
-    acc.volumen_kg += f.volumen_kg;
-    acc.valor_fob_usd += f.valor_fob_usd;
-    porMes.set(clave, acc);
-  }
-  return Array.from(porMes.values())
-    .map((a) => ({
-      anio: a.anio,
-      mes: a.mes,
-      mes_nombre: MESES[a.mes - 1],
-      volumen_kg: a.volumen_kg,
-      valor_fob_usd: a.valor_fob_usd,
-      precio_fob_usd_kg_promedio: a.valor_fob_usd / a.volumen_kg,
-    }))
-    .sort((a, b) => b.anio - a.anio || b.mes - a.mes);
 }
 
 // ----------------------------------------------------------------------------
@@ -289,16 +258,18 @@ export function agregarPreciosAnual(filas: PrecioRow[]): PrecioAnualRow[] {
 
 export interface ImportacionAnualRow {
   anio: number;
-  volumen_kg: number;
+  volumen_kg: number | null;
 }
 
 export function agregarImportacionesAnual(filas: ImportacionRow[]): ImportacionAnualRow[] {
-  const porAnio = new Map<number, number>();
+  const porAnio = new Map<number, number[]>();
   for (const f of filas) {
-    porAnio.set(f.anio, (porAnio.get(f.anio) ?? 0) + f.volumen_kg);
+    const arr = porAnio.get(f.anio) ?? [];
+    if (f.volumen_kg != null) arr.push(f.volumen_kg);
+    porAnio.set(f.anio, arr);
   }
   return Array.from(porAnio.entries())
-    .map(([anio, volumen_kg]) => ({ anio, volumen_kg }))
+    .map(([anio, valores]) => ({ anio, volumen_kg: valores.length ? valores.reduce((a, b) => a + b, 0) : null }))
     .sort((a, b) => b.anio - a.anio);
 }
 

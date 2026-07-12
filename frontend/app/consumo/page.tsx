@@ -66,18 +66,29 @@ export default async function ConsumoPage({
     valor: porAnio.get(anio)!.consumo_per_capita_kg,
   }));
 
-  const envasesPorAnio: EnvasesPunto[] = anios.map((anio) => {
-    const f = porAnio.get(anio)!;
-    return {
-      anio: String(anio),
+  // AUDITORÍA 2026-07-11: mix de envases 2011-2024 estaba congelado idéntico
+  // (fabricado, ver docs/auditoria_datos.md) y se anuló -- se excluyen esos
+  // años del chart en vez de graficar un 0% engañoso.
+  const envasesPorAnio: EnvasesPunto[] = anios
+    .map((anio) => porAnio.get(anio)!)
+    .filter(
+      (f): f is typeof f & { envase_025kg_pct: number; envase_05kg_pct: number; envase_1kg_pct: number; envase_2kg_pct: number; otros_envases_pct: number; sin_estampillas_pct: number } =>
+        f.envase_025kg_pct != null &&
+        f.envase_05kg_pct != null &&
+        f.envase_1kg_pct != null &&
+        f.envase_2kg_pct != null &&
+        f.otros_envases_pct != null &&
+        f.sin_estampillas_pct != null
+    )
+    .map((f) => ({
+      anio: String(f.anio),
       "1/4 kg": f.envase_025kg_pct,
       "1/2 kg": f.envase_05kg_pct,
       "1 kg": f.envase_1kg_pct,
       "2 kg": f.envase_2kg_pct,
       Otros: f.otros_envases_pct,
       "Sin estampilla": f.sin_estampillas_pct,
-    };
-  });
+    }));
 
   const ultimoAnio = anios[anios.length - 1];
   const penultimoAnio = anios[anios.length - 2];
@@ -88,16 +99,18 @@ export default async function ConsumoPage({
 
   const filaUltimoAnio = ultimoAnio !== undefined ? porAnio.get(ultimoAnio) : undefined;
   const envasesConLabel: [string, number][] = filaUltimoAnio
-    ? [
-        ["1/4 kg", filaUltimoAnio.envase_025kg_pct],
-        ["1/2 kg", filaUltimoAnio.envase_05kg_pct],
-        ["1 kg", filaUltimoAnio.envase_1kg_pct],
-        ["2 kg", filaUltimoAnio.envase_2kg_pct],
-      ]
+    ? (
+        [
+          ["1/4 kg", filaUltimoAnio.envase_025kg_pct],
+          ["1/2 kg", filaUltimoAnio.envase_05kg_pct],
+          ["1 kg", filaUltimoAnio.envase_1kg_pct],
+          ["2 kg", filaUltimoAnio.envase_2kg_pct],
+        ] as [string, number | null][]
+      ).filter((par): par is [string, number] => par[1] != null)
     : [];
   const formatoPreferido = envasesConLabel.length
     ? envasesConLabel.reduce((max, actual) => (actual[1] > max[1] ? actual : max))[0]
-    : "—";
+    : "Sin dato";
 
   const anualHistorico = agregarConsumoAnual(filas);
   const mensualHistorico = [...filas].sort((a, b) => b.anio - a.anio || b.mes - a.mes);
@@ -129,12 +142,14 @@ export default async function ConsumoPage({
               value={formatoPreferido}
               icon={Package}
             />
-            <GaugeCard
-              label="Sin estampilla"
-              valorPct={filaUltimoAnio.sin_estampillas_pct}
-              icon={ScrollText}
-              color="var(--color-accent)"
-            />
+            {filaUltimoAnio.sin_estampillas_pct != null && (
+              <GaugeCard
+                label="Sin estampilla"
+                valorPct={filaUltimoAnio.sin_estampillas_pct}
+                icon={ScrollText}
+                color="var(--color-accent)"
+              />
+            )}
           </div>
 
           <div className="grid grid-cols-1 xl:grid-cols-2 gap-4">

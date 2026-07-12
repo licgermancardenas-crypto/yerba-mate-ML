@@ -7,7 +7,7 @@ import { SerieChartConFiltro } from "@/components/charts/serie-chart-con-filtro"
 import { HistoricalTable } from "@/components/historical-table";
 import type { ColumnaTabla } from "@/components/data-table";
 import { formatMasa, type UnidadMasa } from "@/lib/format";
-import { getExportaciones, getImportaciones } from "@/lib/api";
+import { getExportacionesAnualReal, getImportaciones } from "@/lib/api";
 import { agregarImportacionesAnual, type ImportacionAnualRow } from "@/lib/agregaciones";
 import type { ImportacionRow } from "@/lib/types";
 
@@ -34,9 +34,9 @@ export default async function ImportacionesPage({
   const sufijoUnidad = unidad === "t" ? " t" : " kg";
   const factorUnidad = unidad === "t" ? 1 / 1000 : 1;
 
-  const [filasImportacionesCompletas, filasExportacionesCompletas] = await Promise.all([
+  const [filasImportacionesCompletas, exportacionesAnualReal] = await Promise.all([
     getImportaciones(),
-    getExportaciones(),
+    getExportacionesAnualReal(),
   ]);
   const todosLosAnios = Array.from(new Set(filasImportacionesCompletas.map((f) => f.anio))).sort((a, b) => a - b);
 
@@ -61,14 +61,20 @@ export default async function ImportacionesPage({
   const anualHistorico = agregarImportacionesAnual(filas);
   const mensualHistorico = [...filas].sort((a, b) => b.anio - a.anio || b.mes - a.mes);
 
-  const importadoUltimo = anualHistorico.find((f) => f.anio === ultimoAnio)?.volumen_kg ?? 0;
-  const importadoPenultimo = anualHistorico.find((f) => f.anio === penultimoAnio)?.volumen_kg ?? 0;
-  const deltaImportado = importadoPenultimo ? ((importadoUltimo - importadoPenultimo) / importadoPenultimo) * 100 : undefined;
+  const importadoUltimo = anualHistorico.find((f) => f.anio === ultimoAnio)?.volumen_kg ?? null;
+  const importadoPenultimo = anualHistorico.find((f) => f.anio === penultimoAnio)?.volumen_kg ?? null;
+  const deltaImportado =
+    importadoUltimo != null && importadoPenultimo
+      ? ((importadoUltimo - importadoPenultimo) / importadoPenultimo) * 100
+      : undefined;
 
-  const exportadoUltimo = filasExportacionesCompletas
-    .filter((f) => f.anio === ultimoAnio)
-    .reduce((acc, f) => acc + f.volumen_kg, 0);
-  const balanzaUltimo = exportadoUltimo - importadoUltimo;
+  const exportadoUltimoNacional = exportacionesAnualReal.find((f) => f.destino === "(nacional)" && f.anio === ultimoAnio);
+  const exportadoUltimo =
+    exportadoUltimoNacional?.volumen_kg ??
+    exportacionesAnualReal
+      .filter((f) => f.anio === ultimoAnio && f.destino !== "(nacional)")
+      .reduce((acc, f) => acc + (f.volumen_kg ?? 0), 0);
+  const balanzaUltimo = exportadoUltimo != null && importadoUltimo != null ? exportadoUltimo - importadoUltimo : null;
 
   return (
     <main className="p-6 md:p-8">
@@ -79,7 +85,7 @@ export default async function ImportacionesPage({
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
         <KpiCard
           label={`Importado ${ultimoAnio}`}
-          value={formatMasa(importadoUltimo, unidad)}
+          value={importadoUltimo != null ? formatMasa(importadoUltimo, unidad) : "Sin dato"}
           icon={Package}
           deltaPct={deltaImportado}
           deltaLabel={`vs. ${penultimoAnio}`}
@@ -87,7 +93,7 @@ export default async function ImportacionesPage({
         />
         <KpiCard
           label={`Balanza comercial ${ultimoAnio}`}
-          value={formatMasa(balanzaUltimo, unidad)}
+          value={balanzaUltimo != null ? formatMasa(balanzaUltimo, unidad) : "Sin dato"}
           icon={Ship}
         />
         <KpiCard label="Años con datos" value={String(anualHistorico.length)} icon={Globe2} />
@@ -96,6 +102,7 @@ export default async function ImportacionesPage({
       <ChartCard title="Volumen importado mensual" description={unidad === "t" ? "Toneladas" : "Kilogramos"} className="mb-4">
         <SerieChartConFiltro
           data={[...mensualHistorico]
+            .filter((f): f is typeof f & { volumen_kg: number } => f.volumen_kg != null)
             .sort((a, b) => a.anio - b.anio || a.mes - b.mes)
             .map((f) => ({ anio: f.anio, etiqueta: `${f.mes_nombre.slice(0, 3)} ${String(f.anio).slice(2)}`, valor: f.volumen_kg * factorUnidad }))}
           color="#1d4ed8"

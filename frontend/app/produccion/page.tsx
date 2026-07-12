@@ -10,15 +10,13 @@ import { HeatmapTable } from "@/components/heatmap-table";
 import { ProduccionMapaLoader } from "@/components/produccion-mapa-loader";
 import type { ColumnaTabla } from "@/components/data-table";
 import { formatMasa, formatNumero, formatPct, formatUsd, type UnidadMasa } from "@/lib/format";
-import { getProduccion, getSuperficie, getHojaVerde } from "@/lib/api";
+import { getProduccionAnualReal, getSuperficie, getHojaVerde } from "@/lib/api";
 import {
-  agregarProduccionMensual,
+  agregarHojaVerdeMensualNacional,
   agregarProduccionPorCiudad,
-  agregarProduccionAnual,
-  agregarProduccionMensualNacional,
+  agregarProduccionAnualNacional,
   agregarRendimientoAnual,
   type ProduccionAnualRow,
-  type ProduccionMensualNacionalRow,
 } from "@/lib/agregaciones";
 
 // Coordenadas de las ciudades productoras — no hay geocodificación en el
@@ -34,16 +32,6 @@ const COORDENADAS_CIUDAD: Record<string, [number, number]> = {
 
 const COLUMNAS_ANUAL: ColumnaTabla<ProduccionAnualRow>[] = [
   { key: "anio", label: "Año", align: "left" },
-  { key: "produccion_kg", label: "Producción (kg)", align: "right", format: "entero" },
-  { key: "consumo_interno_kg", label: "Consumo interno (kg)", align: "right", format: "entero" },
-  { key: "exportaciones_kg", label: "Exportado (kg)", align: "right", format: "entero" },
-  { key: "precio_usd_kg_promedio", label: "Precio prom. USD/kg", align: "right", format: "decimal2" },
-  { key: "valor_fob_usd", label: "Valor FOB", align: "right", format: "usd" },
-];
-
-const COLUMNAS_MENSUAL: ColumnaTabla<ProduccionMensualNacionalRow>[] = [
-  { key: "anio", label: "Año", align: "left" },
-  { key: "mes_nombre", label: "Mes", align: "left" },
   { key: "produccion_kg", label: "Producción (kg)", align: "right", format: "entero" },
   { key: "consumo_interno_kg", label: "Consumo interno (kg)", align: "right", format: "entero" },
   { key: "exportaciones_kg", label: "Exportado (kg)", align: "right", format: "entero" },
@@ -73,37 +61,47 @@ export default async function ProduccionPage({
   paramsMapa.set("vista", "mapa");
   const hrefMapa = `/produccion?${paramsMapa.toString()}`;
 
-  const [filasCompletas, superficieCompletas, hojaVerdeCompleta] = await Promise.all([
-    getProduccion(),
+  const [anualRealCompleta, superficieCompletas, hojaVerdeCompleta] = await Promise.all([
+    getProduccionAnualReal(),
     getSuperficie(),
     getHojaVerde(),
   ]);
   const hojaVerdeTotalPorZona = hojaVerdeCompleta.filter(
     (f) => f.zona === "TOTAL" && (!anioDesde || f.anio >= anioDesde) && (!anioHasta || f.anio <= anioHasta)
   );
-  const todosLosAnios = Array.from(new Set(filasCompletas.map((f) => f.anio))).sort((a, b) => a - b);
-  const todasLasProvincias = Array.from(new Set(filasCompletas.map((f) => f.provincia))).sort();
+  const todosLosAnios = Array.from(new Set(anualRealCompleta.map((f) => f.anio))).sort((a, b) => a - b);
+  const todasLasProvincias = Array.from(
+    new Set(anualRealCompleta.filter((f) => f.ciudad !== "(nacional)").map((f) => f.provincia))
+  ).sort();
 
-  const produccionPorCiudadAnioMap = new Map<string, { anio: number; ciudad: string; provincia: string; produccion_kg: number }>();
-  for (const f of filasCompletas) {
-    const coords = COORDENADAS_CIUDAD[f.ciudad];
-    if (!coords) continue;
-    const key = `${f.anio}|${f.ciudad}`;
-    const acc = produccionPorCiudadAnioMap.get(key);
-    if (acc) acc.produccion_kg += f.produccion_kg;
-    else produccionPorCiudadAnioMap.set(key, { anio: f.anio, ciudad: f.ciudad, provincia: f.provincia, produccion_kg: f.produccion_kg });
-  }
-  const produccionPorCiudadAnio = Array.from(produccionPorCiudadAnioMap.values()).map((f) => ({
-    ...f,
-    lng: COORDENADAS_CIUDAD[f.ciudad][0],
-    lat: COORDENADAS_CIUDAD[f.ciudad][1],
-  }));
+  const produccionPorCiudadAnio = anualRealCompleta
+    .filter((f) => COORDENADAS_CIUDAD[f.ciudad] && f.produccion_kg != null)
+    .map((f) => ({
+      anio: f.anio,
+      ciudad: f.ciudad,
+      provincia: f.provincia,
+      produccion_kg: f.produccion_kg!,
+      lng: COORDENADAS_CIUDAD[f.ciudad][0],
+      lat: COORDENADAS_CIUDAD[f.ciudad][1],
+    }));
+  // "Otros" es un bucket de reporte del INYM sin ubicación puntual real (no
+  // es una ciudad) -- no puede tener un pin en el mapa. Se calcula cuánto
+  // representa, para el último año CON desglose por ciudad (el mapa no
+  // tiene nada que mostrar para años sin desglose, como 2025), para no
+  // dejar la diferencia entre mapa y KPI sin explicar (ver caso E / bug de
+  // mapa vs KPI, docs/auditoria_datos.md §5).
+  const ultimoAnioConCiudades = Math.max(
+    ...anualRealCompleta.filter((f) => f.ciudad !== "(nacional)").map((f) => f.anio)
+  );
+  const otrosUltimoAnio = anualRealCompleta.find(
+    (f) => f.ciudad === "Otros" && f.anio === ultimoAnioConCiudades
+  );
 
-  const filas = filasCompletas.filter(
+  const filas = anualRealCompleta.filter(
     (f) =>
       (!anioDesde || f.anio >= anioDesde) &&
       (!anioHasta || f.anio <= anioHasta) &&
-      (!provinciaFiltro || f.provincia === provinciaFiltro)
+      (!provinciaFiltro || f.provincia === provinciaFiltro || f.ciudad === "(nacional)")
   );
   const filasSuperficie = superficieCompletas.filter(
     (f) =>
@@ -116,22 +114,21 @@ export default async function ProduccionPage({
   const ultimoAnio = anios[anios.length - 1];
   const penultimoAnio = anios[anios.length - 2];
 
-  const serieMensual = agregarProduccionMensual(filas);
+  const serieMensual = agregarHojaVerdeMensualNacional(hojaVerdeTotalPorZona);
   const porCiudadUltimo = agregarProduccionPorCiudad(filas, ultimoAnio);
-  const porCiudadPenultimo = agregarProduccionPorCiudad(filas, penultimoAnio);
 
-  const totalUltimo = porCiudadUltimo.reduce((acc, r) => acc + r.produccion_kg, 0);
-  const totalPenultimo = porCiudadPenultimo.reduce((acc, r) => acc + r.produccion_kg, 0);
-  const deltaAnual = totalPenultimo ? ((totalUltimo - totalPenultimo) / totalPenultimo) * 100 : undefined;
+  const anualHistorico = agregarProduccionAnualNacional(filas);
+  const anualUltimo = anualHistorico.find((f) => f.anio === ultimoAnio);
+  const anualPenultimo = anualHistorico.find((f) => f.anio === penultimoAnio);
 
-  const filasUltimoAnio = filas.filter((f) => f.anio === ultimoAnio);
-  const exportadoUltimo = filasUltimoAnio.reduce((acc, f) => acc + f.exportaciones_kg, 0);
-  const valorFobUltimo = filasUltimoAnio.reduce((acc, f) => acc + f.valor_fob_usd, 0);
-  const precioPromedioUltimo =
-    filasUltimoAnio.reduce((acc, f) => acc + f.precio_usd_kg, 0) / filasUltimoAnio.length;
-
-  const anualHistorico = agregarProduccionAnual(filas);
-  const mensualHistorico = agregarProduccionMensualNacional(filas);
+  const totalUltimo = anualUltimo?.produccion_kg ?? null;
+  const deltaAnual =
+    totalUltimo != null && anualPenultimo?.produccion_kg
+      ? ((totalUltimo - anualPenultimo.produccion_kg) / anualPenultimo.produccion_kg) * 100
+      : undefined;
+  const exportadoUltimo = anualUltimo?.exportaciones_kg ?? null;
+  const valorFobUltimo = anualUltimo?.valor_fob_usd ?? null;
+  const precioPromedioUltimo = anualUltimo?.precio_usd_kg_promedio ?? null;
 
   const rendimientoAnual = agregarRendimientoAnual(filas, filasSuperficie);
   const rendimientoUltimo = rendimientoAnual.find((f) => f.anio === ultimoAnio);
@@ -176,7 +173,16 @@ export default async function ProduccionPage({
       </div>
 
       {vista === "mapa" ? (
-        <ProduccionMapaLoader produccionPorCiudadAnio={produccionPorCiudadAnio} />
+        <>
+          <ProduccionMapaLoader produccionPorCiudadAnio={produccionPorCiudadAnio} />
+          {otrosUltimoAnio?.produccion_kg != null && (
+            <p className="text-xs text-muted-foreground mt-2">
+              El mapa no incluye &ldquo;Otros&rdquo; ({formatMasa(otrosUltimoAnio.produccion_kg, unidad)} en{" "}
+              {otrosUltimoAnio.anio}) — es un bucket de reporte del INYM sin una ubicación puntual real, no una
+              ciudad geolocalizable.
+            </p>
+          )}
+        </>
       ) : (
         <>
         <FilterBar
@@ -190,16 +196,23 @@ export default async function ProduccionPage({
         ) : (
           <>
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
-              <KpiCard label={`Producción ${ultimoAnio}`} value={formatMasa(totalUltimo, unidad)} icon={Sprout} deltaPct={deltaAnual} deltaLabel={`vs. ${penultimoAnio}`} destacado />
-              <KpiCard label={`Exportado ${ultimoAnio}`} value={formatMasa(exportadoUltimo, unidad)} icon={Wheat} />
-              <KpiCard label="Precio promedio USD/kg" value={formatNumero(precioPromedioUltimo, 2)} icon={TrendingUp} />
-              <KpiCard label={`Valor FOB exportado ${ultimoAnio}`} value={formatUsd(valorFobUltimo)} icon={DollarSign} />
+              <KpiCard
+                label={`Producción ${ultimoAnio}`}
+                value={totalUltimo != null ? formatMasa(totalUltimo, unidad) : "Sin dato"}
+                icon={Sprout}
+                deltaPct={deltaAnual}
+                deltaLabel={`vs. ${penultimoAnio}`}
+                destacado
+              />
+              <KpiCard label={`Exportado ${ultimoAnio}`} value={exportadoUltimo != null ? formatMasa(exportadoUltimo, unidad) : "Sin dato"} icon={Wheat} />
+              <KpiCard label="Precio promedio USD/kg" value={precioPromedioUltimo != null ? formatNumero(precioPromedioUltimo, 2) : "Sin dato"} icon={TrendingUp} />
+              <KpiCard label={`Valor FOB exportado ${ultimoAnio}`} value={valorFobUltimo != null ? formatUsd(valorFobUltimo) : "Sin dato"} icon={DollarSign} />
             </div>
 
             <div className="grid grid-cols-1 xl:grid-cols-3 gap-4">
               <ChartCard
-                title="Producción nacional mensual"
-                description={`Suma de las ciudades productoras, en ${unidad === "t" ? "toneladas" : "kilogramos"}`}
+                title="Cosecha nacional mensual"
+                description="Ingreso de hoja verde a secadero (INYM, zona TOTAL) — dato mensual real, no una curva estimada"
                 className="xl:col-span-2"
               >
                 <SerieChartConFiltro
@@ -209,28 +222,37 @@ export default async function ProduccionPage({
                 />
               </ChartCard>
 
-              <ChartCard title={`Distribución por ciudad (${ultimoAnio})`} description="% del total nacional">
-                <table className="w-full text-sm">
-                  <thead>
-                    <tr className="text-left text-xs text-muted-foreground border-b border-border">
-                      <th className="font-medium py-2">Ciudad</th>
-                      <th className="font-medium py-2 text-right">%</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {porCiudadUltimo.map((fila) => (
-                      <tr key={fila.ciudad} className="border-b border-border last:border-0">
-                        <td className="py-2">
-                          <div className="text-card-foreground">{fila.ciudad}</div>
-                          <div className="text-xs text-muted-foreground">{fila.provincia}</div>
-                        </td>
-                        <td className="py-2 text-right tabular-nums font-medium text-card-foreground">
-                          {formatPct(fila.porcentaje)}
-                        </td>
+              <ChartCard
+                title={`Distribución por ciudad (${ultimoAnio})`}
+                description="% del total nacional — 7 zonas de reporte del INYM, no unidades geográficas exactas (ver Mapa GIS para el detalle real por departamento)"
+              >
+                {porCiudadUltimo.length === 0 ? (
+                  <p className="text-sm text-muted-foreground py-4">
+                    Sin desglose por ciudad para {ultimoAnio} todavía — solo hay total nacional (ver KPI arriba).
+                  </p>
+                ) : (
+                  <table className="w-full text-sm">
+                    <thead>
+                      <tr className="text-left text-xs text-muted-foreground border-b border-border">
+                        <th className="font-medium py-2">Ciudad</th>
+                        <th className="font-medium py-2 text-right">%</th>
                       </tr>
-                    ))}
-                  </tbody>
-                </table>
+                    </thead>
+                    <tbody>
+                      {porCiudadUltimo.map((fila) => (
+                        <tr key={fila.ciudad} className="border-b border-border last:border-0">
+                          <td className="py-2">
+                            <div className="text-card-foreground">{fila.ciudad}</div>
+                            <div className="text-xs text-muted-foreground">{fila.provincia}</div>
+                          </td>
+                          <td className="py-2 text-right tabular-nums font-medium text-card-foreground">
+                            {formatPct(fila.porcentaje)}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                )}
               </ChartCard>
             </div>
 
@@ -270,21 +292,17 @@ export default async function ProduccionPage({
             )}
 
             <ChartCard
-              title="Histórico completo"
+              title="Histórico anual"
               className="mt-4"
               description={
                 <>
-                  Total {provinciaFiltro ?? "nacional"} (suma de {provinciaFiltro ? "las ciudades de la provincia" : "todas las ciudades productoras"}), desde{" "}
-                  {anualHistorico[anualHistorico.length - 1]?.anio} hasta {ultimoAnio}
+                  Total {provinciaFiltro ?? "nacional"} real, desde {anualHistorico[anualHistorico.length - 1]?.anio}{" "}
+                  hasta {ultimoAnio} (ver docs/auditoria_datos.md — el desglose mensual de esta tabla se anuló por ser
+                  sintético; para cosecha mes a mes real, ver el gráfico y el mapa de calor de arriba/abajo).
                 </>
               }
             >
-              <HistoricalTable
-                columnasAnual={COLUMNAS_ANUAL}
-                filasAnual={anualHistorico}
-                columnasMensual={COLUMNAS_MENSUAL}
-                filasMensual={mensualHistorico}
-              />
+              <HistoricalTable columnasAnual={COLUMNAS_ANUAL} filasAnual={anualHistorico} />
             </ChartCard>
 
             <ChartCard

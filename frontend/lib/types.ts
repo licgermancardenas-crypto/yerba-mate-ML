@@ -1,49 +1,90 @@
 // Formas de fila devueltas por backend/api/routers/*.py
 
+// AUDITORÍA 2026-07-11 (ver docs/auditoria_datos.md): el desglose mensual de
+// produccion_kg/consumo_interno_kg/exportaciones_kg/valor_fob_usd era 100%
+// sintético y quedó anulado (NULL) en la base -- estos 4 campos son nullable
+// acá. precio_usd_kg no se tocó (dato real, cadencia anual publicada mensual).
+// Para vistas anuales/nacionales usar ProduccionAnualRealRow, no sumar esto.
 export interface ProduccionRow {
   anio: number;
   mes: number;
   mes_nombre: string;
   provincia: string;
   ciudad: string;
-  produccion_kg: number;
-  consumo_interno_kg: number;
-  exportaciones_kg: number;
+  produccion_kg: number | null;
+  consumo_interno_kg: number | null;
+  exportaciones_kg: number | null;
   precio_usd_kg: number;
-  valor_fob_usd: number;
+  valor_fob_usd: number | null;
 }
 
+/** Totales anuales reales -- GET /produccion/anual-real (ym.dataset_principal_anual). */
+export interface ProduccionAnualRealRow {
+  anio: number;
+  /** '(nacional)' en los años sin desglose real por ciudad (2025 en adelante). */
+  provincia: string;
+  ciudad: string;
+  produccion_kg: number | null;
+  consumo_interno_kg: number | null;
+  exportaciones_kg: number | null;
+  precio_usd_kg_promedio: number | null;
+  valor_fob_usd: number | null;
+  fuente: string;
+  fuente_url: string | null;
+}
+
+// AUDITORÍA 2026-07-11: superficie_ha/productores nullable -- productores
+// tenía 8 tramos de interpolación lineal perfecta (anulados, se conservan
+// los años ancla); superficie_ha/productores 2025 anulado (clon de 2024).
 export interface SuperficieRow {
   anio: number;
   mes: number;
   mes_nombre: string;
   provincia: string;
   ciudad: string;
-  productores: number;
-  superficie_ha: number;
+  productores: number | null;
+  superficie_ha: number | null;
 }
 
+// AUDITORÍA 2026-07-11: mix de envases nullable -- congelado idéntico
+// 2011-2021 y otro valor fijo 2022-2024 (fabricado), anulado. Solo 2025
+// queda con dato (sin fuente documentada todavía).
 export interface ConsumoRow {
   anio: number;
   mes: number;
   mes_nombre: string;
   consumo_per_capita_kg: number;
-  envase_05kg_pct: number;
-  envase_1kg_pct: number;
-  envase_2kg_pct: number;
-  envase_025kg_pct: number;
-  otros_envases_pct: number;
-  sin_estampillas_pct: number;
+  envase_05kg_pct: number | null;
+  envase_1kg_pct: number | null;
+  envase_2kg_pct: number | null;
+  envase_025kg_pct: number | null;
+  otros_envases_pct: number | null;
+  sin_estampillas_pct: number | null;
 }
 
+// AUDITORÍA 2026-07-11: mismo tratamiento que ProduccionRow -- desglose
+// mensual sintético anulado. Para el total anual real por destino usar
+// ExportacionAnualRealRow.
 export interface ExportacionRow {
   anio: number;
   mes: number;
   mes_nombre: string;
   destino: string;
-  volumen_kg: number;
-  valor_fob_usd: number;
-  precio_fob_usd_kg: number;
+  volumen_kg: number | null;
+  valor_fob_usd: number | null;
+  precio_fob_usd_kg: number | null;
+}
+
+/** Totales anuales reales por destino -- GET /exportaciones/anual-real (ym.exportaciones_anual). */
+export interface ExportacionAnualRealRow {
+  anio: number;
+  /** '(nacional)' en los años sin desglose real por destino (2025 en adelante). */
+  destino: string;
+  volumen_kg: number | null;
+  valor_fob_usd: number | null;
+  precio_fob_usd_kg: number | null;
+  fuente: string;
+  fuente_url: string | null;
 }
 
 export interface PrecioRow {
@@ -82,11 +123,12 @@ export interface CompetenciaRow {
   fuente_fecha: string | null;
 }
 
+// AUDITORÍA 2026-07-11: 2011-2018 anulado (congelado, sin fuente documentada).
 export interface ImportacionRow {
   anio: number;
   mes: number;
   mes_nombre: string;
-  volumen_kg: number;
+  volumen_kg: number | null;
 }
 
 export interface HojaVerdeRow {

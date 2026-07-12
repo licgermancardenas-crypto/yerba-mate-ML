@@ -16,8 +16,8 @@ import { PageHeader } from "@/components/page-header";
 import { KpiCard } from "@/components/kpi-card";
 import { FilterBar } from "@/components/filter-bar";
 import { formatKg, formatNumero } from "@/lib/format";
-import { getProduccion, getConsumo } from "@/lib/api";
-import { agregarProduccionPorCiudad } from "@/lib/agregaciones";
+import { getProduccionAnualReal, getConsumo } from "@/lib/api";
+import { agregarProduccionAnualNacional, agregarProduccionPorCiudad } from "@/lib/agregaciones";
 
 const SECCIONES: {
   href: string;
@@ -43,17 +43,16 @@ export default async function ResumenPage({
   searchParams: Promise<{ [key: string]: string | string[] | undefined }>;
 }) {
   const sp = await searchParams;
-  const [produccion, consumo] = await Promise.all([getProduccion(), getConsumo()]);
+  const [produccionAnualReal, consumo] = await Promise.all([getProduccionAnualReal(), getConsumo()]);
 
-  const todosLosAnios = Array.from(new Set(produccion.map((f) => f.anio))).sort((a, b) => a - b);
+  const todosLosAnios = Array.from(new Set(produccionAnualReal.map((f) => f.anio))).sort((a, b) => a - b);
   const anioSeleccionado = Number(sp.anio_hasta) || Math.max(...todosLosAnios);
 
-  const produccionUltimoAnio = produccion.filter((f) => f.anio === anioSeleccionado);
-  const totalProduccionUltimoAnio = produccionUltimoAnio.reduce((acc, f) => acc + f.produccion_kg, 0);
-  const totalExportadoUltimoAnio = produccionUltimoAnio.reduce((acc, f) => acc + f.exportaciones_kg, 0);
-  const precioPromedioUltimoAnio =
-    produccionUltimoAnio.length ? produccionUltimoAnio.reduce((acc, f) => acc + f.precio_usd_kg, 0) / produccionUltimoAnio.length : 0;
-  const ciudadLider = agregarProduccionPorCiudad(produccion, anioSeleccionado)[0];
+  const anualNacional = agregarProduccionAnualNacional(produccionAnualReal).find((f) => f.anio === anioSeleccionado);
+  const totalProduccionUltimoAnio = anualNacional?.produccion_kg ?? null;
+  const totalExportadoUltimoAnio = anualNacional?.exportaciones_kg ?? null;
+  const precioPromedioUltimoAnio = anualNacional?.precio_usd_kg_promedio ?? null;
+  const ciudadLider = agregarProduccionPorCiudad(produccionAnualReal, anioSeleccionado)[0];
   const consumoPerCapitaUltimoAnio = consumo.find((f) => f.anio === anioSeleccionado)?.consumo_per_capita_kg;
 
   return (
@@ -66,14 +65,14 @@ export default async function ResumenPage({
       <FilterBar anios={todosLosAnios} anioUnico />
 
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
-        <KpiCard label={`Producción ${anioSeleccionado}`} value={formatKg(totalProduccionUltimoAnio)} icon={Sprout} destacado />
+        <KpiCard label={`Producción ${anioSeleccionado}`} value={totalProduccionUltimoAnio != null ? formatKg(totalProduccionUltimoAnio) : "Sin dato"} icon={Sprout} destacado />
         <KpiCard
           label={`Consumo per cápita ${anioSeleccionado}`}
           value={consumoPerCapitaUltimoAnio != null ? `${formatNumero(consumoPerCapitaUltimoAnio, 2)} kg` : "Sin dato"}
           icon={Coffee}
         />
-        <KpiCard label={`Exportado ${anioSeleccionado}`} value={formatKg(totalExportadoUltimoAnio)} icon={Ship} />
-        <KpiCard label="Precio promedio USD/kg" value={formatNumero(precioPromedioUltimoAnio, 2)} icon={DollarSign} />
+        <KpiCard label={`Exportado ${anioSeleccionado}`} value={totalExportadoUltimoAnio != null ? formatKg(totalExportadoUltimoAnio) : "Sin dato"} icon={Ship} />
+        <KpiCard label="Precio promedio USD/kg" value={precioPromedioUltimoAnio != null ? formatNumero(precioPromedioUltimoAnio, 2) : "Sin dato"} icon={DollarSign} />
       </div>
 
       {ciudadLider && (
