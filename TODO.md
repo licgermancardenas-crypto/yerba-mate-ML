@@ -206,7 +206,7 @@ Stack: Next.js (Vercel) · FastAPI (Render/Railway) · Postgres+PostGIS (Supabas
 ## FASE 7 — Deploy y operaciones
 **Estado: EN PROGRESO** (base en vivo confirmada 2026-07-11) · Dependencias: Fases 4-6
 
-- [x] Frontend → Vercel (auto-deploy desde main) — proyecto `yerba-mate-intelligence`, live en `https://frontend-peach-five-64.vercel.app`
+- [~] Frontend → Vercel — proyecto `yerba-mate-intelligence`, live en `https://frontend-peach-five-64.vercel.app`. **Bug encontrado 2026-07-11**: el auto-deploy por `git push` a `main` está roto — "Root Directory" quedó vacío en la config del proyecto (Settings → Build and Deployment), así que el build de Vercel corre desde la raíz del repo en vez de `frontend/` y falla ("Couldn't find any `pages` or `app` directory"). Mientras no se corrija (poner "frontend" y Save), hay que deployar a mano con `vercel deploy --prod` desde `frontend/` después de cada push que toque el frontend
 - [x] Backend API → Render — servicio `yerba-mate-ml-api` (`render.yaml`, plan free), live en `https://yerba-mate-ml-api.onrender.com`, `/health` responde 200
 - [x] Variables de entorno: `DATABASE_URL` en Render; `NEXT_PUBLIC_API_URL` en Vercel — **bug real encontrado y corregido 2026-07-11**: `NEXT_PUBLIC_API_URL` estaba seteada pero vacía en Production y Preview (el frontend estaba deployado y andando desde hace ~8 días pero sin poder llegar al backend). Corregida a `https://yerba-mate-ml-api.onrender.com` en ambos entornos y redeployado — verificado con datos reales en `/produccion`
 - [ ] GitHub Actions: cron jobs para ETL (frecuencia por fuente) y reentrenamiento ML (mensual)
