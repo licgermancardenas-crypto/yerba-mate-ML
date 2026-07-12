@@ -75,6 +75,18 @@ export interface ExportacionRow {
   precio_fob_usd_kg: number | null;
 }
 
+/** Exportaciones reales por país, mensual -- GET /exportaciones/indec (ym.exportaciones_indec). */
+export interface ExportacionIndecRow {
+  anio: number;
+  mes: number;
+  pais_iso2: string;
+  pais_nombre: string;
+  peso_kg: number | null;
+  monto_fob_usd: number | null;
+  /** true = secreto estadístico (pocos operadores), peso_kg/monto_fob_usd son NULL, no 0. */
+  es_confidencial: boolean;
+}
+
 /** Totales anuales reales por destino -- GET /exportaciones/anual-real (ym.exportaciones_anual). */
 export interface ExportacionAnualRealRow {
   anio: number;

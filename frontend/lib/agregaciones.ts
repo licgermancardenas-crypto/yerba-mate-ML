@@ -1,6 +1,7 @@
 import type {
   ConsumoRow,
   ExportacionAnualRealRow,
+  ExportacionIndecRow,
   HojaVerdeRow,
   ImportacionRow,
   PrecioRow,
@@ -207,6 +208,92 @@ export function agregarExportacionesAnualNacional(filasAnualReal: ExportacionAnu
       };
     })
     .sort((a, b) => b.anio - a.anio);
+}
+
+// ----------------------------------------------------------------------------
+// Exportaciones — desglose mensual/por país REAL (INDEC, ver
+// docs/fuentes_exportaciones_indec.md). 'ZZ' es el bucket de secreto
+// estadístico que la propia fuente reporta agregado (no es un país real,
+// no se geolocaliza) -- se incluye en los totales nacionales pero se separa
+// del desglose por destino.
+// ----------------------------------------------------------------------------
+
+export function agregarExportacionesIndecMensualNacional(filas: ExportacionIndecRow[]): SerieMensualPunto[] {
+  const porMes = new Map<string, { anio: number; mes: number; suma: number; tieneDato: boolean }>();
+  for (const f of filas) {
+    const clave = `${f.anio}-${f.mes}`;
+    const acc = porMes.get(clave) ?? { anio: f.anio, mes: f.mes, suma: 0, tieneDato: false };
+    if (f.peso_kg != null) {
+      acc.suma += f.peso_kg;
+      acc.tieneDato = true;
+    }
+    porMes.set(clave, acc);
+  }
+  return Array.from(porMes.values())
+    .filter((a) => a.tieneDato)
+    .sort((a, b) => a.anio - b.anio || a.mes - b.mes)
+    .map((a) => ({
+      anio: a.anio,
+      etiqueta: `${MESES[a.mes - 1].slice(0, 3)} ${String(a.anio).slice(2)}`,
+      produccion_kg: a.suma,
+    }));
+}
+
+export interface ExportacionIndecMensualNacionalRow {
+  anio: number;
+  mes: number;
+  mes_nombre: string;
+  volumen_kg: number | null;
+}
+
+export function agregarExportacionesIndecMensualHistorico(filas: ExportacionIndecRow[]): ExportacionIndecMensualNacionalRow[] {
+  const porMes = new Map<string, { anio: number; mes: number; suma: number; tieneDato: boolean }>();
+  for (const f of filas) {
+    const clave = `${f.anio}-${f.mes}`;
+    const acc = porMes.get(clave) ?? { anio: f.anio, mes: f.mes, suma: 0, tieneDato: false };
+    if (f.peso_kg != null) {
+      acc.suma += f.peso_kg;
+      acc.tieneDato = true;
+    }
+    porMes.set(clave, acc);
+  }
+  return Array.from(porMes.values())
+    .map((a) => ({ anio: a.anio, mes: a.mes, mes_nombre: MESES[a.mes - 1], volumen_kg: a.tieneDato ? a.suma : null }))
+    .sort((a, b) => b.anio - a.anio || b.mes - a.mes);
+}
+
+export interface ExportacionPorDestino {
+  pais_iso2: string;
+  pais_nombre: string;
+  volumen_kg: number;
+  valor_fob_usd: number;
+  porcentaje: number;
+}
+
+/** % calculado contra el total nacional (incluye 'ZZ' confidencial) -- por
+ * eso los % de los países listados no suman 100, la diferencia es volumen
+ * con destino no publicado por secreto estadístico. */
+export function agregarExportacionesIndecPorDestino(filas: ExportacionIndecRow[], anio: number): ExportacionPorDestino[] {
+  const delAnio = filas.filter((f) => f.anio === anio && f.peso_kg != null);
+  const totalNacional = delAnio.reduce((acc, f) => acc + (f.peso_kg ?? 0), 0);
+  if (totalNacional === 0) return [];
+  const porPais = new Map<string, { pais_nombre: string; volumen_kg: number; valor_fob_usd: number }>();
+  for (const f of delAnio) {
+    if (f.pais_iso2 === "ZZ") continue;
+    const acc = porPais.get(f.pais_iso2) ?? { pais_nombre: f.pais_nombre, volumen_kg: 0, valor_fob_usd: 0 };
+    acc.volumen_kg += f.peso_kg!;
+    acc.valor_fob_usd += f.monto_fob_usd ?? 0;
+    porPais.set(f.pais_iso2, acc);
+  }
+  return Array.from(porPais.entries())
+    .map(([pais_iso2, a]) => ({
+      pais_iso2,
+      pais_nombre: a.pais_nombre,
+      volumen_kg: a.volumen_kg,
+      valor_fob_usd: a.valor_fob_usd,
+      porcentaje: (a.volumen_kg / totalNacional) * 100,
+    }))
+    .sort((a, b) => b.volumen_kg - a.volumen_kg);
 }
 
 // ----------------------------------------------------------------------------

@@ -339,11 +339,11 @@ incorrecto** en las tres columnas (producción, consumo, exportaciones), no solo
    2011-2024 preservados en `ym.dataset_principal_anual` antes de anular. Frontend de Producción
    reescrito: mensual → `ym.inym_hoja_verde_zona`, anual → `ym.dataset_principal_anual`. Consumo e
    Importaciones también reescritos (ver 4 y 7).
-3. ✅ **`ym.exportaciones` por destino**: mismo tratamiento (anulado, total anual real preservado en
-   `ym.exportaciones_anual`). Fuente real de reemplazo para el mensual **identificada y validada**
-   (INDEC Comercio Exterior, NCM 09030010/09030090, 96% cobertura vs. INYM) — **ETL todavía sin
-   construir**, ver TODO.md Fase 3e. Mientras tanto, `/exportaciones` muestra el total anual real
-   con nota explícita de que no hay desglose mensual.
+3. ✅ **`ym.exportaciones` por destino — cerrado 2026-07-12**: mismo tratamiento (anulado, total
+   anual real preservado en `ym.exportaciones_anual`). Reemplazo mensual/por-destino real cargado:
+   `ym.exportaciones_indec` (INDEC Comercio Exterior, 6.094 filas, 2002-2026, 96% cobertura vs.
+   INYM 2025) — ver `docs/fuentes_exportaciones_indec.md`. `/exportaciones` ya usa este dato real
+   en el chart mensual, la distribución por destino y el mapa de flujos.
 4. ✅ **`consumo_interno.mix_envases` 2011-2024**: anulado. Chart y tabla del frontend ya excluyen/
    marcan "s/d" esos años.
 5. ✅ **`superficie_productores.productores`**: anulados los 8 tramos interpolados, conservados los

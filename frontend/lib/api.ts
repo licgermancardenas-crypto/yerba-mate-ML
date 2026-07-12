@@ -3,6 +3,7 @@ import type {
   CompetenciaRow,
   ConsumoRow,
   ExportacionAnualRealRow,
+  ExportacionIndecRow,
   ExportacionRow,
   GeoFeatureCollection,
   HojaVerdeRow,
@@ -74,6 +75,16 @@ export function getExportaciones(params?: { anioDesde?: number; anioHasta?: numb
   if (params?.destino) qs.set("destino", params.destino);
   const query = qs.toString();
   return apiFetch<ExportacionRow[]>(`/exportaciones${query ? `?${query}` : ""}`);
+}
+
+/** Exportaciones reales por país, mensual (INDEC) -- ver docs/fuentes_exportaciones_indec.md. */
+export function getExportacionesIndec(params?: { anioDesde?: number; anioHasta?: number; paisIso2?: string }) {
+  const qs = new URLSearchParams();
+  if (params?.anioDesde) qs.set("anio_desde", String(params.anioDesde));
+  if (params?.anioHasta) qs.set("anio_hasta", String(params.anioHasta));
+  if (params?.paisIso2) qs.set("pais_iso2", params.paisIso2);
+  const query = qs.toString();
+  return apiFetch<ExportacionIndecRow[]>(`/exportaciones/indec${query ? `?${query}` : ""}`);
 }
 
 /** Totales anuales reales por destino -- ver docs/auditoria_datos.md. */
