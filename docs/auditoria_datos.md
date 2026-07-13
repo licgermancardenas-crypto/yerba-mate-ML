@@ -212,11 +212,11 @@ positivos sobre datos que ya se sabe que son reales.
 | `dataset_principal.produccion_kg` / `consumo_interno_kg` / `exportaciones_kg` — **año 2025 completo** | **D** | Clon exacto de 2024 en 7/7 ciudades (T1); el scraper real muestra 2025 ≠ 2024 | NULL para 2025 hasta reemplazar por fuente real (`inym_hoja_verde_zona`/`inym_salida_molino`/exportaciones reales — pendiente de fuente, ver §4.1) |
 | `dataset_principal.consumo_interno_kg` / `exportaciones_kg` — **total anual 2011-2024** | **C**, mismo matiz que producción | `consumo_interno_kg` coincide <0,5% con `inym_salida_molino` interno; `exportaciones_kg` coincide con `ym.exportaciones` (misma fuente, no independiente — ver nota) | Igual que arriba |
 | `ym.exportaciones.volumen_kg` (por destino) | **D** en desglose mensual (T5=1,000) y en 2025 (clon); **B** en el total anual (no hay fuente independiente para exportaciones, a diferencia de producción/consumo) | `dataset_principal.exportaciones_kg` y `ym.exportaciones` son casi idénticos en total anual — son la MISMA cifra fabricada repartida de 2 formas (por ciudad de origen y por destino), no dos mediciones independientes que se validan entre sí | Buscar fuente real de exportaciones mensuales (candidatos: INDEC comercio exterior NCM 0903 — ya evaluado y descartado en Fase 3a por venir mezclado con café/té; o de vuelta a la fuente primaria INYM) |
-| `dataset_principal.precio_usd_kg` / `valor_fob_usd` | **C**, con la limitación ya documentada (dato anual con cadencia mensual) | Consistente con la fuente citada en TODO.md | Ya está correctamente marcado en el schema, solo falta el footer de fuente en la UI (Etapa 4) |
-| `consumo_interno.consumo_per_capita_kg` | **B** (toda la serie, incluido 2025) | Serie con variación real año a año, sin URL/organismo citado en ningún doc. El benchmark del usuario (~5,7-5,8 kg para 2025) **no se pudo confirmar contra fuente primaria** (el INYM no publica un cierre oficial consistente de este indicador, ver §6) — no hay evidencia de que 5,59 esté mal, solo que no está documentado | Buscar y documentar la fuente de toda la serie; conseguir el cierre oficial 2025 si el INYM lo publica en algún informe no indexado en su sitio de noticias |
+| `dataset_principal.precio_usd_kg` / `valor_fob_usd` | **C — metodología confirmada 2026-07-12** | `precio_usd_kg_promedio = valor_fob_usd / exportaciones_kg` — verificado a nivel anual por ciudad, coincide a la 5ª-6ª cifra decimal para las 7 ciudades en 2024 (y por construcción para el resto de los años). Es el precio FOB unitario implícito, derivado de dos cifras ya validadas como reales (§2.1, §6) | Documentar la fórmula en el footer de fuente (Etapa 4) |
+| `consumo_interno.consumo_per_capita_kg` | **C — metodología confirmada 2026-07-12** | `consumo_per_capita_kg = consumo_interno_kg (nacional, real) / población`. Verificado: la población implícita (consumo_total / per_cápita) por año forma una curva perfectamente suave y monótona, de 40.618.106 (2011) a 47.726.031 (2025) — coincide con la trayectoria demográfica real de Argentina en ese período, sin ningún patrón de fabricación (nada congelado, nada interpolado). El benchmark del usuario (~5,7-5,8 kg para 2025) sigue sin poder confirmarse contra un cierre oficial del INYM (ver §6), pero eso ya no importa para clasificar la serie — la metodología por sí sola la valida | Documentar la fórmula (falta precisar qué fuente exacta de población usa — INDEC, probablemente, pero no identificada con URL) |
 | `consumo_interno.mix_envases` (6 columnas) | **D** | Congelado idéntico 11 años (2011-2021), otro valor fijo 3 años (2022-2024), T4=100% siempre exacto | Eliminar 2011-2024 (relleno hacia atrás disfrazado de serie), dejar solo si se consigue el año/fuente real de cada cambio real |
 | `importaciones.volumen_kg` | **B** desde 2019 (varía, sin fuente citada), **D** 2011-2018 (7 años congelados, no documentado antes) | T1/T2 | Documentar fuente si existe; si no, NULL 2011-2018 |
-| `precios.precio_hoja_verde_ars` / `_canchada_ars` | **B** | Cadencia mensual anual ya documentada, NULL real ya manejado, pero sin URL/organismo citado | Buscar y documentar fuente (candidato obvio: mismo INYM que hoja_verde_zona, sería raro que sea otra fuente) |
+| `precios.precio_hoja_verde_ars` / `_canchada_ars` | **A — fuente confirmada y validada 2026-07-12** | Resoluciones de "Valores de la Materia Prima" (Directorio INYM o SAGyP por falta de unanimidad, Ley 25.564/Decreto 1240/02), publicadas en `inym.org.ar/tramites/normativa/` y `inym.org.ar/noticias/precio/`. Validado: 3 meses consecutivos (ene-mar 2024) coinciden exacto contra la Resolución 406/2023 SAGyP — ver `docs/fuentes_precios_materia_prima.md` | Sin cambios de dato — mecanismo discontinuado por el INYM el 31/03/2026 (Decreto 812 desregulación), no esperar valores nuevos después de esa fecha |
 | `superficie_productores.superficie_ha` — **total nacional 2020-2025** | **C**, con nota | 177.533 ha coincide con benchmark externo del usuario | Documentar fuente; **2025 incompleto (8/12 meses)**, no bloquea pero hay que marcarlo "parcial" en la UI |
 | `superficie_productores.productores` | **D** en los 8 tramos de interpolación lineal perfecta (§2.3) | T3 | Conservar solo los años ancla (extremos de cada tramo), NULL el resto hasta conseguir fuente real |
 | `superficie_productores` — **2024=2025 clon** (ambas columnas) | **D** | T1 | Mismo tratamiento que el clon de producción |
@@ -361,10 +361,17 @@ incorrecto** en las tres columnas (producción, consumo, exportaciones), no solo
    mejora de UX futura, no bloqueante.
 9. ✅ **Fix del bug de frontend** (§5): el mapa de Producción ahora muestra una nota explícita de
    cuánto excluye "Otros" y por qué, en vez de una discrepancia silenciosa entre mapa y KPI.
-10. ⏳ **Documentar fuente primaria de categoría B** (precio_usd_kg/valor_fob_usd, consumo per
-    cápita, importaciones post-2019, precios hoja verde/canchada, superficie/productores en sus
-    tramos válidos): pendiente — no bloqueante, esos valores no se tocaron por no estar
-    confirmados como fabricados, solo por no tener cita de fuente.
+10. **Documentar fuente primaria de categoría B — actualizado 2026-07-12**:
+    - ✅ `precio_usd_kg`/`valor_fob_usd`: pasan a **C**, metodología confirmada (ver fila arriba).
+    - ✅ `consumo_per_capita_kg`: pasa a **C**, metodología confirmada (ver fila arriba).
+    - ✅ `importaciones` post-2019: **reemplazado** por `ym.importaciones_indec` (real, ver
+      `docs/fuentes_exportaciones_indec.md`) — ya no es categoría B, es A.
+    - ✅ `precios.precio_hoja_verde_ars`/`precio_canchada_ars`: pasan a **A**, fuente confirmada
+      y validada (resoluciones INYM/SAGyP, ver `docs/fuentes_precios_materia_prima.md`) — nota
+      importante encontrada en el camino: el mecanismo de precio de referencia fue **discontinuado
+      por el INYM el 31/03/2026** (Decreto 812, desregulación), no esperar valores nuevos.
+    - ⏳ `superficie_productores` en sus tramos válidos: sin investigar todavía — único punto
+      abierto de la lista original de categoría B.
 
 **Reglas permanentes de la Etapa 4 (aún no implementadas)**: tabla de provenance formal por fuente_id
 (hoy se usa `fuente`/`fuente_url` en las tablas `_anual` como versión liviana), footer "Fuentes de

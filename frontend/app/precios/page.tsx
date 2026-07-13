@@ -137,7 +137,7 @@ export default async function PreciosPage({
     <main className="p-6 md:p-8">
       <PageHeader
         title="Precios"
-        description="Serie histórica de precio de hoja verde y canchada (ARS/kg)."
+        description="Serie histórica de precio de hoja verde y canchada (ARS/kg) — resoluciones INYM/SAGyP (Ley 25.564). El mecanismo de precio de referencia fue discontinuado por el INYM el 31/03/2026 (Decreto 812, desregulación); ver docs/fuentes_precios_materia_prima.md."
       />
 
       <FilterBar anios={todosLosAnios} />
