@@ -127,18 +127,39 @@ export function ProduccionMapaClient({ produccionPorCiudadAnio }: { produccionPo
     return (jurisdicciones.features as unknown as { properties: { nam: string } }[]).map((f) => f.properties.nam).sort();
   }, [jurisdicciones]);
 
+  // Varias provincias argentinas tienen un departamento llamado "Capital" (u
+  // otros nombres repetidos, ej. "Concepción") -- con "Provincia: todas" el
+  // nombre solo no alcanza como value/key de <option> (colisión real, no solo
+  // un warning de React: sin esto, elegir "Capital" es ambiguo y el mapa no
+  // sabría cuál resaltar). value = "nombre|provincia" (único siempre); el
+  // label solo aclara la provincia entre paréntesis cuando el nombre repite
+  // dentro de la lista que se está mostrando.
   const departamentos = useMemo(() => {
     if (!departamentosContexto) return [];
     const feats = departamentosContexto.features as unknown as DeptoContextoFeature[];
-    return feats
-      .filter((f) => !provincia || f.properties.jur.toUpperCase() === provincia.toUpperCase())
-      .map((f) => f.properties.nam)
-      .sort();
+    const filtrados = feats.filter((f) => !provincia || f.properties.jur.toUpperCase() === provincia.toUpperCase());
+    const porNombre = new Map<string, number>();
+    for (const f of filtrados) porNombre.set(f.properties.nam, (porNombre.get(f.properties.nam) ?? 0) + 1);
+    const vistos = new Set<string>();
+    return filtrados
+      .filter((f) => {
+        const clave = `${f.properties.nam}|${f.properties.jur}`;
+        if (vistos.has(clave)) return false;
+        vistos.add(clave);
+        return true;
+      })
+      .map((f) => ({
+        value: `${f.properties.nam}|${f.properties.jur}`,
+        nam: f.properties.nam,
+        jur: f.properties.jur,
+        label: (porNombre.get(f.properties.nam) ?? 0) > 1 ? `${f.properties.nam} (${f.properties.jur})` : f.properties.nam,
+      }))
+      .sort((a, b) => a.label.localeCompare(b.label));
   }, [departamentosContexto, provincia]);
 
   // Reset de departamento si deja de pertenecer a la provincia elegida
   useEffect(() => {
-    if (departamento && !departamentos.includes(departamento)) setDepartamento("");
+    if (departamento && !departamentos.some((d) => d.nam === departamento)) setDepartamento("");
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [provincia]);
 
@@ -160,8 +181,10 @@ export function ProduccionMapaClient({ produccionPorCiudadAnio }: { produccionPo
 
   const bboxFoco = useMemo((): GeoJSON.FeatureCollection | null => {
     if (departamento && departamentosContexto) {
+      // Filtra también por provincia cuando está disponible -- el nombre solo
+      // ("Capital", "Concepción") no es único entre provincias.
       const feats = (departamentosContexto.features as unknown as DeptoContextoFeature[]).filter(
-        (f) => f.properties.nam === departamento
+        (f) => f.properties.nam === departamento && (!provincia || normalizar(f.properties.jur) === normalizar(provincia))
       );
       if (feats.length) return { type: "FeatureCollection", features: feats } as GeoJSON.FeatureCollection;
     }
@@ -262,14 +285,24 @@ export function ProduccionMapaClient({ produccionPorCiudadAnio }: { produccionPo
             <select
               id="mapa-departamento"
               aria-label="Departamento"
-              value={departamento}
-              onChange={(e) => setDepartamento(e.target.value)}
+              value={departamento ? departamentos.find((d) => d.nam === departamento)?.value ?? "" : ""}
+              onChange={(e) => {
+                const elegido = departamentos.find((d) => d.value === e.target.value);
+                if (!elegido) {
+                  setDepartamento("");
+                  return;
+                }
+                setDepartamento(elegido.nam);
+                // Nombre ambiguo entre provincias (ej. "Capital") -- fija la
+                // provincia también, sino el mapa no puede saber cuál mostrar.
+                if (!provincia) setProvincia(elegido.jur);
+              }}
               className={SELECT_CLASS}
             >
               <option value="">Departamento: todos</option>
               {departamentos.map((d) => (
-                <option key={d} value={d}>
-                  {d}
+                <option key={d.value} value={d.value}>
+                  {d.label}
                 </option>
               ))}
             </select>

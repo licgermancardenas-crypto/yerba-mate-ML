@@ -697,11 +697,21 @@ export function ProduccionMapa({
       const provActivo = provinciaFiltro !== null;
       const deptoActivo = departamentoFiltro !== null;
 
+      // El nombre de departamento solo no es único entre provincias (varias
+      // provincias argentinas tienen un depto "Capital", por ejemplo) -- si
+      // además hay provincia elegida, el match tiene que exigir las dos
+      // cosas, sino "Capital" resalta el de todas las provincias a la vez.
+      const matchDepto = (nameProp: string, provProp: string): maplibregl.ExpressionSpecification => {
+        const porNombre: maplibregl.ExpressionSpecification = ["==", ["get", nameProp], departamentoFiltro as string];
+        if (!provActivo) return porNombre;
+        return ["all", porNombre, ["==", ["upcase", ["get", provProp]], provinciaFiltro as string]];
+      };
+
       // Contexto gris: si hay depto elegido, solo ese depto queda "presente";
       // si solo hay provincia, se atenúa el resto de provincias.
       let opacidadContexto: number | maplibregl.ExpressionSpecification = 0.18;
       if (deptoActivo) {
-        opacidadContexto = ["case", ["==", ["get", "nam_norm"], departamentoFiltro as string], 0.05, 0.22];
+        opacidadContexto = ["case", matchDepto("nam_norm", "jur"), 0.05, 0.22];
       } else if (provActivo) {
         opacidadContexto = ["case", ["==", ["upcase", ["get", "jur"]], provinciaFiltro as string], 0.18, 0.06];
       }
@@ -709,14 +719,17 @@ export function ProduccionMapa({
 
       let opacidadDatos: number | maplibregl.ExpressionSpecification = 0.88;
       if (deptoActivo) {
-        opacidadDatos = ["case", ["==", ["get", "depto_norm"], departamentoFiltro as string], 0.92, 0.06];
+        opacidadDatos = ["case", matchDepto("depto_norm", "pcia"), 0.92, 0.06];
       } else if (provActivo) {
         opacidadDatos = ["case", ["==", ["upcase", ["get", "pcia"]], provinciaFiltro as string], 0.88, 0.1];
       }
       if (map.getLayer("deptos-datos-fill")) map.setPaintProperty("deptos-datos-fill", "fill-opacity", opacidadDatos);
 
       if (map.getLayer("deptos-seleccionado-outline")) {
-        map.setFilter("deptos-seleccionado-outline", ["==", ["get", "nam_norm"], deptoActivo ? (departamentoFiltro as string) : "__ninguno__"]);
+        map.setFilter(
+          "deptos-seleccionado-outline",
+          deptoActivo ? matchDepto("nam_norm", "jur") : ["==", ["get", "nam_norm"], "__ninguno__"]
+        );
       }
     }
     if (map.isStyleLoaded()) aplicar();
