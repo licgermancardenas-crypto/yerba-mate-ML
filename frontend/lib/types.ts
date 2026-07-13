@@ -198,3 +198,17 @@ export interface GeoFeatureCollection {
     properties: Record<string, unknown>;
   }[];
 }
+
+/** Catálogo de fuentes de datos -- Etapa 4 regla 1, docs/auditoria_datos.md. */
+export interface Fuente {
+  id: number;
+  codigo: string;
+  nombre: string;
+  organismo: string | null;
+  url: string | null;
+  cobertura: string | null;
+  metodo_obtencion: string;
+  notas: string | null;
+}
+
+export type FuentesPorTabla = Record<string, Fuente[]>;

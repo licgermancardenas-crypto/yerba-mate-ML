@@ -4,6 +4,7 @@ import { KpiCard } from "@/components/kpi-card";
 import { GaugeCard } from "@/components/gauge-card";
 import { ChartCard } from "@/components/chart-card";
 import { FilterBar } from "@/components/filter-bar";
+import { FooterFuentes } from "@/components/footer-fuentes";
 import { AnnualChartConFiltro } from "@/components/charts/annual-chart-con-filtro";
 import { DataTable, type ColumnaTabla } from "@/components/data-table";
 import { formatPct } from "@/lib/format";
@@ -238,6 +239,8 @@ export default async function CompetenciaPage({
       >
         <DataTable columnas={columnasPivot} filas={filasPivot} maxHeightPx={480} />
       </ChartCard>
+
+      <FooterFuentes tablas={["ym.competencia"]} />
     </main>
   );
 }

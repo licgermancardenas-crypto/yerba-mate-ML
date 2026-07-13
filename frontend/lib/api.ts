@@ -5,6 +5,7 @@ import type {
   ExportacionAnualRealRow,
   ExportacionIndecRow,
   ExportacionRow,
+  FuentesPorTabla,
   GeoFeatureCollection,
   HojaVerdeRow,
   ImportacionIndecRow,
@@ -159,4 +160,9 @@ export function getGeoLayer(layer: string) {
 
 export function getGeoCatalogo() {
   return apiFetch<CapaCatalogo[]>("/geo");
+}
+
+/** Fuente(s) de una o más tablas, para el footer "Fuentes de esta vista". */
+export function getFuentesPorTabla(tablas: string[]) {
+  return apiFetch<FuentesPorTabla>(`/fuentes/por-tabla?tablas=${encodeURIComponent(tablas.join(","))}`);
 }

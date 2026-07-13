@@ -4,6 +4,7 @@ import { KpiCard } from "@/components/kpi-card";
 import { GaugeCard } from "@/components/gauge-card";
 import { ChartCard } from "@/components/chart-card";
 import { FilterBar } from "@/components/filter-bar";
+import { FooterFuentes } from "@/components/footer-fuentes";
 import { SerieChartConFiltro } from "@/components/charts/serie-chart-con-filtro";
 import { HistoricalTable } from "@/components/historical-table";
 import { ExportacionesFlowMapLoader } from "@/components/exportaciones-flow-map-loader";
@@ -201,6 +202,8 @@ export default async function ExportacionesPage({
           </ChartCard>
         </>
       )}
+
+      <FooterFuentes tablas={["ym.exportaciones_anual", "ym.exportaciones_indec"]} />
     </main>
   );
 }

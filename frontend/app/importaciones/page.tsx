@@ -3,6 +3,7 @@ import { PageHeader } from "@/components/page-header";
 import { KpiCard } from "@/components/kpi-card";
 import { ChartCard } from "@/components/chart-card";
 import { FilterBar } from "@/components/filter-bar";
+import { FooterFuentes } from "@/components/footer-fuentes";
 import { SerieChartConFiltro } from "@/components/charts/serie-chart-con-filtro";
 import { HistoricalTable } from "@/components/historical-table";
 import type { ColumnaTabla } from "@/components/data-table";
@@ -168,6 +169,8 @@ export default async function ImportacionesPage({
           filasMensual={mensualHistorico}
         />
       </ChartCard>
+
+      <FooterFuentes tablas={["ym.importaciones_indec", "ym.exportaciones_anual"]} />
     </main>
   );
 }

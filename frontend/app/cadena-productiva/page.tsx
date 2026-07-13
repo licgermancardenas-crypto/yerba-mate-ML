@@ -4,6 +4,7 @@ import { KpiCard } from "@/components/kpi-card";
 import { GaugeCard } from "@/components/gauge-card";
 import { ChartCard } from "@/components/chart-card";
 import { FilterBar } from "@/components/filter-bar";
+import { FooterFuentes } from "@/components/footer-fuentes";
 import { SerieChartConFiltro } from "@/components/charts/serie-chart-con-filtro";
 import { AnnualChartConFiltro } from "@/components/charts/annual-chart-con-filtro";
 import { SerieMensualChart } from "@/components/charts/serie-mensual-chart";
@@ -253,6 +254,8 @@ export default async function CadenaProductivaPage({
       >
         <DataTable columnas={columnasZona} filas={filasZona} maxHeightPx={420} />
       </ChartCard>
+
+      <FooterFuentes tablas={["ym.inym_hoja_verde_zona", "ym.inym_salida_molino"]} />
     </main>
   );
 }

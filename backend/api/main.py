@@ -5,6 +5,7 @@ from backend.api.routers import (
     competencia,
     consumo,
     exportaciones,
+    fuentes,
     geo,
     importaciones,
     precios,
@@ -25,6 +26,7 @@ app.include_router(precios_gondola.router)
 app.include_router(competencia.router)
 app.include_router(cadena_productiva.router)
 app.include_router(geo.router)
+app.include_router(fuentes.router)
 
 
 @app.get("/health")

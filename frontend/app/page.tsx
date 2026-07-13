@@ -15,6 +15,7 @@ import {
 import { PageHeader } from "@/components/page-header";
 import { KpiCard } from "@/components/kpi-card";
 import { FilterBar } from "@/components/filter-bar";
+import { FooterFuentes } from "@/components/footer-fuentes";
 import { formatKg, formatNumero } from "@/lib/format";
 import { getProduccionAnualReal, getConsumo } from "@/lib/api";
 import { agregarProduccionAnualNacional, agregarProduccionPorCiudad } from "@/lib/agregaciones";
@@ -111,6 +112,8 @@ export default async function ResumenPage({
           </Link>
         ))}
       </div>
+
+      <FooterFuentes tablas={["ym.dataset_principal_anual", "ym.consumo_interno"]} />
     </main>
   );
 }

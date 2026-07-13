@@ -4,6 +4,7 @@ import { PageHeader } from "@/components/page-header";
 import { KpiCard } from "@/components/kpi-card";
 import { ChartCard } from "@/components/chart-card";
 import { FilterBar } from "@/components/filter-bar";
+import { FooterFuentes } from "@/components/footer-fuentes";
 import { SerieChartConFiltro } from "@/components/charts/serie-chart-con-filtro";
 import { HistoricalTable } from "@/components/historical-table";
 import { HeatmapTable } from "@/components/heatmap-table";
@@ -328,6 +329,8 @@ export default async function ProduccionPage({
         )}
         </>
       )}
+
+      <FooterFuentes tablas={["ym.dataset_principal_anual", "ym.superficie_productores", "ym.inym_hoja_verde_zona"]} />
     </main>
   );
 }

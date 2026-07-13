@@ -4,6 +4,7 @@ import { KpiCard } from "@/components/kpi-card";
 import { GaugeCard } from "@/components/gauge-card";
 import { ChartCard } from "@/components/chart-card";
 import { FilterBar } from "@/components/filter-bar";
+import { FooterFuentes } from "@/components/footer-fuentes";
 import { SerieChartConFiltro } from "@/components/charts/serie-chart-con-filtro";
 import { AnnualChartConFiltro } from "@/components/charts/annual-chart-con-filtro";
 import type { EnvasesPunto } from "@/components/charts/envases-stacked-chart";
@@ -197,6 +198,8 @@ export default async function ConsumoPage({
           </ChartCard>
         </>
       )}
+
+      <FooterFuentes tablas={["ym.consumo_interno"]} />
     </main>
   );
 }
