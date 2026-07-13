@@ -373,10 +373,47 @@ incorrecto** en las tres columnas (producción, consumo, exportaciones), no solo
     - ⏳ `superficie_productores` en sus tramos válidos: sin investigar todavía — único punto
       abierto de la lista original de categoría B.
 
-**Reglas permanentes de la Etapa 4 (aún no implementadas)**: tabla de provenance formal por fuente_id
-(hoy se usa `fuente`/`fuente_url` en las tablas `_anual` como versión liviana), footer "Fuentes de
-esta vista" por pantalla, `audit_datos.py` enganchado a CI, y formalizar T7/T8 dentro del script
-(hoy son queries ad-hoc, ver §8). Quedan para una sesión futura si se decide priorizarlas.
+### 7.1 — Reglas permanentes de la Etapa 4
+
+1. ✅ **Provenance por tabla** — catálogo `ym.fuentes` (16 fuentes) + mapeo `ym.tabla_fuente`
+   (17 tablas), migración `006_provenance_2026-07-12.sql`. `ym.dataset_principal_anual` y
+   `ym.exportaciones_anual` tienen `fuente_id` por FILA en vez de por tabla (mezclan CSV semilla +
+   comunicados INYM 2025) — decisión explícita del usuario, "por tabla" para el resto.
+
+2. ✅ **NULL es el único valor válido para "sin dato"** — nunca fabricar, interpolar, clonar el
+   período anterior ni redondear a un valor "razonable" para llenar un hueco. Esta regla ya se
+   aplicó en todo el saneamiento de §7 arriba (2011-2018 de importaciones, mix_envases 2011-2024,
+   productores interpolados, etc. — todos anulados a NULL en vez de reemplazados por una
+   estimación). No requiere infraestructura nueva: es una convención de código/ETL, exigible en
+   code review. Cualquier ETL o migración nueva que necesite rellenar un hueco temporal debe usar
+   NULL, no un valor calculado que no venga de una fuente real (ver regla 3 si el valor SÍ es un
+   cálculo derivado documentado, no un relleno).
+
+3. ✅ **Distinción visual obligatoria para valores estimados/derivados** — si algún dato en el
+   frontend no es una medición directa sino un cálculo (ej. `derivado_precio_fob`,
+   `derivado_consumo_percapita`, ya documentados en `ym.fuentes`), debe quedar visualmente
+   distinguido del dato primario: no alcanza con que la fuente lo diga en el catálogo, tiene que
+   verse en la pantalla (ej. label "(estimado)"/"(calculado)" junto al valor, o un ícono/estilo
+   distinto en la celda). **Hoy no hay ningún caso activo en el frontend** que muestre un valor
+   estimado en el sentido de "falta el dato real y se está aproximando" — los dos `derivado_*`
+   de `ym.fuentes` son cálculos matemáticos exactos sobre datos reales (precio FOB = valor/kg,
+   consumo per cápita = consumo/población), no aproximaciones, así que no necesitan la etiqueta.
+   Si en el futuro se agrega una serie que sí sea una estimación (ej. proyección, imputación,
+   promedio de vecinos), el componente que la muestre debe llevar la distinción visual antes de
+   mergear — no hace falta un componente reutilizable nuevo hasta que exista el primer caso real.
+
+4. ✅ **CI: `audit_datos.py` en GitHub Actions** — `.github/workflows/audit-datos.yml`, corre en
+   PRs que tocan `backend/etl/**`, `backend/db/migrations/**` o `schema.sql`. Falla el build si
+   aparece un T1-T6 nuevo no documentado en `ALLOWLIST`. Pendiente: configurar el secret
+   `DATABASE_URL` en el repo de GitHub (no lo carga un agente porque es una credencial).
+
+5. ✅ **Footer "Fuentes de esta vista"** — `GET /fuentes` + `GET /fuentes/por-tabla`, componente
+   `FooterFuentes` (server component) en las 8 páginas con datos: resumen, producción, consumo,
+   exportaciones, importaciones, precios, competencia, cadena productiva.
+
+Pendiente, no bloqueante: formalizar T7 (consistencia cruzada interna) y T8 (consistencia contra
+benchmark externo) como funciones reusables dentro de `audit_datos.py` — hoy son queries ad-hoc
+que se corrieron a mano durante la auditoría (ver §6 y §8), no están en el loop de CI.
 
 ---
 
