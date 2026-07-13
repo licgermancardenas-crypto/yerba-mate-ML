@@ -150,6 +150,32 @@ CREATE INDEX IF NOT EXISTS idx_dim_zonas_geom ON inym_gis.dim_zonas USING GIST (
 CREATE SCHEMA IF NOT EXISTS ym;
 
 -- ----------------------------------------------------------------------------
+-- 0) fuentes / tabla_fuente — provenance (Etapa 4 regla 1 de docs/auditoria_datos.md)
+-- ----------------------------------------------------------------------------
+-- Nivel TABLA (una fuente principal por tabla física), no fila -- decisión
+-- explícita 2026-07-12: mismo valor práctico que fuente_id por fila (cada
+-- ETL de este proyecto = una fuente), sin migrar/backfillear las tablas ya
+-- cargadas. Las 2 tablas con provenance real por fila (dataset_principal_anual,
+-- exportaciones_anual, porque mezclan datos del CSV semilla y de comunicados
+-- INYM 2025) tienen su propia columna `fuente_id` en vez de entrar acá.
+CREATE TABLE IF NOT EXISTS ym.fuentes (
+    id                  SERIAL PRIMARY KEY,
+    codigo              TEXT NOT NULL UNIQUE,
+    nombre              TEXT NOT NULL,
+    organismo           TEXT,               -- NULL si es un cálculo derivado, no una fuente externa
+    url                 TEXT,
+    cobertura           TEXT,
+    metodo_obtencion    TEXT NOT NULL,
+    notas               TEXT
+);
+
+CREATE TABLE IF NOT EXISTS ym.tabla_fuente (
+    tabla_nombre        TEXT PRIMARY KEY,
+    fuente_id           INTEGER NOT NULL REFERENCES ym.fuentes(id),
+    notas               TEXT
+);
+
+-- ----------------------------------------------------------------------------
 -- 1) dataset_principal — producción/consumo/exportaciones/precio por
 --    provincia y ciudad productora, mensual (2011–presente)
 -- ----------------------------------------------------------------------------
@@ -191,8 +217,9 @@ CREATE TABLE IF NOT EXISTS ym.dataset_principal_anual (
     exportaciones_kg        NUMERIC(14,2),
     precio_usd_kg_promedio  NUMERIC(8,4),
     valor_fob_usd           NUMERIC(14,2),
-    fuente                  TEXT NOT NULL,      -- 'dataset_principal_original' | 'inym_comunicado_oficial'
+    fuente                  TEXT NOT NULL,      -- 'dataset_principal_original' | 'inym_comunicado_oficial' (legible; ver fuente_id para el FK real)
     fuente_url              TEXT,
+    fuente_id               INTEGER REFERENCES ym.fuentes(id),
     PRIMARY KEY (anio, provincia, ciudad)
 );
 COMMENT ON TABLE ym.dataset_principal_anual IS
@@ -253,8 +280,9 @@ CREATE TABLE IF NOT EXISTS ym.exportaciones_anual (
     volumen_kg          NUMERIC(14,2),
     valor_fob_usd       NUMERIC(14,2),
     precio_fob_usd_kg   NUMERIC(8,4),
-    fuente              TEXT NOT NULL,
+    fuente              TEXT NOT NULL,      -- legible; ver fuente_id para el FK real
     fuente_url          TEXT,
+    fuente_id           INTEGER REFERENCES ym.fuentes(id),
     PRIMARY KEY (anio, destino)
 );
 COMMENT ON TABLE ym.exportaciones_anual IS
