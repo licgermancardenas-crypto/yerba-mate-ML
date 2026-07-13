@@ -1,0 +1,39 @@
+name: Auditoría de datos
+
+# Etapa 4 regla 4 (docs/auditoria_datos.md): correr los tests T1-T8 de
+# audit_datos.py contra Supabase en cada PR que toque ETLs o migraciones,
+# para no volver a introducir datos fabricados/clonados/interpolados sin
+# que nadie lo note.
+on:
+  pull_request:
+    paths:
+      - "backend/etl/**"
+      - "backend/db/migrations/**"
+      - "backend/db/schema.sql"
+      - ".github/workflows/audit-datos.yml"
+
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Instalar dependencias
+        run: pip install psycopg2-binary pandas numpy python-dotenv
+
+      - name: Correr audit_datos.py
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+        run: python backend/etl/audit_datos.py --json audit-resultado.json
+
+      - name: Subir detalle de la auditoría
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: audit-datos-resultado
+          path: audit-resultado.json
+          if-no-files-found: warn
