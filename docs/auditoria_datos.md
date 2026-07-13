@@ -355,10 +355,15 @@ incorrecto** en las tres columnas (producción, consumo, exportaciones), no solo
    da 31.399.188,94 kg vs. 31.400.004 ya cargado (Δ 0,003%), confirma que 2011-2018 también eran
    reales en la fuente original, solo se habían congelado/fabricado en el CSV semilla. `/importaciones`
    ya usa este dato real, incluye desglose por país de origen (antes "sin desagregar por origen").
-8. ✅ **Relabel "Producción por ciudad" → caso E**: descripción actualizada en el frontend aclarando
-   que son 7 buckets de reporte del INYM, no unidades geográficas exactas, con referencia al Mapa
-   GIS para el detalle real por departamento. Migrar la vista en sí a las capas GIS queda como
-   mejora de UX futura, no bloqueante.
+8. ✅ **Relabel "Producción por ciudad" → caso E, cerrado 2026-07-13**: descripción actualizada en
+   el frontend aclarando que son 7 buckets de reporte del INYM, no unidades geográficas exactas. La
+   tabla "Distribución por ciudad" (pestaña Datos de Producción) se reemplazó por "Superficie
+   cultivada por departamento" — las 19 unidades geográficas reales del INYM
+   (`view_superficie_por_departamentos`, hectáreas). No se migró a producción-en-kg por
+   departamento porque esa fuente no existe (el INYM solo publica superficie a ese nivel, no
+   producción) — decisión explícita del usuario tras exponer la restricción: mostrar el dato real
+   disponible (superficie) en vez de prorratear/estimar producción sin fuente. El mapa de
+   Producción (pestaña Mapa) ya usaba esta misma capa para el coroplético.
 9. ✅ **Fix del bug de frontend** (§5): el mapa de Producción ahora muestra una nota explícita de
    cuánto excluye "Otros" y por qué, en vez de una discrepancia silenciosa entre mapa y KPI.
 10. **Documentar fuente primaria de categoría B — actualizado 2026-07-12**:
