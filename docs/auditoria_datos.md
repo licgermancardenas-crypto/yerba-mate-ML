@@ -444,3 +444,35 @@ El script termina con `exit(1)` si encuentra T1/T2/T3/T4 en una serie que no est
 `permite_repeticion_anual=True` (el patrón ya documentado de "dato anual publicado con cadencia
 mensual") — pensado para engancharse a CI apenas se decida el saneamiento, tal como pediste en la
 regla 4.
+
+**Cierre 2026-07-13 — primera corrida completa del script desde el saneamiento de julio.** Hasta
+ahora el CI (regla 4) nunca se había probado corriendo las 16 series juntas contra la DB ya saneada
+(NULLs incluidos). Al hacerlo aparecieron 2 bugs reales que hacían crashear el script (no un
+hallazgo de datos, un bug de código):
+- `t2_constantes_repetidas` llamaba `float(None)` sobre columnas 100% NULL (ej. `produccion_kg`,
+  nuleada por el propio saneamiento) — arreglado con un `dropna` antes de buscar corridas.
+- `t5_estacionalidad_clonada` dividía por cero: `pivot_table(aggfunc="sum")` sobre un grupo 100%
+  NULL da `0.0` (no NaN, es el default de pandas), así que el `dropna` de seguridad nunca actuaba —
+  arreglado con `aggfunc=lambda x: x.sum(min_count=1)` para que un grupo sin datos reales dé NaN.
+
+Se sumó `ym.clima_mensual` como serie #16 (nunca había estado en el registro pese a ser un feature
+directo de Fase 5) — pasa limpio T1-T5, T6 tiene 18 coincidencias cruzadas entre ciudades sobre
+2.880 pares posibles, consistente con la grilla nativa ~0.5°x0.5° de MERRA-2 (ciudades cercanas
+comparten celda), no fabricación. Se re-corrió `etl_nasa_power.py` para confirmar que no hay meses
+faltantes: el techo real de NASA POWER es 2025-12 (no hay 2026 todavía, error 422 explícito de la
+API si se pide), así que la carga ya estaba al día.
+
+`inym_hoja_verde_zona`: el SQL de la serie ahora excluye `zona='TOTAL'` — comparar el total contra
+sus propias 6 zonas componentes disparaba T6 falso en meses donde solo una zona reportó actividad
+(TOTAL = esa única zona no nula, no una coincidencia real entre dos zonas independientes).
+
+`superficie_productores.superficie_ha`/`.productores`: al correr el script completo por primera vez
+también saltó como ALERTA nueva el patrón de congelamiento uniforme en las 7 ciudades (191.000 ha
+2010-2016, real 2017-2019, 177.533 ha 2020-2024) — pero es el mismo hallazgo **ya investigado y
+cerrado en §2.6** (relevamiento de superficie no anual, 177.533 ha validado contra benchmark
+externo), solo que nunca se había formalizado en el script. Marcado `permite_repeticion_anual=True`
+con nota citando §2.6, no se anuló nada nuevo.
+
+Con estos 5 cambios, `python backend/etl/audit_datos.py` corre las 16 series sin crashear y termina
+en `exit(0)` — el workflow de CI (`.github/workflows/audit-datos.yml`) ya es funcionalmente correcto,
+sigue pendiente solo el secret `DATABASE_URL` en GitHub (ver `CLAUDE.md` en la raíz del repo).

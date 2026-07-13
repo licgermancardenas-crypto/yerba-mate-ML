@@ -138,28 +138,43 @@ SERIES: list[Serie] = [
         sql="SELECT anio, mes, precio_hoja_verde_ars, precio_canchada_ars FROM ym.precios ORDER BY anio, mes",
         entity_cols=[],
         value_cols=["precio_hoja_verde_ars", "precio_canchada_ars"],
-        nota="NULLs reales documentados (2020-10).",
+        permite_repeticion_anual=True,
+        nota="NULLs reales documentados (2020-10). T2 (corridas de 3-23 meses en el mismo valor, con "
+        "escalones crecientes entre corridas: 6,01 -> 7,02 -> 8,4 -> ... -> 250,0) es el mecanismo real "
+        "de fijación semestral con escalonamiento mensual (Ley 25.564/Decreto 1240/02), no fabricación "
+        "-- ya validado contra Resolución 406/2023 SAGyP, categoría A (ver docs/fuentes_precios_materia_prima.md).",
     ),
     Serie(
         nombre="superficie_productores.superficie_ha",
         sql="SELECT anio, mes, provincia, ciudad, superficie_ha AS valor FROM ym.superficie_productores ORDER BY provincia, ciudad, anio, mes",
         entity_cols=["provincia", "ciudad"],
         value_cols=["valor"],
-        nota="Fuente sin documentar (ver Etapa 1).",
+        permite_repeticion_anual=True,
+        nota="Fuente sin documentar (ver Etapa 1), pero el patrón de congelamiento SÍ está investigado "
+        "(§2.6, docs/auditoria_datos.md): 191.000 ha congelado 2010-2016, variación real 2017-2019, "
+        "177.533 ha congelado 2020-2024 -- el relevamiento de superficie no se hace todos los años, el "
+        "mismo número real se repite hasta el próximo censo. 177.533 ha validado contra benchmark "
+        "externo del usuario. No es fabricación, uniforme en las 7 ciudades porque el dato nacional se "
+        "reparte igual entre censos.",
     ),
     Serie(
         nombre="superficie_productores.productores",
         sql="SELECT anio, mes, provincia, ciudad, productores AS valor FROM ym.superficie_productores ORDER BY provincia, ciudad, anio, mes",
         entity_cols=["provincia", "ciudad"],
         value_cols=["valor"],
-        nota="Fuente sin documentar (ver Etapa 1).",
+        permite_repeticion_anual=True,
+        nota="Mismo mecanismo que superficie_ha (§2.6): crece orgánicamente 2010-2019 (real), congelado "
+        "en 9.334 desde 2020 hasta el próximo censo de productores.",
     ),
     Serie(
         nombre="inym_hoja_verde_zona.hoja_verde_kg",
-        sql="SELECT anio, mes, zona, hoja_verde_kg AS valor FROM ym.inym_hoja_verde_zona ORDER BY zona, anio, mes",
+        sql="SELECT anio, mes, zona, hoja_verde_kg AS valor FROM ym.inym_hoja_verde_zona WHERE zona != 'TOTAL' ORDER BY zona, anio, mes",
         entity_cols=["zona"],
         value_cols=["valor"],
-        nota="Scraper PDF real INYM (Fase 3c) -- se espera que pase limpio, sirve de control.",
+        nota="Scraper PDF real INYM (Fase 3c) -- se espera que pase limpio, sirve de control. 'TOTAL' "
+        "excluido del SQL: es la fila agregada de las otras zonas, no una entidad independiente -- "
+        "comparándola contra sus propios componentes disparaba T6 falsos en meses donde solo una zona "
+        "reportó actividad (TOTAL == esa única zona no nula, no una coincidencia real entre dos zonas).",
     ),
     Serie(
         nombre="inym_salida_molino.volumen_kg",
@@ -167,6 +182,17 @@ SERIES: list[Serie] = [
         entity_cols=["destino"],
         value_cols=["valor"],
         nota="Scraper PDF real INYM (Fase 3c) -- se espera que pase limpio, sirve de control.",
+    ),
+    Serie(
+        nombre="clima_mensual.precipitacion_temperatura",
+        sql="SELECT anio, mes, ubicacion, precipitacion_mm_dia, temperatura_media_c FROM ym.clima_mensual ORDER BY ubicacion, anio, mes",
+        entity_cols=["ubicacion"],
+        value_cols=["precipitacion_mm_dia", "temperatura_media_c"],
+        permite_repeticion_anual=True,
+        nota="API en vivo (NASA POWER, Fase 3d) -- auditado 2026-07-13, T1-T5 limpio. T6 (18 coincidencias "
+        "cruzadas entre ciudades sobre 2.880 pares posibles) es un artefacto esperado de la grilla nativa "
+        "~0.5°x0.5° (~50km) de MERRA-2: ciudades cercanas caen en la misma celda y comparten valor exacto "
+        "algunos meses, no es fabricación. Feature directo de Fase 5 (ML).",
     ),
     Serie(
         nombre="competencia.cuota_mercado_pct",
@@ -208,7 +234,10 @@ def t2_constantes_repetidas(df: pd.DataFrame, entity_cols: list[str], value_col:
     hallazgos = []
     grupos = df.groupby(entity_cols) if entity_cols else [((), df)]
     for entidad, grupo in grupos:
-        grupo = grupo.sort_values(["anio", "mes"])
+        # NULL es "sin dato" documentado (ver docs/auditoria_datos.md §7.1
+        # regla 2), no una corrida de valor repetido -- se descarta antes de
+        # buscar runs, si no `float(None)` explota en columnas nuleadas.
+        grupo = grupo.dropna(subset=[value_col]).sort_values(["anio", "mes"])
         valores = grupo[value_col].to_numpy()
         periodos = list(zip(grupo["anio"], grupo["mes"]))
         i = 0
@@ -293,7 +322,11 @@ def t5_estacionalidad_clonada(df: pd.DataFrame, entity_col: str | None, value_co
     resultado = {"aplica": True, "por_entidad": {}}
     grupos = df.groupby(entity_col) if entity_col else [(None, df)]
     for entidad, grupo in grupos:
-        pivot = grupo.pivot_table(index="anio", columns="mes", values=value_col, aggfunc="sum")
+        # min_count=1: si un (año, mes) es 100% NULL, sum() debe dar NaN (y
+        # caer en el dropna de abajo), no 0 -- el default de pandas trata
+        # "ningún valor real" igual que "suma de puros ceros", lo que
+        # después producía 0/0 (ZeroDivisionError) en series ya nuleadas.
+        pivot = grupo.pivot_table(index="anio", columns="mes", values=value_col, aggfunc=lambda x: x.sum(min_count=1))
         pivot = pivot.dropna(how="any")
         if len(pivot) < 2:
             continue
