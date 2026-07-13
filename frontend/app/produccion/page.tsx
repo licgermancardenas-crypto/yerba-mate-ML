@@ -11,10 +11,10 @@ import { HeatmapTable } from "@/components/heatmap-table";
 import { ProduccionMapaLoader } from "@/components/produccion-mapa-loader";
 import type { ColumnaTabla } from "@/components/data-table";
 import { formatMasa, formatNumero, formatPct, formatUsd, type UnidadMasa } from "@/lib/format";
-import { getProduccionAnualReal, getSuperficie, getHojaVerde } from "@/lib/api";
+import { getProduccionAnualReal, getSuperficie, getHojaVerde, getGeoLayerAtributos } from "@/lib/api";
+import { tituloCase } from "@/lib/texto";
 import {
   agregarHojaVerdeMensualNacional,
-  agregarProduccionPorCiudad,
   agregarProduccionAnualNacional,
   agregarRendimientoAnual,
   type ProduccionAnualRow,
@@ -62,11 +62,21 @@ export default async function ProduccionPage({
   paramsMapa.set("vista", "mapa");
   const hrefMapa = `/produccion?${paramsMapa.toString()}`;
 
-  const [anualRealCompleta, superficieCompletas, hojaVerdeCompleta] = await Promise.all([
+  const [anualRealCompleta, superficieCompletas, hojaVerdeCompleta, superficieDeptoAtributos] = await Promise.all([
     getProduccionAnualReal(),
     getSuperficie(),
     getHojaVerde(),
+    getGeoLayerAtributos<{ pcia: string; depto: string; sup_ym: number; superficie: number }>(
+      "view_superficie_por_departamentos"
+    ),
   ]);
+  // Superficie cultivada real por departamento (19 unidades geográficas
+  // reales del INYM, no las 6-7 zonas de reporte de producción) -- NO hay
+  // producción en kg a este nivel de detalle en ninguna fuente encontrada,
+  // solo superficie. Ver docs/auditoria_datos.md §7 caso E.
+  const superficiePorDepto = superficieDeptoAtributos
+    .filter((p) => p.superficie > 0 && (!provinciaFiltro || p.pcia.toUpperCase() === provinciaFiltro.toUpperCase()))
+    .sort((a, b) => b.sup_ym - a.sup_ym);
   const hojaVerdeTotalPorZona = hojaVerdeCompleta.filter(
     (f) => f.zona === "TOTAL" && (!anioDesde || f.anio >= anioDesde) && (!anioHasta || f.anio <= anioHasta)
   );
@@ -116,7 +126,6 @@ export default async function ProduccionPage({
   const penultimoAnio = anios[anios.length - 2];
 
   const serieMensual = agregarHojaVerdeMensualNacional(hojaVerdeTotalPorZona);
-  const porCiudadUltimo = agregarProduccionPorCiudad(filas, ultimoAnio);
 
   const anualHistorico = agregarProduccionAnualNacional(filas);
   const anualUltimo = anualHistorico.find((f) => f.anio === ultimoAnio);
@@ -224,35 +233,39 @@ export default async function ProduccionPage({
               </ChartCard>
 
               <ChartCard
-                title={`Distribución por ciudad (${ultimoAnio})`}
-                description="% del total nacional — 7 zonas de reporte del INYM, no unidades geográficas exactas (ver Mapa GIS para el detalle real por departamento)"
+                title="Superficie cultivada por departamento"
+                description="Hectáreas reales (INYM GeoServer), 19 departamentos — no hay producción en kg publicada a este nivel de detalle, solo superficie (ver Mapa GIS para el coroplético)"
               >
-                {porCiudadUltimo.length === 0 ? (
-                  <p className="text-sm text-muted-foreground py-4">
-                    Sin desglose por ciudad para {ultimoAnio} todavía — solo hay total nacional (ver KPI arriba).
-                  </p>
+                {superficiePorDepto.length === 0 ? (
+                  <p className="text-sm text-muted-foreground py-4">Sin datos de superficie para los filtros seleccionados.</p>
                 ) : (
-                  <table className="w-full text-sm">
-                    <thead>
-                      <tr className="text-left text-xs text-muted-foreground border-b border-border">
-                        <th className="font-medium py-2">Ciudad</th>
-                        <th className="font-medium py-2 text-right">%</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {porCiudadUltimo.map((fila) => (
-                        <tr key={fila.ciudad} className="border-b border-border last:border-0">
-                          <td className="py-2">
-                            <div className="text-card-foreground">{fila.ciudad}</div>
-                            <div className="text-xs text-muted-foreground">{fila.provincia}</div>
-                          </td>
-                          <td className="py-2 text-right tabular-nums font-medium text-card-foreground">
-                            {formatPct(fila.porcentaje)}
-                          </td>
+                  <div className="max-h-[360px] overflow-y-auto">
+                    <table className="w-full text-sm">
+                      <thead className="sticky top-0 bg-card">
+                        <tr className="text-left text-xs text-muted-foreground border-b border-border">
+                          <th className="font-medium py-2">Departamento</th>
+                          <th className="font-medium py-2 text-right">Ha cultivadas</th>
+                          <th className="font-medium py-2 text-right">% del depto.</th>
                         </tr>
-                      ))}
-                    </tbody>
-                  </table>
+                      </thead>
+                      <tbody>
+                        {superficiePorDepto.map((fila) => (
+                          <tr key={`${fila.depto}|${fila.pcia}`} className="border-b border-border last:border-0">
+                            <td className="py-2">
+                              <div className="text-card-foreground">{tituloCase(fila.depto)}</div>
+                              <div className="text-xs text-muted-foreground">{tituloCase(fila.pcia)}</div>
+                            </td>
+                            <td className="py-2 text-right tabular-nums font-medium text-card-foreground">
+                              {formatNumero(fila.sup_ym, 0)} ha
+                            </td>
+                            <td className="py-2 text-right tabular-nums text-muted-foreground">
+                              {formatPct((fila.sup_ym / fila.superficie) * 100)}
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
                 )}
               </ChartCard>
             </div>
@@ -330,7 +343,9 @@ export default async function ProduccionPage({
         </>
       )}
 
-      <FooterFuentes tablas={["ym.dataset_principal_anual", "ym.superficie_productores", "ym.inym_hoja_verde_zona"]} />
+      <FooterFuentes
+        tablas={["ym.dataset_principal_anual", "ym.superficie_productores", "ym.inym_hoja_verde_zona", "inym_gis.raw_features"]}
+      />
     </main>
   );
 }

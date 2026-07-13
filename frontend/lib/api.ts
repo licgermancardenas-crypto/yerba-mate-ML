@@ -158,6 +158,11 @@ export function getGeoLayer(layer: string) {
   return apiFetch<GeoFeatureCollection>(`/geo/${layer}`);
 }
 
+/** Propiedades de una capa GIS sin geometría -- para tablas, evita transferir los polígonos completos. */
+export function getGeoLayerAtributos<T = Record<string, unknown>>(layer: string) {
+  return apiFetch<T[]>(`/geo/${layer}/atributos`);
+}
+
 export function getGeoCatalogo() {
   return apiFetch<CapaCatalogo[]>("/geo");
 }

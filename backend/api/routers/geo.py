@@ -24,6 +24,42 @@ async def listar_capas(session: AsyncSession = Depends(get_session)):
     return [dict(row._mapping) for row in result]
 
 
+@router.get("/{layer}/atributos")
+async def obtener_atributos_capa(layer: str, session: AsyncSession = Depends(get_session)):
+    """Propiedades de una capa GIS SIN geometría -- para tablas que solo
+    necesitan los atributos (ej. superficie por departamento), sin pagar el
+    peso de los polígonos completos (varios MB por capa, no cacheables por
+    Next.js fetch cache que tiene un techo de 2MB por entrada)."""
+    if layer == SECADEROS_LAYER:
+        stmt = text(
+            """
+            SELECT jsonb_build_object(
+                       'idplanta', idplanta,
+                       'dir_catastral', dir_catastral,
+                       'municipio_id', municipio_id,
+                       'departamento_id', departamento_id,
+                       'provincia_id', provincia_id
+                   ) AS properties
+            FROM inym_gis.secaderos
+            ORDER BY id
+            """
+        )
+    else:
+        stmt = text(
+            """
+            SELECT DISTINCT ON (feature_gid) properties
+            FROM inym_gis.v_features_4326
+            WHERE layer_name = :layer
+            ORDER BY feature_gid, snapshot_date DESC
+            """
+        )
+    result = await session.execute(stmt, {} if layer == SECADEROS_LAYER else {"layer": layer})
+    rows = result.mappings().all()
+    if not rows:
+        raise HTTPException(status_code=404, detail=f"Sin datos cargados para la capa '{layer}'")
+    return [row["properties"] for row in rows]
+
+
 @router.get("/{layer}")
 async def obtener_capa(layer: str, session: AsyncSession = Depends(get_session)):
     """Devuelve las features de una capa GIS del INYM como GeoJSON.
