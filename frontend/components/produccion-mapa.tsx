@@ -100,6 +100,7 @@ export function ProduccionMapa({
   const containerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<maplibregl.Map | null>(null);
   const popupRef = useRef<maplibregl.Popup | null>(null);
+  const encuadreInicialHecho = useRef(false);
   // El callback vive en un ref porque los listeners de MapLibre se registran
   // una sola vez (efecto de montaje con deps []); sin el ref quedarían
   // atados para siempre a la referencia de la primera renderización.
@@ -750,6 +751,22 @@ export function ProduccionMapa({
     if (!map || !bboxFoco || bboxFoco.features.length === 0) return;
     fitBoundsA(map, bboxFoco);
   }, [bboxFoco]);
+
+  // Encuadre inicial real: CENTRO_ZONA_YERBATERA es una aproximación fija
+  // que dejaba media pantalla mostrando Paraguay -- en cuanto llegan los 19
+  // departamentos reales con dato, se encuadra la cámara a su extensión
+  // real. Una sola vez (ref, no state) para no pelear con el zoom/pan
+  // manual del usuario en renders posteriores, y solo si no hay un filtro
+  // de provincia/departamento activo (ese caso ya lo encuadra el efecto de
+  // arriba).
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map || encuadreInicialHecho.current) return;
+    if (provinciaFiltro || departamentoFiltro) return;
+    if (!departamentosDatos || departamentosDatos.features.length === 0) return;
+    fitBoundsA(map, departamentosDatos, { duration: 0 });
+    encuadreInicialHecho.current = true;
+  }, [departamentosDatos, provinciaFiltro, departamentoFiltro]);
 
   return <div ref={containerRef} className="w-full h-full" />;
 }

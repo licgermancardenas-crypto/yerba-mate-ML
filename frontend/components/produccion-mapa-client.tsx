@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { Map as MapIcon, Factory, Flame, Circle, Route, Info } from "lucide-react";
+import { Map as MapIcon, Factory, Flame, Circle, Route, Info, Loader2 } from "lucide-react";
 import { ProduccionMapa, type VistaMapa, type Basemap, type BurbujaProduccion } from "@/components/produccion-mapa";
 import { ProduccionPanel, type BurbujaSeleccionada, type RutaFlujo } from "@/components/produccion-panel";
 import { GrupoControl, BasemapToggle, pillClass, SELECT_CLASS, LEYENDA_CLASS } from "@/components/mapa-controles";
@@ -251,6 +251,17 @@ export function ProduccionMapaClient({ produccionPorCiudadAnio }: { produccionPo
   const ciudadActiva = ciudadHover ?? ciudadSeleccionada;
   const rutaActiva = rutaHover ?? rutaSeleccionada;
 
+  // Cada capa es un fetch cliente aparte (el coroplético en particular
+  // pesa ~2,8MB de polígonos) -- sin este indicador el mapa queda con el
+  // lienzo en blanco y el panel en "0" varios segundos, como si estuviera
+  // roto en vez de cargando.
+  const cargandoCapa =
+    vista === "coropletico"
+      ? !departamentosContexto || !departamentosDatos
+      : vista === "burbujas"
+      ? false
+      : !secaderos;
+
   const leyendaTexto =
     vista === "coropletico"
       ? "Color = % de superficie departamental cultivada con yerba mate (gris = sin dato en el INYM). Click en un departamento para seleccionarlo."
@@ -371,6 +382,12 @@ export function ProduccionMapaClient({ produccionPorCiudadAnio }: { produccionPo
         />
 
         <div className="rounded-2xl border border-border bg-card overflow-hidden shadow-sm h-[720px] w-full flex-1 relative">
+        {cargandoCapa && (
+          <div className="absolute inset-0 z-20 flex flex-col items-center justify-center gap-2 bg-card/80 backdrop-blur-sm">
+            <Loader2 size={24} className="animate-spin text-primary" aria-hidden="true" />
+            <span className="text-sm text-muted-foreground">Cargando capas del mapa…</span>
+          </div>
+        )}
         <ProduccionMapa
           vista={vista}
           jurisdicciones={jurisdicciones}

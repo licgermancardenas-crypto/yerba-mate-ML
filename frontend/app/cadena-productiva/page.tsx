@@ -10,7 +10,7 @@ import { AnnualChartConFiltro } from "@/components/charts/annual-chart-con-filtr
 import { SerieMensualChart } from "@/components/charts/serie-mensual-chart";
 import { HistoricalTable } from "@/components/historical-table";
 import { DataTable, type ColumnaTabla } from "@/components/data-table";
-import { formatMasa, formatPct, type UnidadMasa } from "@/lib/format";
+import { esAnioCompleto, formatMasa, formatPct, type UnidadMasa } from "@/lib/format";
 import { getHojaVerde, getSalidaMolino } from "@/lib/api";
 import {
   agregarHojaVerdeAnual,
@@ -99,7 +99,12 @@ export default async function CadenaProductivaPage({
   const penultimoAnio = hojaVerdeAnual[1]?.anio;
   const hojaVerdeUltimo = hojaVerdeAnual.find((f) => f.anio === ultimoAnio)?.hoja_verde_kg ?? 0;
   const hojaVerdePenultimo = hojaVerdeAnual.find((f) => f.anio === penultimoAnio)?.hoja_verde_kg ?? 0;
-  const deltaHojaVerde = hojaVerdePenultimo ? ((hojaVerdeUltimo - hojaVerdePenultimo) / hojaVerdePenultimo) * 100 : undefined;
+  // Año en curso (ultimoAnio) casi nunca tiene los 12 meses publicados -- comparar
+  // su total parcial contra el año anterior COMPLETO da una caída falsa enorme.
+  const deltaHojaVerde =
+    hojaVerdePenultimo && ultimoAnio !== undefined && esAnioCompleto(ultimoAnio)
+      ? ((hojaVerdeUltimo - hojaVerdePenultimo) / hojaVerdePenultimo) * 100
+      : undefined;
 
   const molinoAnual = agregarSalidaMolinoAnual(filasMolino);
   const molinoMensual = agregarSalidaMolinoMensual(filasMolino);
@@ -157,7 +162,7 @@ export default async function CadenaProductivaPage({
 
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
         <KpiCard
-          label={`Hoja verde ${ultimoAnio}`}
+          label={`Hoja verde ${ultimoAnio}${ultimoAnio !== undefined && !esAnioCompleto(ultimoAnio) ? " (parcial)" : ""}`}
           value={formatMasa(hojaVerdeUltimo, unidad)}
           icon={Leaf}
           deltaPct={deltaHojaVerde}
@@ -166,7 +171,7 @@ export default async function CadenaProductivaPage({
         />
         <KpiCard label={`Salida molino interno ${ultimoAnio}`} value={formatMasa(molinoUltimoAnio?.interno_kg ?? 0, unidad)} icon={Factory} />
         <KpiCard label={`Salida molino externo ${ultimoAnio}`} value={formatMasa(molinoUltimoAnio?.externo_kg ?? 0, unidad)} icon={Globe2} />
-        <GaugeCard label="% externo de la salida de molino" valorPct={pctExterno} icon={Percent} color="var(--color-secondary)" />
+        <GaugeCard label="Externo de la salida de molino" valorPct={pctExterno} icon={Percent} color="var(--color-secondary)" />
       </div>
 
       <ChartCard

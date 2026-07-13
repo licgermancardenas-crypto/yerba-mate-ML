@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
-import { Info } from "lucide-react";
+import { Info, Loader2 } from "lucide-react";
 import { GisMap } from "@/components/gis-map";
 import { GisPanel } from "@/components/gis-panel";
 import { GrupoControl, BasemapToggle, SELECT_CLASS, LEYENDA_CLASS } from "@/components/mapa-controles";
@@ -188,6 +188,12 @@ export function MapaGisClient({
         <GisPanel capa={capaActual} datos={datos} featureSeleccionada={featureSeleccionada} />
 
         <div className="rounded-2xl border border-border bg-card overflow-hidden shadow-sm h-[720px] w-full flex-1 relative">
+          {cargando && (
+            <div className="absolute inset-0 z-20 flex flex-col items-center justify-center gap-2 bg-card/80 backdrop-blur-sm">
+              <Loader2 size={24} className="animate-spin text-primary" aria-hidden="true" />
+              <span className="text-sm text-muted-foreground">Cargando capa…</span>
+            </div>
+          )}
           {error ? (
             <div className="flex items-center justify-center h-full text-sm text-muted-foreground">{error}</div>
           ) : (

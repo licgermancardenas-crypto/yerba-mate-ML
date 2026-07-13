@@ -127,7 +127,7 @@ export function SerieMensualChart({ data, color = "#15803d", prefix = "", suffix
 
       <ResponsiveContainer width="100%" height={280}>
         {tipo === "linea" ? (
-          <AreaChart data={data} margin={{ top: 16, right: 16, bottom: 0, left: 0 }}>
+          <AreaChart data={data} margin={{ top: 16, right: 40, bottom: 0, left: 0 }}>
             <defs>
               <linearGradient id={gradientId} x1="0" y1="0" x2="0" y2="1">
                 <stop offset="0%" stopColor={color} stopOpacity={0.18} />
@@ -146,7 +146,7 @@ export function SerieMensualChart({ data, color = "#15803d", prefix = "", suffix
               tick={{ fontSize: 12, fill: TICK_COLOR }}
               tickLine={false}
               axisLine={false}
-              width={56}
+              width={84}
               tickFormatter={(v) => formatear(v)}
             />
             <Tooltip content={<ChartTooltip color={color} formatear={formatear} />} cursor={{ stroke: GRID_COLOR, strokeWidth: 1 }} />
@@ -187,7 +187,7 @@ export function SerieMensualChart({ data, color = "#15803d", prefix = "", suffix
               tick={{ fontSize: 12, fill: TICK_COLOR }}
               tickLine={false}
               axisLine={false}
-              width={56}
+              width={84}
               tickFormatter={(v) => formatear(v)}
             />
             <Tooltip content={<ChartTooltip color={color} formatear={formatear} />} cursor={{ fill: color, fillOpacity: 0.06 }} />

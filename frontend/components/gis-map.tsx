@@ -67,6 +67,7 @@ export function GisMap({
   const containerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<maplibregl.Map | null>(null);
   const popupRef = useRef<maplibregl.Popup | null>(null);
+  const encuadreInicialHecho = useRef(false);
   // El listener de click se registra una sola vez (efecto de montaje); sin
   // el ref quedaría atado para siempre a la referencia de la primera
   // renderización.
@@ -369,6 +370,21 @@ export function GisMap({
     if (!map || !bboxFoco || bboxFoco.features.length === 0) return;
     fitBoundsA(map, bboxFoco);
   }, [bboxFoco]);
+
+  // Encuadre inicial real: CENTRO_ZONA_YERBATERA es una aproximación fija
+  // que dejaba media pantalla mostrando Paraguay -- en cuanto llega la
+  // primera capa con datos reales, se encuadra la cámara a su extensión.
+  // Una sola vez (ref, no state) para no pelear con el zoom/pan manual del
+  // usuario en switches de capa posteriores, y solo si no hay un filtro de
+  // provincia activo (ese caso ya lo encuadra el efecto de arriba).
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map || encuadreInicialHecho.current) return;
+    if (provinciaFiltro) return;
+    if (!data || data.features.length === 0) return;
+    fitBoundsA(map, data as unknown as GeoJSON.FeatureCollection, { duration: 0 });
+    encuadreInicialHecho.current = true;
+  }, [data, provinciaFiltro]);
 
   return <div ref={containerRef} className="w-full h-full" />;
 }

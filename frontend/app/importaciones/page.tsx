@@ -7,7 +7,7 @@ import { FooterFuentes } from "@/components/footer-fuentes";
 import { SerieChartConFiltro } from "@/components/charts/serie-chart-con-filtro";
 import { HistoricalTable } from "@/components/historical-table";
 import type { ColumnaTabla } from "@/components/data-table";
-import { formatMasa, formatPct, type UnidadMasa } from "@/lib/format";
+import { esAnioCompleto, formatMasa, formatPct, type UnidadMasa } from "@/lib/format";
 import { getExportacionesAnualReal, getImportacionesIndec } from "@/lib/api";
 import {
   agregarComexIndecAnualNacional,
@@ -75,8 +75,10 @@ export default async function ImportacionesPage({
 
   const importadoUltimo = anualHistorico.find((f) => f.anio === ultimoAnio)?.volumen_kg ?? null;
   const importadoPenultimo = anualHistorico.find((f) => f.anio === penultimoAnio)?.volumen_kg ?? null;
+  // Año en curso casi nunca tiene los 12 meses publicados -- comparar su total
+  // parcial contra el año anterior COMPLETO da una caída falsa enorme.
   const deltaImportado =
-    importadoUltimo != null && importadoPenultimo
+    importadoUltimo != null && importadoPenultimo && ultimoAnio !== undefined && esAnioCompleto(ultimoAnio)
       ? ((importadoUltimo - importadoPenultimo) / importadoPenultimo) * 100
       : undefined;
 
@@ -96,7 +98,7 @@ export default async function ImportacionesPage({
 
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
         <KpiCard
-          label={`Importado ${ultimoAnio}`}
+          label={`Importado ${ultimoAnio}${ultimoAnio !== undefined && !esAnioCompleto(ultimoAnio) ? " (parcial)" : ""}`}
           value={importadoUltimo != null ? formatMasa(importadoUltimo, unidad) : "Sin dato"}
           icon={Package}
           deltaPct={deltaImportado}

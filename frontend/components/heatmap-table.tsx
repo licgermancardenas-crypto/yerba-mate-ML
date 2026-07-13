@@ -77,11 +77,26 @@ export function HeatmapTable({
               const filaMin = valoresFila.length ? Math.min(...valoresFila) : 0;
               const filaMax = valoresFila.length ? Math.max(...valoresFila) : 0;
               const total = totalPorAnio.get(anio) ?? null;
-              const totalAnterior = i > 0 ? (totalPorAnio.get(anios[i - 1]) ?? null) : null;
-              const varPct =
-                total !== null && totalAnterior !== null && totalAnterior !== 0
-                  ? ((total - totalAnterior) / totalAnterior) * 100
-                  : null;
+              // Comparación "mismo período": solo suma los meses presentes en
+              // AMBOS años, no el total completo del año anterior contra un
+              // año en curso todavía parcial (eso daba caídas falsas enormes,
+              // ej. 5 meses de 2026 vs. los 12 de 2025 completo).
+              const valoresMesAnterior = i > 0 ? porAnio.get(anios[i - 1])! : null;
+              let sumaActual = 0;
+              let sumaAnterior = 0;
+              let comparable = false;
+              if (valoresMesAnterior) {
+                for (let m = 0; m < 12; m++) {
+                  const actual = valoresMes[m];
+                  const anterior = valoresMesAnterior[m];
+                  if (actual !== null && anterior !== null) {
+                    sumaActual += actual;
+                    sumaAnterior += anterior;
+                    comparable = true;
+                  }
+                }
+              }
+              const varPct = comparable && sumaAnterior !== 0 ? ((sumaActual - sumaAnterior) / sumaAnterior) * 100 : null;
 
               return (
                 <tr key={anio} className="border-b border-border/60 last:border-0">

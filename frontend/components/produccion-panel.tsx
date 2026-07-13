@@ -60,6 +60,18 @@ export function ProduccionPanel({
   nSecaderos: number;
 }) {
   if (vista === "coropletico") {
+    // departamentosDatos es un fetch cliente de ~2,8MB (polígonos completos)
+    // -- null todavía es "cargando", no "0 departamentos con dato". Sin esto
+    // el panel muestra un 0% falso mientras el pedido está en vuelo.
+    if (departamentosDatos === null) {
+      return (
+        <div className="flex flex-col gap-4 lg:w-[340px] lg:shrink-0">
+          <PanelCard titulo="Resumen coroplético" subtitulo="Departamentos con dato de superficie del INYM">
+            <p className="text-xs text-muted-foreground py-2">Cargando departamentos…</p>
+          </PanelCard>
+        </div>
+      );
+    }
     const feats = (departamentosDatos?.features ?? []) as unknown as { properties: DeptoDatoProps }[];
     const totalSupYm = feats.reduce((acc, f) => acc + (f.properties.sup_ym || 0), 0);
     const totalSuperficie = feats.reduce((acc, f) => acc + (f.properties.superficie || 0), 0);

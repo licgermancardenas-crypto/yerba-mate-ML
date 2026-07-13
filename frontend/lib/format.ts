@@ -31,3 +31,11 @@ export function formatUsd(valor: number): string {
 export function formatPct(valor: number): string {
   return `${formatNumero(valor, 1)}%`;
 }
+
+/** Años anteriores al actual se consideran "cerrados" para comparar variación
+ * interanual -- el año en curso casi nunca tiene los 12 meses publicados
+ * (lag de las fuentes), así que compararlo contra un año anterior completo
+ * da caídas/subas falsas por el desbalance de meses, no por el dato real. */
+export function esAnioCompleto(anio: number): boolean {
+  return anio < new Date().getFullYear();
+}
