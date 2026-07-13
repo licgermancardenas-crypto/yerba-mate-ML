@@ -12,10 +12,12 @@ export default async function MapaGisPage({
   const sp = await searchParams;
   const capaSolicitada = typeof sp.capa === "string" ? sp.capa : undefined;
 
-  // censo2010_radios (INDEC 2010, radios censales) es una malla de contexto
-  // fija que se dibuja siempre de fondo -- no es una capa seleccionable del
-  // dropdown ni puede ser la capa activa (ver MapaGisClient).
-  const catalogo = (await getGeoCatalogo()).filter((c) => c.categoria !== "censo_poblacion");
+  // censo2010_radios (INDEC 2010, radios censales) y las 3 capas de
+  // transporte (IGN) son contexto fijo que se dibuja siempre de fondo -- no
+  // son capas seleccionables del dropdown ni pueden ser la capa activa (ver
+  // MapaGisClient, que las fetchea aparte por layer_name y las togglea con
+  // checkboxes independientes del selector "Capa").
+  const catalogo = (await getGeoCatalogo()).filter((c) => c.categoria !== "censo_poblacion" && c.categoria !== "transporte");
   const capaInicial =
     catalogo.find((c) => c.layer_name === capaSolicitada) ??
     catalogo.find((c) => c.layer_name === CAPA_INICIAL) ??

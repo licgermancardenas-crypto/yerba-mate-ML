@@ -182,9 +182,21 @@ export interface CapaCatalogo {
     | "indec_fracciones"
     | "indec_radios_censales"
     | "indec_localidades"
-    | "censo_poblacion";
-  nivel_espacial: "municipio" | "departamento" | "provincia" | "zona" | "punto" | "fraccion" | "radio" | "localidad";
-  geom_type: "MultiPolygon" | "Point";
+    | "censo_poblacion"
+    | "transporte";
+  nivel_espacial:
+    | "municipio"
+    | "departamento"
+    | "provincia"
+    | "zona"
+    | "punto"
+    | "fraccion"
+    | "radio"
+    | "localidad"
+    | "vial_nacional"
+    | "vial_provincial"
+    | "ferroviario";
+  geom_type: "MultiPolygon" | "Point" | "MultiLineString";
   activa: boolean;
   descripcion: string;
 }

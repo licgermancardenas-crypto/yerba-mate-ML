@@ -9,9 +9,29 @@ import { extenderBounds, fitBoundsA, popupHTML } from "@/lib/mapa-geo-utils";
 import { nombreFeature } from "@/lib/gis-resumen";
 import { formatNumero } from "@/lib/format";
 
+// Infraestructura de transporte (IGN, Misiones+Corrientes) -- contexto
+// opcional independiente del selector "Capa": se fetchea una sola vez al
+// montar el mapa y se prende/apaga con checkboxes (ver mapa-gis-client.tsx),
+// para poder combinarla con cualquier capa activa en vez de reemplazarla.
+export interface CapasTransporte {
+  vialNacional: GeoJSON.FeatureCollection | null;
+  vialProvincial: GeoJSON.FeatureCollection | null;
+  ferrocarril: GeoJSON.FeatureCollection | null;
+}
+
+export interface TransporteActivo {
+  vialNacional: boolean;
+  vialProvincial: boolean;
+  ferrocarril: boolean;
+}
+
 interface Props {
   data: GeoFeatureCollection;
-  geomType: "MultiPolygon" | "Point";
+  // "MultiLineString" nunca llega acá en la práctica -- las 3 capas de
+  // transporte quedan excluidas del selector "Capa" (ver mapa-gis/page.tsx),
+  // se manejan aparte vía la prop `transporte`. Se incluye en el tipo solo
+  // para que coincida con CapaCatalogo.geom_type sin un cast en el caller.
+  geomType: "MultiPolygon" | "Point" | "MultiLineString";
   // Campo numérico a colorear en el coroplético (sup_ym/sup_cons/cant, según
   // la capa activa) -- null cuando la capa no trae ningún valor cuantitativo
   // propio (administrativas puras del INDEC), en cuyo caso se pinta lisa.
@@ -24,6 +44,8 @@ interface Props {
   // propias variables censales (eso quedaría para una vista de análisis
   // aparte, no pedida todavía) -- ver docs/censo2010_radios.md.
   radiosContexto: GeoJSON.FeatureCollection | null;
+  transporte: CapasTransporte;
+  transporteActivo: TransporteActivo;
   basemap: Basemap;
   provinciaFiltro: string | null; // 'MISIONES' | 'CORRIENTES' | null (todas)
   bboxFoco: GeoJSON.FeatureCollection | null; // feature(s) a los que hacer fitBounds cuando cambia el filtro
@@ -53,12 +75,38 @@ function expresionColor(campo: string, max: number): maplibregl.ExpressionSpecif
   ];
 }
 
+const TRANSPORTE_PAINT: Record<keyof CapasTransporte, { "line-color": string; "line-width": number; "line-dasharray"?: number[] }> = {
+  // Rojo carretero clásico -- máximo contraste contra el coroplético verde.
+  vialNacional: { "line-color": "#dc2626", "line-width": 1.8 },
+  vialProvincial: { "line-color": "#f59e0b", "line-width": 1.1 },
+  // Rayado, convención cartográfica estándar para vías férreas.
+  ferrocarril: { "line-color": "#1e293b", "line-width": 1.4, "line-dasharray": [3, 2] },
+};
+
+const TRANSPORTE_LAYER_ID: Record<keyof CapasTransporte, string> = {
+  vialNacional: "transporte-vial-nacional",
+  vialProvincial: "transporte-vial-provincial",
+  ferrocarril: "transporte-ferrocarril",
+};
+
+// Encadenar cada grupo de capas de contexto a un ancla "de arriba" con
+// fallback (en vez de que todas apunten a "jurisdicciones-outline") evita
+// que el orden real de inserción -- que depende de qué fetch async resuelve
+// primero, o de qué efecto se re-dispara último al cambiar de capa -- termine
+// reordenando visualmente radios/capa/transporte entre sí. Cada grupo queda
+// fijo relativo al de arriba sin importar cuántas veces se reconstruya.
+function primeraCapaTransporteExistente(map: maplibregl.Map): string | undefined {
+  return (Object.values(TRANSPORTE_LAYER_ID) as string[]).find((id) => map.getLayer(id));
+}
+
 export function GisMap({
   data,
   geomType,
   campoValor,
   jurisdicciones,
   radiosContexto,
+  transporte,
+  transporteActivo,
   basemap,
   provinciaFiltro,
   bboxFoco,
@@ -125,7 +173,20 @@ export function GisMap({
       });
     });
 
-    for (const layerId of ["capa-fill", "capa-puntos", "capa-clusters"]) {
+    // Transporte: popup liviano con nombre de ruta/ramal, sin tocar el panel
+    // lateral (esas capas son contexto, no "la capa activa" -- GisPanel/
+    // detalleFeature están pensados para la capa del selector).
+    function popupTransporte(e: maplibregl.MapLayerMouseEvent) {
+      const f = e.features?.[0];
+      if (!f) return;
+      const props = f.properties ?? {};
+      popupRef.current?.setLngLat(e.lngLat).setHTML(popupHTML(nombreFeature(props), typeof props.gna === "string" ? props.gna : null, [])).addTo(map);
+    }
+    for (const layerId of Object.values(TRANSPORTE_LAYER_ID)) {
+      map.on("click", layerId, popupTransporte);
+    }
+
+    for (const layerId of ["capa-fill", "capa-puntos", "capa-clusters", ...Object.values(TRANSPORTE_LAYER_ID)]) {
       map.on("mouseenter", layerId, () => {
         map.getCanvas().style.cursor = "pointer";
       });
@@ -148,7 +209,14 @@ export function GisMap({
     if (!map) return;
     const aplicar = () => aplicarBasemap(map, basemap);
     if (map.isStyleLoaded()) aplicar();
-    else map.once("load", aplicar);
+    // "load" solo dispara una vez en toda la vida del mapa -- si ese evento
+    // ya pasó mientras isStyleLoaded() da false (pasa seguido: ese flag
+    // vuelve a false cada vez que se refetchean tiles del basemap, no solo
+    // al montar), el callback quedaba registrado para un evento que ya no
+    // iba a volver a ocurrir nunca. "idle" sí se repite (dispara en cada
+    // ciclo en que el mapa no tiene requests pendientes), así que sirve como
+    // reintento real en vez de una apuesta de una sola vez.
+    else map.once("idle", aplicar);
   }, [basemap]);
 
   // Jurisdicciones (provincias) — contorno grueso + label grande, siempre visible
@@ -185,7 +253,7 @@ export function GisMap({
       });
     }
     if (map.isStyleLoaded()) render();
-    else map.once("load", render);
+    else map.once("idle", render); // ver comentario en el efecto de basemap
   }, [jurisdicciones]);
 
   // Radios censales INDEC 2010 — malla de contexto gris, siempre debajo de
@@ -202,7 +270,11 @@ export function GisMap({
       if (map.getSource("radios-contexto")) map.removeSource("radios-contexto");
       if (!radiosContexto) return;
 
-      const antesDe = map.getLayer("jurisdicciones-outline") ? "jurisdicciones-outline" : undefined;
+      const antesDe = map.getLayer("capa-fill")
+        ? "capa-fill"
+        : map.getLayer("jurisdicciones-outline")
+          ? "jurisdicciones-outline"
+          : undefined;
       map.addSource("radios-contexto", { type: "geojson", data: radiosContexto });
       map.addLayer(
         {
@@ -224,8 +296,62 @@ export function GisMap({
       );
     }
     if (map.isStyleLoaded()) render();
-    else map.once("load", render);
+    else map.once("idle", render); // ver comentario en el efecto de basemap
   }, [radiosContexto]);
+
+  // Infraestructura de transporte (IGN) -- una fuente/capa por tipo (vial
+  // nacional/provincial, ferrocarril), siempre por encima del coroplético de
+  // la capa activa (para que se vea sobre el relleno) pero por debajo de las
+  // jurisdicciones y de los puntos/clústeres. Visibilidad controlada por
+  // checkbox (transporteActivo), no por presencia/ausencia de la fuente --
+  // así el toggle es instantáneo sin re-parsear el GeoJSON.
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map) return;
+    function render() {
+      if (!map) return;
+      const antesDe = map.getLayer("jurisdicciones-outline") ? "jurisdicciones-outline" : undefined;
+      (Object.keys(TRANSPORTE_LAYER_ID) as (keyof CapasTransporte)[]).forEach((key) => {
+        const layerId = TRANSPORTE_LAYER_ID[key];
+        const sourceId = layerId;
+        if (map.getLayer(layerId)) map.removeLayer(layerId);
+        if (map.getSource(sourceId)) map.removeSource(sourceId);
+        const geojson = transporte[key];
+        if (!geojson) return;
+        map.addSource(sourceId, { type: "geojson", data: geojson });
+        map.addLayer(
+          {
+            id: layerId,
+            type: "line",
+            source: sourceId,
+            layout: { visibility: transporteActivo[key] ? "visible" : "none" },
+            paint: TRANSPORTE_PAINT[key],
+          },
+          antesDe
+        );
+      });
+    }
+    if (map.isStyleLoaded()) render();
+    else map.once("idle", render); // ver comentario en el efecto de basemap
+  }, [transporte]);
+
+  // Toggle de visibilidad de transporte -- separado del efecto de arriba
+  // para no reconstruir fuente+capa en cada click de checkbox. Sin gating
+  // por isStyleLoaded/idle a propósito: `setLayoutProperty` sobre una capa
+  // que ya existe no necesita esperar nada del ciclo de carga del estilo (a
+  // diferencia de `addSource`/`addLayer`) -- gatearlo causó un bug real acá:
+  // si el click llegaba mientras `isStyleLoaded()` daba false, quedaba
+  // esperando un "idle" que podía no volver a disparar nunca (el mapa ya
+  // estaba quieto, sin nada pendiente que gatille una nueva transición), y
+  // las 3 capas quedaban invisibles para siempre pese al checkbox activado.
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map) return;
+    (Object.keys(TRANSPORTE_LAYER_ID) as (keyof CapasTransporte)[]).forEach((key) => {
+      const layerId = TRANSPORTE_LAYER_ID[key];
+      if (map.getLayer(layerId)) map.setLayoutProperty(layerId, "visibility", transporteActivo[key] ? "visible" : "none");
+    });
+  }, [transporteActivo]);
 
   // Capa activa (selector) — coroplético cuando trae un campo numérico real,
   // clústeres cuando son puntos, relleno liso cuando es una capa
@@ -249,7 +375,8 @@ export function GisMap({
       if (map.getSource("capa")) map.removeSource("capa");
       if (!data.features.length) return;
 
-      const antesDe = map.getLayer("jurisdicciones-outline") ? "jurisdicciones-outline" : undefined;
+      const antesDe =
+        primeraCapaTransporteExistente(map) ?? (map.getLayer("jurisdicciones-outline") ? "jurisdicciones-outline" : undefined);
 
       if (geomType === "Point") {
         map.addSource("capa", { type: "geojson", data: data as unknown as GeoJSON.FeatureCollection, cluster: true, clusterMaxZoom: 12, clusterRadius: 45 });
@@ -338,7 +465,7 @@ export function GisMap({
     }
 
     if (map.isStyleLoaded()) render();
-    else map.once("load", render);
+    else map.once("idle", render); // ver comentario en el efecto de basemap
   }, [data, geomType, campoValor]);
 
   // Filtro de provincia: atenúa la malla de radios que no pertenece a la
@@ -354,7 +481,7 @@ export function GisMap({
       if (map.getLayer("radios-contexto-fill")) map.setPaintProperty("radios-contexto-fill", "fill-opacity", opacidad);
     }
     if (map.isStyleLoaded()) aplicar();
-    else map.once("load", aplicar);
+    else map.once("idle", aplicar); // ver comentario en el efecto de basemap
   }, [provinciaFiltro]);
 
   // Foco (fitBounds) cuando cambia el filtro de provincia. A diferencia de

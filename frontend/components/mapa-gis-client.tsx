@@ -3,9 +3,9 @@
 import { useEffect, useMemo, useState } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { Info, Loader2 } from "lucide-react";
-import { GisMap } from "@/components/gis-map";
+import { GisMap, type CapasTransporte, type TransporteActivo } from "@/components/gis-map";
 import { GisPanel } from "@/components/gis-panel";
-import { GrupoControl, BasemapToggle, SELECT_CLASS, LEYENDA_CLASS } from "@/components/mapa-controles";
+import { GrupoControl, BasemapToggle, SELECT_CLASS, LEYENDA_CLASS, pillClass } from "@/components/mapa-controles";
 import { campoChoropleto } from "@/lib/gis-resumen";
 import { formatNumero } from "@/lib/format";
 import type { Basemap } from "@/lib/basemap";
@@ -23,6 +23,15 @@ const CATEGORIA_LABELS: Record<string, string> = {
   indec_radios_censales: "INDEC — Radios censales",
   indec_localidades: "INDEC — Localidades",
 };
+
+// Checkboxes de contexto de transporte (fuera del selector "Capa" -- son
+// overlays combinables, no un reemplazo de la capa activa). Todas arrancan
+// apagadas para no cambiar lo que ya se veía en el mapa por defecto.
+const TRANSPORTE_TOGGLES: { key: keyof TransporteActivo; label: string; layerName: string }[] = [
+  { key: "vialNacional", label: "Rutas nacionales", layerName: "ign_vial_nacional" },
+  { key: "vialProvincial", label: "Rutas provinciales", layerName: "ign_vial_provincial" },
+  { key: "ferrocarril", label: "Ferrocarril", layerName: "ign_ferrocarril" },
+];
 
 const NIVEL_LABELS: Record<string, string> = {
   municipio: "Municipio",
@@ -68,10 +77,19 @@ export function MapaGisClient({
   const [provincia, setProvincia] = useState<string>(""); // "" = todas
   const [jurisdicciones, setJurisdicciones] = useState<GeoJSON.FeatureCollection | null>(null);
   const [radiosContexto, setRadiosContexto] = useState<GeoJSON.FeatureCollection | null>(null);
+  const [transporte, setTransporte] = useState<CapasTransporte>({ vialNacional: null, vialProvincial: null, ferrocarril: null });
+  const [transporteActivo, setTransporteActivo] = useState<TransporteActivo>({
+    vialNacional: false,
+    vialProvincial: false,
+    ferrocarril: false,
+  });
 
   useEffect(() => {
     fetchGeo("indec_jurisdicciones").then(setJurisdicciones);
     fetchGeo("censo2010_radios").then(setRadiosContexto);
+    fetchGeo("ign_vial_nacional").then((d) => setTransporte((t) => ({ ...t, vialNacional: d })));
+    fetchGeo("ign_vial_provincial").then((d) => setTransporte((t) => ({ ...t, vialProvincial: d })));
+    fetchGeo("ign_ferrocarril").then((d) => setTransporte((t) => ({ ...t, ferrocarril: d })));
   }, []);
 
   async function cambiarCapa(layerName: string) {
@@ -172,6 +190,24 @@ export function MapaGisClient({
 
           <div className="hidden sm:block w-px self-stretch bg-border" aria-hidden="true" />
 
+          <GrupoControl titulo="Transporte">
+            {TRANSPORTE_TOGGLES.map(({ key, label }) => (
+              <button
+                key={key}
+                type="button"
+                onClick={() => setTransporteActivo((t) => ({ ...t, [key]: !t[key] }))}
+                aria-pressed={transporteActivo[key]}
+                aria-label={label}
+                title={label}
+                className={pillClass(transporteActivo[key])}
+              >
+                <span>{label}</span>
+              </button>
+            ))}
+          </GrupoControl>
+
+          <div className="hidden sm:block w-px self-stretch bg-border" aria-hidden="true" />
+
           <BasemapToggle basemap={basemap} onChange={setBasemap} />
         </div>
 
@@ -203,6 +239,8 @@ export function MapaGisClient({
               campoValor={campoValor}
               jurisdicciones={jurisdicciones}
               radiosContexto={radiosContexto}
+              transporte={transporte}
+              transporteActivo={transporteActivo}
               basemap={basemap}
               provinciaFiltro={provincia ? provincia.toUpperCase() : null}
               bboxFoco={bboxFoco}

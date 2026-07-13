@@ -46,7 +46,13 @@ export function nombreFeature(props: Record<string, unknown>): string {
       props.zona ??
       props.nam ??
       props.dir_catastral ??
-      (props.idplanta != null ? `Planta #${props.idplanta}` : "Sin nombre")
+      (props.idplanta != null ? `Planta #${props.idplanta}` : null) ??
+      // Capas de transporte (IGN): rutas usan "rtn" (número de ruta), el
+      // ferrocarril usa "fna"/"gna" (nombre del ramal).
+      (props.rtn != null ? `Ruta ${props.rtn}` : null) ??
+      props.fna ??
+      props.gna ??
+      "Sin nombre"
   );
 }
 
