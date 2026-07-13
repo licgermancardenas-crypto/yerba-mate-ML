@@ -211,14 +211,24 @@ export function agregarExportacionesAnualNacional(filasAnualReal: ExportacionAnu
 }
 
 // ----------------------------------------------------------------------------
-// Exportaciones — desglose mensual/por país REAL (INDEC, ver
+// Comercio exterior INDEC — desglose mensual/por país REAL, compartido entre
+// exportaciones e importaciones (mismo shape, misma fuente -- ver
 // docs/fuentes_exportaciones_indec.md). 'ZZ' es el bucket de secreto
-// estadístico que la propia fuente reporta agregado (no es un país real,
-// no se geolocaliza) -- se incluye en los totales nacionales pero se separa
-// del desglose por destino.
+// estadístico que la propia fuente reporta agregado (no es un país real, no
+// se geolocaliza) -- se incluye en los totales nacionales pero se separa del
+// desglose por país.
 // ----------------------------------------------------------------------------
 
-export function agregarExportacionesIndecMensualNacional(filas: ExportacionIndecRow[]): SerieMensualPunto[] {
+interface ComexIndecRow {
+  anio: number;
+  mes: number;
+  pais_iso2: string;
+  pais_nombre: string;
+  peso_kg: number | null;
+  monto_fob_usd: number | null;
+}
+
+export function agregarComexIndecMensualNacional(filas: ComexIndecRow[]): SerieMensualPunto[] {
   const porMes = new Map<string, { anio: number; mes: number; suma: number; tieneDato: boolean }>();
   for (const f of filas) {
     const clave = `${f.anio}-${f.mes}`;
@@ -239,14 +249,14 @@ export function agregarExportacionesIndecMensualNacional(filas: ExportacionIndec
     }));
 }
 
-export interface ExportacionIndecMensualNacionalRow {
+export interface ComexIndecMensualNacionalRow {
   anio: number;
   mes: number;
   mes_nombre: string;
   volumen_kg: number | null;
 }
 
-export function agregarExportacionesIndecMensualHistorico(filas: ExportacionIndecRow[]): ExportacionIndecMensualNacionalRow[] {
+export function agregarComexIndecMensualHistorico(filas: ComexIndecRow[]): ComexIndecMensualNacionalRow[] {
   const porMes = new Map<string, { anio: number; mes: number; suma: number; tieneDato: boolean }>();
   for (const f of filas) {
     const clave = `${f.anio}-${f.mes}`;
@@ -262,7 +272,7 @@ export function agregarExportacionesIndecMensualHistorico(filas: ExportacionInde
     .sort((a, b) => b.anio - a.anio || b.mes - a.mes);
 }
 
-export interface ExportacionPorDestino {
+export interface ComexPorPais {
   pais_iso2: string;
   pais_nombre: string;
   volumen_kg: number;
@@ -272,8 +282,8 @@ export interface ExportacionPorDestino {
 
 /** % calculado contra el total nacional (incluye 'ZZ' confidencial) -- por
  * eso los % de los países listados no suman 100, la diferencia es volumen
- * con destino no publicado por secreto estadístico. */
-export function agregarExportacionesIndecPorDestino(filas: ExportacionIndecRow[], anio: number): ExportacionPorDestino[] {
+ * sin país publicado por secreto estadístico. */
+export function agregarComexIndecPorPais(filas: ComexIndecRow[], anio: number): ComexPorPais[] {
   const delAnio = filas.filter((f) => f.anio === anio && f.peso_kg != null);
   const totalNacional = delAnio.reduce((acc, f) => acc + (f.peso_kg ?? 0), 0);
   if (totalNacional === 0) return [];
@@ -294,6 +304,26 @@ export function agregarExportacionesIndecPorDestino(filas: ExportacionIndecRow[]
       porcentaje: (a.volumen_kg / totalNacional) * 100,
     }))
     .sort((a, b) => b.volumen_kg - a.volumen_kg);
+}
+
+export interface ComexAnualRow {
+  anio: number;
+  volumen_kg: number | null;
+}
+
+export function agregarComexIndecAnualNacional(filas: ComexIndecRow[]): ComexAnualRow[] {
+  const porAnio = new Map<number, { suma: number; tieneDato: boolean }>();
+  for (const f of filas) {
+    const acc = porAnio.get(f.anio) ?? { suma: 0, tieneDato: false };
+    if (f.peso_kg != null) {
+      acc.suma += f.peso_kg;
+      acc.tieneDato = true;
+    }
+    porAnio.set(f.anio, acc);
+  }
+  return Array.from(porAnio.entries())
+    .map(([anio, a]) => ({ anio, volumen_kg: a.tieneDato ? a.suma : null }))
+    .sort((a, b) => b.anio - a.anio);
 }
 
 // ----------------------------------------------------------------------------

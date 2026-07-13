@@ -12,11 +12,11 @@ import { formatMasa, formatNumero, formatPct, formatUsd, type UnidadMasa } from 
 import { getExportacionesAnualReal, getExportacionesIndec } from "@/lib/api";
 import {
   agregarExportacionesAnualNacional,
-  agregarExportacionesIndecMensualNacional,
-  agregarExportacionesIndecMensualHistorico,
-  agregarExportacionesIndecPorDestino,
+  agregarComexIndecMensualNacional,
+  agregarComexIndecMensualHistorico,
+  agregarComexIndecPorPais,
   type ExportacionAnualRow,
-  type ExportacionIndecMensualNacionalRow,
+  type ComexIndecMensualNacionalRow,
 } from "@/lib/agregaciones";
 
 const COLUMNAS_ANUAL: ColumnaTabla<ExportacionAnualRow>[] = [
@@ -26,7 +26,7 @@ const COLUMNAS_ANUAL: ColumnaTabla<ExportacionAnualRow>[] = [
   { key: "precio_fob_usd_kg_promedio", label: "Precio prom. FOB USD/kg", align: "right", format: "decimal2" },
 ];
 
-const COLUMNAS_MENSUAL: ColumnaTabla<ExportacionIndecMensualNacionalRow>[] = [
+const COLUMNAS_MENSUAL: ColumnaTabla<ComexIndecMensualNacionalRow>[] = [
   { key: "anio", label: "Año", align: "left" },
   { key: "mes_nombre", label: "Mes", align: "left" },
   { key: "volumen_kg", label: "Volumen (kg)", align: "right", format: "entero" },
@@ -75,9 +75,9 @@ export default async function ExportacionesPage({
   const valorFobUltimo = anualUltimo?.valor_fob_usd ?? null;
   const precioPromedioUltimo = anualUltimo?.precio_fob_usd_kg_promedio ?? null;
 
-  const serieMensual = agregarExportacionesIndecMensualNacional(indecFiltrado);
-  const mensualHistorico = agregarExportacionesIndecMensualHistorico(indecFiltrado);
-  const destinosDelAnio = agregarExportacionesIndecPorDestino(indecCompleta, ultimoAnio ?? 0);
+  const serieMensual = agregarComexIndecMensualNacional(indecFiltrado);
+  const mensualHistorico = agregarComexIndecMensualHistorico(indecFiltrado);
+  const destinosDelAnio = agregarComexIndecPorPais(indecCompleta, ultimoAnio ?? 0);
   const pctConDestino = destinosDelAnio.reduce((acc, d) => acc + d.porcentaje, 0);
 
   const destinosMapa = destinosDelAnio.map((d) => ({

@@ -1,7 +1,14 @@
-# Fuente: exportaciones de yerba mate por país (INDEC Comercio Exterior)
+# Fuente: comercio exterior de yerba mate (INDEC Comercio Exterior)
 
-Reemplaza el desglose mensual/por destino de `ym.exportaciones`, anulado el
-2026-07-11 por ser sintético (ver `docs/auditoria_datos.md`).
+Reemplaza el desglose mensual/por destino de `ym.exportaciones` (anulado el
+2026-07-11 por ser sintético, ver `docs/auditoria_datos.md`) y a
+`ym.importaciones` (categoría B / parcialmente anulado, sin fuente
+documentada) como fuente de verdad para comercio exterior de yerba mate.
+
+Mismo endpoint, mismo formato, un solo parámetro distinto
+(`commerceType=export` vs. `commerceType=import`) — la lógica de fetch/
+transformación/upsert está compartida en `backend/etl/lib_indec_comex.py`,
+usada por `etl_indec_comex_exportaciones.py` y `etl_indec_comex_importaciones.py`.
 
 ## Fuente primaria
 
@@ -86,24 +93,43 @@ solo si **todas** las filas agregadas para esa clave lo son.
 
 ## Esquema
 
-`ym.exportaciones_indec (anio, mes, ncm, pais_iso2, pais_nombre, peso_kg,
-monto_fob_usd, es_confidencial)`, PK `(anio, mes, ncm, pais_iso2)`. Ver
-`backend/db/schema.sql` sección 14 y migración `004_indec_exportaciones_2026-07-12.sql`.
+`ym.exportaciones_indec` / `ym.importaciones_indec` — mismas columnas
+`(anio, mes, ncm, pais_iso2, pais_nombre, peso_kg, monto_fob_usd,
+es_confidencial)`, PK `(anio, mes, ncm, pais_iso2)`. Ver `backend/db/schema.sql`
+secciones 14-15 y migraciones `004_indec_exportaciones_2026-07-12.sql` /
+`005_indec_importaciones_2026-07-12.sql`.
 
-## Endpoint
+## Endpoints
 
-`GET /exportaciones/indec` (`anio_desde`, `anio_hasta`, `pais_iso2`
-opcionales) — agrega las 2 posiciones NCM por país/mes, `es_confidencial`
-verdadero solo si NINGUNA de las 2 posiciones tiene dato real ese mes.
+- `GET /exportaciones/indec` (`anio_desde`, `anio_hasta`, `pais_iso2` opcionales)
+- `GET /importaciones/indec` (mismos parámetros, `pais_iso2` = país de origen)
 
-## Re-ejecutar el ETL
+Ambos agregan las 2 posiciones NCM por país/mes; `es_confidencial` verdadero
+solo si NINGUNA de las 2 posiciones tiene dato real ese mes.
+
+## Importaciones — sin secreto estadístico
+
+A diferencia de exportaciones, las 340 filas cargadas de importaciones
+(2002-2026) tienen **0% de confidencialidad** — los volúmenes de importación
+son mucho menores y aparentemente no disparan el umbral de secreto
+estadístico del INDEC. Validación: 2020 da 31.399.188,94 kg reales vs.
+31.400.004 kg que ya estaba cargado en `ym.importaciones` (categoría B, sin
+cita de fuente) → Δ 0,003%, confirma que el dato original del CSV semilla
+venía de esta misma fuente (o una equivalente) — solo que 2011-2018 habían
+quedado congelados/fabricados ahí. `ym.importaciones_indec` reemplaza a
+`ym.importaciones` como fuente de verdad para el frontend.
+
+## Re-ejecutar los ETL
 
 ```
 python -m backend.etl.etl_indec_comex_exportaciones --dry-run
 python -m backend.etl.etl_indec_comex_exportaciones --start-year 2002 --end-year 2026
+
+python -m backend.etl.etl_indec_comex_importaciones --dry-run
+python -m backend.etl.etl_indec_comex_importaciones --start-year 2002 --end-year 2026
 ```
 
-Idempotente (upsert por PK) — correr de nuevo actualiza los años ya
+Idempotentes (upsert por PK) — correr de nuevo actualiza los años ya
 cargados sin duplicar. Pensado para correrse periódicamente (mensual)
 vía GitHub Actions cuando se implemente esa pieza de Fase 7 (pendiente).
 

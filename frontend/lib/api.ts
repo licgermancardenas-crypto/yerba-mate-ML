@@ -7,6 +7,7 @@ import type {
   ExportacionRow,
   GeoFeatureCollection,
   HojaVerdeRow,
+  ImportacionIndecRow,
   ImportacionRow,
   PrecioGondolaRow,
   PrecioRow,
@@ -123,6 +124,16 @@ export function getImportaciones(params?: { anioDesde?: number; anioHasta?: numb
   if (params?.anioHasta) qs.set("anio_hasta", String(params.anioHasta));
   const query = qs.toString();
   return apiFetch<ImportacionRow[]>(`/importaciones${query ? `?${query}` : ""}`);
+}
+
+/** Importaciones reales por país de origen (INDEC) -- ver docs/fuentes_exportaciones_indec.md. */
+export function getImportacionesIndec(params?: { anioDesde?: number; anioHasta?: number; paisIso2?: string }) {
+  const qs = new URLSearchParams();
+  if (params?.anioDesde) qs.set("anio_desde", String(params.anioDesde));
+  if (params?.anioHasta) qs.set("anio_hasta", String(params.anioHasta));
+  if (params?.paisIso2) qs.set("pais_iso2", params.paisIso2);
+  const query = qs.toString();
+  return apiFetch<ImportacionIndecRow[]>(`/importaciones/indec${query ? `?${query}` : ""}`);
 }
 
 export function getHojaVerde(params?: { anioDesde?: number; anioHasta?: number; zona?: string }) {

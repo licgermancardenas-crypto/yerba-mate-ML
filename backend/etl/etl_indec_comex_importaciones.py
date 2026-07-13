@@ -1,28 +1,24 @@
-"""ETL — Exportaciones reales de yerba mate por país (INDEC Comercio Exterior).
+"""ETL — Importaciones reales de yerba mate por país de origen (INDEC Comercio Exterior).
 
-Reemplaza el desglose mensual/por destino de ym.exportaciones, anulado en la
-auditoría de datos de 2026-07-11 por ser sintético (ver docs/auditoria_datos.md).
+Reemplaza ym.importaciones.volumen_kg, que tenía 2011-2018 anulado (congelado
+en el mismo valor exacto, sin fuente documentada -- ver docs/auditoria_datos.md)
+y 2019 en adelante sin cita de fuente (categoría B).
 
-Fuente: comexbe.indec.gob.ar (Sistema de Consulta de Comercio Exterior de
-Bienes del INDEC), backend REST público sin autenticación descubierto detrás
-de la UI web. Posiciones NCM de 8 dígitos propias de yerba mate (no mezclada
-con café/té/especias como la serie agregada de apis.datos.gob.ar, ya evaluada
-y descartada en Fase 3a):
-    09030010  Yerba mate simplemente canchada
-    09030090  Yerba mate excluida simplemente canchada (la gran mayoría del volumen)
+Misma fuente y mismas posiciones NCM que las exportaciones -- ver
+docs/fuentes_exportaciones_indec.md, esto es el espejo con
+`commerceType=import`. Cobertura real 2002-presente, SIN ninguna fila
+confidencial en todo el rango (a diferencia de exportaciones) -- volúmenes de
+importación mucho menores, aparentemente no disparan el umbral de secreto
+estadístico del INDEC.
 
-Cobertura: mensual, por país (ISO2), 2002-presente. Validado 2026-07-11 contra
-el total oficial INYM 2025 (57.980.911 kg): suma de filas no confidenciales =
-55.633.560 kg, 96% de cobertura -- ver docs/fuentes_exportaciones_indec.md.
-
-Secreto estadístico: cuando hay pocos operadores para una combinación
-NCM×país×mes, esa celda viene con `isConfidential: true` y weight/amount en 0
-(dummy, no un cero real). Se carga como NULL, nunca como 0 -- ver
-docs/auditoria_datos.md, regla "NULL es un valor válido".
+Validación 2026-07-12: 2020 da 31.399.188,94 kg reales vs. 31.400.004 kg que
+ya estaba cargado en ym.importaciones (Δ 0,003%) -- confirma que el dato
+original del CSV semilla venía de esta misma fuente (o una equivalente), solo
+que 2011-2018 habían quedado congelados/fabricados en el CSV.
 
 Uso:
-    python -m backend.etl.etl_indec_comex_exportaciones --dry-run
-    python -m backend.etl.etl_indec_comex_exportaciones --start-year 2002 --end-year 2026
+    python -m backend.etl.etl_indec_comex_importaciones --dry-run
+    python -m backend.etl.etl_indec_comex_importaciones --start-year 2002 --end-year 2026
 """
 
 from __future__ import annotations
@@ -35,8 +31,8 @@ from dotenv import load_dotenv
 
 from backend.etl.lib_indec_comex import fetch_anio, transformar, upsert
 
-TABLA = "ym.exportaciones_indec"
-COMMERCE_TYPE = "export"
+TABLA = "ym.importaciones_indec"
+COMMERCE_TYPE = "import"
 
 
 def main() -> None:

@@ -349,8 +349,12 @@ incorrecto** en las tres columnas (producción, consumo, exportaciones), no solo
 5. ✅ **`superficie_productores.productores`**: anulados los 8 tramos interpolados, conservados los
    años ancla.
 6. ✅ **`superficie_productores` 2025**: anulado (superficie_ha y productores).
-7. ✅ **`importaciones.volumen_kg` 2011-2018**: anulado (sin fuente real encontrada). Frontend
-   actualizado para no graficar/sumarlo como si fuera dato real.
+7. ✅ **`importaciones.volumen_kg` — cerrado 2026-07-12**: reemplazado por completo por
+   `ym.importaciones_indec` (INDEC Comercio Exterior, mismo mecanismo que exportaciones, ver
+   `docs/fuentes_exportaciones_indec.md`) — 340 filas, 2002-2026, 0% confidencial. Validado: 2020
+   da 31.399.188,94 kg vs. 31.400.004 ya cargado (Δ 0,003%), confirma que 2011-2018 también eran
+   reales en la fuente original, solo se habían congelado/fabricado en el CSV semilla. `/importaciones`
+   ya usa este dato real, incluye desglose por país de origen (antes "sin desagregar por origen").
 8. ✅ **Relabel "Producción por ciudad" → caso E**: descripción actualizada en el frontend aclarando
    que son 7 buckets de reporte del INYM, no unidades geográficas exactas, con referencia al Mapa
    GIS para el detalle real por departamento. Migrar la vista en sí a las capas GIS queda como

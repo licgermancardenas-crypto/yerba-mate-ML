@@ -6,17 +6,23 @@ import { FilterBar } from "@/components/filter-bar";
 import { SerieChartConFiltro } from "@/components/charts/serie-chart-con-filtro";
 import { HistoricalTable } from "@/components/historical-table";
 import type { ColumnaTabla } from "@/components/data-table";
-import { formatMasa, type UnidadMasa } from "@/lib/format";
-import { getExportacionesAnualReal, getImportaciones } from "@/lib/api";
-import { agregarImportacionesAnual, type ImportacionAnualRow } from "@/lib/agregaciones";
-import type { ImportacionRow } from "@/lib/types";
+import { formatMasa, formatPct, type UnidadMasa } from "@/lib/format";
+import { getExportacionesAnualReal, getImportacionesIndec } from "@/lib/api";
+import {
+  agregarComexIndecAnualNacional,
+  agregarComexIndecMensualNacional,
+  agregarComexIndecMensualHistorico,
+  agregarComexIndecPorPais,
+  type ComexAnualRow,
+  type ComexIndecMensualNacionalRow,
+} from "@/lib/agregaciones";
 
-const COLUMNAS_ANUAL: ColumnaTabla<ImportacionAnualRow>[] = [
+const COLUMNAS_ANUAL: ColumnaTabla<ComexAnualRow>[] = [
   { key: "anio", label: "Año", align: "left" },
   { key: "volumen_kg", label: "Volumen (kg)", align: "right", format: "entero" },
 ];
 
-const COLUMNAS_MENSUAL: ColumnaTabla<ImportacionRow>[] = [
+const COLUMNAS_MENSUAL: ColumnaTabla<ComexIndecMensualNacionalRow>[] = [
   { key: "anio", label: "Año", align: "left" },
   { key: "mes_nombre", label: "Mes", align: "left" },
   { key: "volumen_kg", label: "Volumen (kg)", align: "right", format: "entero" },
@@ -30,25 +36,27 @@ export default async function ImportacionesPage({
   const sp = await searchParams;
   const anioDesde = Number(sp.anio_desde) || undefined;
   const anioHasta = Number(sp.anio_hasta) || undefined;
+  const origenFiltro = typeof sp.origen === "string" ? sp.origen : undefined;
   const unidad: UnidadMasa = sp.unidad === "t" ? "t" : "kg";
   const sufijoUnidad = unidad === "t" ? " t" : " kg";
   const factorUnidad = unidad === "t" ? 1 / 1000 : 1;
 
-  const [filasImportacionesCompletas, exportacionesAnualReal] = await Promise.all([
-    getImportaciones(),
-    getExportacionesAnualReal(),
-  ]);
-  const todosLosAnios = Array.from(new Set(filasImportacionesCompletas.map((f) => f.anio))).sort((a, b) => a - b);
+  const [indecCompleta, exportacionesAnualReal] = await Promise.all([getImportacionesIndec(), getExportacionesAnualReal()]);
+  const todosLosAnios = Array.from(new Set(indecCompleta.map((f) => f.anio))).sort((a, b) => a - b);
+  const todosLosOrigenes = Array.from(new Set(indecCompleta.map((f) => f.pais_nombre))).filter((n) => n !== "Confidencial").sort();
 
-  const filas = filasImportacionesCompletas.filter(
-    (f) => (!anioDesde || f.anio >= anioDesde) && (!anioHasta || f.anio <= anioHasta)
+  const filas = indecCompleta.filter(
+    (f) =>
+      (!anioDesde || f.anio >= anioDesde) &&
+      (!anioHasta || f.anio <= anioHasta) &&
+      (!origenFiltro || f.pais_nombre === origenFiltro)
   );
 
   if (filas.length === 0) {
     return (
       <main className="p-6 md:p-8">
-        <PageHeader title="Importaciones" description="Volumen mensual importado, sin desagregar por origen." />
-        <FilterBar anios={todosLosAnios} mostrarUnidad />
+        <PageHeader title="Importaciones" description="Volumen mensual importado, por país de origen." />
+        <FilterBar anios={todosLosAnios} dimension={{ param: "origen", label: "Origen", opciones: todosLosOrigenes }} mostrarUnidad />
         <p className="text-sm text-muted-foreground">Sin datos para los filtros seleccionados.</p>
       </main>
     );
@@ -58,8 +66,11 @@ export default async function ImportacionesPage({
   const ultimoAnio = anios[anios.length - 1];
   const penultimoAnio = anios[anios.length - 2];
 
-  const anualHistorico = agregarImportacionesAnual(filas);
-  const mensualHistorico = [...filas].sort((a, b) => b.anio - a.anio || b.mes - a.mes);
+  const anualHistorico = agregarComexIndecAnualNacional(filas);
+  const mensualHistorico = agregarComexIndecMensualHistorico(filas);
+  const serieMensual = agregarComexIndecMensualNacional(filas);
+  const origenesDelAnio = agregarComexIndecPorPais(indecCompleta, ultimoAnio);
+  const pctConOrigen = origenesDelAnio.reduce((acc, d) => acc + d.porcentaje, 0);
 
   const importadoUltimo = anualHistorico.find((f) => f.anio === ultimoAnio)?.volumen_kg ?? null;
   const importadoPenultimo = anualHistorico.find((f) => f.anio === penultimoAnio)?.volumen_kg ?? null;
@@ -78,9 +89,9 @@ export default async function ImportacionesPage({
 
   return (
     <main className="p-6 md:p-8">
-      <PageHeader title="Importaciones" description="Volumen mensual importado, sin desagregar por origen." />
+      <PageHeader title="Importaciones" description="Volumen mensual importado, por país de origen (INDEC, real)." />
 
-      <FilterBar anios={todosLosAnios} mostrarUnidad />
+      <FilterBar anios={todosLosAnios} dimension={{ param: "origen", label: "Origen", opciones: todosLosOrigenes }} mostrarUnidad />
 
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
         <KpiCard
@@ -96,25 +107,58 @@ export default async function ImportacionesPage({
           value={balanzaUltimo != null ? formatMasa(balanzaUltimo, unidad) : "Sin dato"}
           icon={Ship}
         />
-        <KpiCard label="Años con datos" value={String(anualHistorico.length)} icon={Globe2} />
+        <KpiCard label="Países de origen" value={origenesDelAnio.length ? String(origenesDelAnio.length) : "Sin dato"} icon={Globe2} />
       </div>
 
-      <ChartCard title="Volumen importado mensual" description={unidad === "t" ? "Toneladas" : "Kilogramos"} className="mb-4">
-        <SerieChartConFiltro
-          data={[...mensualHistorico]
-            .filter((f): f is typeof f & { volumen_kg: number } => f.volumen_kg != null)
-            .sort((a, b) => a.anio - b.anio || a.mes - b.mes)
-            .map((f) => ({ anio: f.anio, etiqueta: `${f.mes_nombre.slice(0, 3)} ${String(f.anio).slice(2)}`, valor: f.volumen_kg * factorUnidad }))}
-          color="#1d4ed8"
-          numberFormat={{ notation: "compact" }}
-          suffix={sufijoUnidad}
-        />
-      </ChartCard>
+      <div className="grid grid-cols-1 xl:grid-cols-3 gap-4">
+        <ChartCard
+          title="Volumen importado mensual"
+          description={`Suma de ${origenFiltro ?? "todos los orígenes"} (INDEC, real), en ${unidad === "t" ? "toneladas" : "kilogramos"}`}
+          className="xl:col-span-2"
+        >
+          <SerieChartConFiltro
+            data={serieMensual.map((p) => ({ anio: p.anio, etiqueta: p.etiqueta, valor: p.produccion_kg * factorUnidad }))}
+            color="#1d4ed8"
+            numberFormat={{ notation: "compact" }}
+            suffix={sufijoUnidad}
+          />
+        </ChartCard>
+
+        <ChartCard
+          title={`Distribución por origen (${ultimoAnio})`}
+          description={`% del volumen nacional — suman ${formatPct(pctConOrigen)}`}
+        >
+          {origenesDelAnio.length === 0 ? (
+            <p className="text-sm text-muted-foreground py-4">Sin desglose por origen para {ultimoAnio} todavía.</p>
+          ) : (
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="text-left text-xs text-muted-foreground border-b border-border">
+                  <th className="font-medium py-2">Origen</th>
+                  <th className="font-medium py-2 text-right">%</th>
+                </tr>
+              </thead>
+              <tbody>
+                {origenesDelAnio.map((fila) => (
+                  <tr key={fila.pais_iso2} className="border-b border-border last:border-0">
+                    <td className="py-2 text-card-foreground">{fila.pais_nombre}</td>
+                    <td className="py-2 text-right tabular-nums font-medium text-card-foreground">{formatPct(fila.porcentaje)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          )}
+        </ChartCard>
+      </div>
 
       <ChartCard
         title="Histórico completo"
+        className="mt-4"
         description={
-          <>Desde {anualHistorico[anualHistorico.length - 1]?.anio} hasta {ultimoAnio}</>
+          <>
+            Total {origenFiltro ?? "nacional (todos los orígenes)"} real, INDEC Comercio Exterior — desde{" "}
+            {anualHistorico[anualHistorico.length - 1]?.anio} hasta {ultimoAnio}. Ver docs/fuentes_exportaciones_indec.md.
+          </>
         }
       >
         <HistoricalTable

@@ -136,11 +136,23 @@ export interface CompetenciaRow {
 }
 
 // AUDITORÍA 2026-07-11: 2011-2018 anulado (congelado, sin fuente documentada).
+// Reemplazada como fuente de verdad por ImportacionIndecRow (2026-07-12).
 export interface ImportacionRow {
   anio: number;
   mes: number;
   mes_nombre: string;
   volumen_kg: number | null;
+}
+
+/** Importaciones reales por país de origen, mensual -- GET /importaciones/indec (ym.importaciones_indec). */
+export interface ImportacionIndecRow {
+  anio: number;
+  mes: number;
+  pais_iso2: string;
+  pais_nombre: string;
+  peso_kg: number | null;
+  monto_fob_usd: number | null;
+  es_confidencial: boolean;
 }
 
 export interface HojaVerdeRow {

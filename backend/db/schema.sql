@@ -579,3 +579,21 @@ CREATE TABLE IF NOT EXISTS ym.exportaciones_indec (
 );
 CREATE INDEX IF NOT EXISTS idx_exportaciones_indec_anio ON ym.exportaciones_indec (anio, mes);
 CREATE INDEX IF NOT EXISTS idx_exportaciones_indec_pais ON ym.exportaciones_indec (pais_iso2);
+
+-- ----------------------------------------------------------------------------
+-- 15) importaciones_indec — importaciones reales por país de origen, mensual
+--     (INDEC Comercio Exterior) -- cierra el hueco de categoría B/anulado en
+--     ym.importaciones. Ver docs/fuentes_exportaciones_indec.md.
+-- ----------------------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS ym.importaciones_indec (
+    anio            SMALLINT NOT NULL,
+    mes             SMALLINT NOT NULL CHECK (mes BETWEEN 1 AND 12),
+    ncm             TEXT NOT NULL,
+    pais_iso2       TEXT NOT NULL,
+    pais_nombre     TEXT NOT NULL,
+    peso_kg         NUMERIC(14,2),
+    monto_fob_usd   NUMERIC(14,2),
+    es_confidencial BOOLEAN NOT NULL DEFAULT FALSE,
+    PRIMARY KEY (anio, mes, ncm, pais_iso2)
+);
+CREATE INDEX IF NOT EXISTS idx_importaciones_indec_anio ON ym.importaciones_indec (anio, mes);
