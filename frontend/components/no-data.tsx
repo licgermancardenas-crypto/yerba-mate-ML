@@ -24,8 +24,21 @@ export function NoData({ variant = "kpi", motivo, className = "" }: NoDataProps)
     // --color-card, por debajo del mínimo AA -- el guion es la única lectura
     // de esa celda (reemplaza un valor real), no puede ser menos legible
     // que cualquier otro texto secundario de la app.
+    //
+    // tabIndex + aria-label: un <span> con solo `title` es inalcanzable por
+    // teclado y mudo para lectores de pantalla en hover -- el motivo del
+    // dato faltante quedaba invisible para esos usuarios. Con tabIndex=0 el
+    // navegador muestra el tooltip nativo también al enfocar con teclado, y
+    // aria-label asegura que el lector de pantalla lea el motivo, no un
+    // guion pelado.
+    const motivoFinal = motivo ?? MOTIVO_DEFAULT_KPI;
     return (
-      <span title={motivo ?? MOTIVO_DEFAULT_KPI} className={`cursor-help text-muted-foreground ${className}`}>
+      <span
+        title={motivoFinal}
+        aria-label={motivoFinal}
+        tabIndex={0}
+        className={`cursor-help text-muted-foreground ${className}`}
+      >
         —
       </span>
     );
