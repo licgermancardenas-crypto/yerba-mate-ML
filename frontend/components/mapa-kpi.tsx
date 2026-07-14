@@ -1,20 +1,17 @@
 "use client";
 
 import { Bar, BarChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
-import { formatNumero } from "@/lib/format";
+import { formatCompacto, formatNumero } from "@/lib/format";
+import { GRID_COLOR, TICK_COLOR, AXIS_TICK_SIZE } from "@/components/charts/chart-theme";
+import { abreviarNombreGeografico } from "@/lib/texto";
 
-const GRID_COLOR = "#e2e8e4";
-const TICK_COLOR = "#64748b";
-
-// Notación compacta en español para ejes con números grandes (300000000 ->
-// "300 M") -- Intl ya resuelve el espacio/abreviatura correctos para es-AR.
-const nfCompacto = new Intl.NumberFormat("es-AR", { notation: "compact", maximumFractionDigits: 1 });
-
-// Ciudades/departamentos largos ("Gobernador Virasoro") se truncan en el
-// tick del eje (con elipsis) para no encimarse con las barras ni cortarse a
-// la mitad -- el nombre completo se ve igual en el tooltip al hacer hover.
-function truncarNombre(s: string, max = 15): string {
-  return s.length > max ? `${s.slice(0, max - 1)}…` : s;
+// Ciudades/departamentos largos ("Libertador General San Martín") se
+// abrevian primero (ver Fase 9, C2) y recién si siguen sin entrar se
+// truncan con elipsis en el tick del eje -- el nombre completo (sin
+// abreviar) se ve igual en el tooltip al hacer hover, que no pasa por acá.
+function truncarNombre(s: string, max = 20): string {
+  const abreviado = abreviarNombreGeografico(s);
+  return abreviado.length > max ? `${abreviado.slice(0, max - 1)}…` : abreviado;
 }
 
 // Bar chart horizontal reutilizado por los paneles laterales de Mapa GIS y
@@ -27,18 +24,18 @@ export function RankingChart({ data, color = "#15803d" }: { data: { nombre: stri
         <CartesianGrid stroke={GRID_COLOR} horizontal={false} />
         <XAxis
           type="number"
-          tick={{ fontSize: 10, fill: TICK_COLOR }}
+          tick={{ fontSize: AXIS_TICK_SIZE, fill: TICK_COLOR }}
           tickLine={false}
           axisLine={{ stroke: GRID_COLOR }}
-          tickFormatter={(v) => nfCompacto.format(Number(v))}
+          tickFormatter={(v) => formatCompacto(Number(v))}
         />
         <YAxis
           type="category"
           dataKey="nombre"
-          tick={{ fontSize: 10, fill: TICK_COLOR }}
+          tick={{ fontSize: AXIS_TICK_SIZE, fill: TICK_COLOR }}
           tickLine={false}
           axisLine={false}
-          width={112}
+          width={150}
           tickFormatter={(v: string) => truncarNombre(v)}
         />
         <Tooltip cursor={{ fill: color, fillOpacity: 0.06 }} formatter={(v) => formatNumero(Number(v), 0)} />
@@ -60,8 +57,8 @@ export function KpiRow({ label, valor }: { label: string; valor: string }) {
 export function PanelCard({ titulo, subtitulo, children }: { titulo: string; subtitulo?: string; children: React.ReactNode }) {
   return (
     <div className="rounded-2xl border border-border bg-card p-4 shadow-sm">
-      <h3 className="text-sm font-semibold text-card-foreground mb-1">{titulo}</h3>
-      {subtitulo && <p className="text-xs text-muted-foreground mb-2">{subtitulo}</p>}
+      <h3 className="text-[15px] font-semibold text-card-foreground mb-1">{titulo}</h3>
+      {subtitulo && <p className="text-xs font-normal text-muted-foreground mb-2">{subtitulo}</p>}
       {children}
     </div>
   );

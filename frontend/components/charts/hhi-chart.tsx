@@ -3,9 +3,7 @@
 import { Bar, BarChart, CartesianGrid, ReferenceLine, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import { HHI_UMBRAL_ALTO, HHI_UMBRAL_MODERADO } from "@/lib/metricas-competencia";
 import { formatPct } from "@/lib/format";
-
-const GRID_COLOR = "#e2e8e4";
-const TICK_COLOR = "#64748b";
+import { GRID_COLOR, AXIS_TICK_STYLE } from "@/components/charts/chart-theme";
 
 interface HhiTooltipProps {
   active?: boolean;
@@ -30,8 +28,8 @@ export function HhiChart({ data }: { data: { anio: string; hhi: number; cobertur
     <ResponsiveContainer width="100%" height={220}>
       <BarChart data={data} margin={{ top: 8, right: 12, bottom: 0, left: 0 }}>
         <CartesianGrid stroke={GRID_COLOR} vertical={false} />
-        <XAxis dataKey="anio" tick={{ fontSize: 12, fill: TICK_COLOR }} tickLine={false} axisLine={{ stroke: GRID_COLOR }} />
-        <YAxis tick={{ fontSize: 12, fill: TICK_COLOR }} tickLine={false} axisLine={false} width={50} domain={[0, 10000]} />
+        <XAxis dataKey="anio" tick={AXIS_TICK_STYLE} tickLine={false} axisLine={{ stroke: GRID_COLOR }} />
+        <YAxis tick={AXIS_TICK_STYLE} tickLine={false} axisLine={false} width={50} domain={[0, 10000]} />
         <ReferenceLine
           y={HHI_UMBRAL_MODERADO}
           stroke="#a16207"

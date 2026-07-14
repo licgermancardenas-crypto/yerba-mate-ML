@@ -17,9 +17,7 @@ import {
 } from "recharts";
 import { BarChart3, LineChart as LineChartIcon } from "lucide-react";
 import { generarInsightHover } from "@/lib/insights";
-
-const GRID_COLOR = "#e2e8e4";
-const TICK_COLOR = "#64748b";
+import { GRID_COLOR, AXIS_TICK_STYLE, tipoCurva } from "@/components/charts/chart-theme";
 
 interface PuntoSerie {
   anio?: number;
@@ -142,13 +140,13 @@ export function SerieMensualChart({ data, color = "#15803d", prefix = "", suffix
             <CartesianGrid stroke={GRID_COLOR} vertical={false} />
             <XAxis
               dataKey="etiqueta"
-              tick={{ fontSize: 12, fill: TICK_COLOR }}
+              tick={AXIS_TICK_STYLE}
               tickLine={false}
               axisLine={{ stroke: GRID_COLOR }}
               interval="preserveStartEnd"
             />
             <YAxis
-              tick={{ fontSize: 12, fill: TICK_COLOR }}
+              tick={AXIS_TICK_STYLE}
               tickLine={false}
               axisLine={false}
               width={84}
@@ -156,7 +154,7 @@ export function SerieMensualChart({ data, color = "#15803d", prefix = "", suffix
             />
             <Tooltip content={<ChartTooltip color={color} formatear={formatear} />} cursor={{ stroke: GRID_COLOR, strokeWidth: 1 }} />
             <Area
-              type="monotone"
+              type={tipoCurva(data.length)}
               dataKey="valor"
               stroke={color}
               strokeWidth={2}
@@ -183,13 +181,13 @@ export function SerieMensualChart({ data, color = "#15803d", prefix = "", suffix
             <CartesianGrid stroke={GRID_COLOR} vertical={false} />
             <XAxis
               dataKey="etiqueta"
-              tick={{ fontSize: 12, fill: TICK_COLOR }}
+              tick={AXIS_TICK_STYLE}
               tickLine={false}
               axisLine={{ stroke: GRID_COLOR }}
               interval="preserveStartEnd"
             />
             <YAxis
-              tick={{ fontSize: 12, fill: TICK_COLOR }}
+              tick={AXIS_TICK_STYLE}
               tickLine={false}
               axisLine={false}
               width={84}

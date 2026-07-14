@@ -2,9 +2,8 @@
 
 import { Bar, BarChart, CartesianGrid, Legend, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import { MultiSeriesTooltip } from "@/components/charts/multi-series-tooltip";
-
-const GRID_COLOR = "#e2e8e4";
-const TICK_COLOR = "#64748b";
+import { GRID_COLOR, AXIS_TICK_STYLE } from "@/components/charts/chart-theme";
+import { formatPct } from "@/lib/format";
 
 export interface EnvasesPunto {
   anio: string;
@@ -33,13 +32,14 @@ export function EnvasesStackedChart({ data }: { data: EnvasesPunto[] }) {
     <ResponsiveContainer width="100%" height={280}>
       <BarChart data={data} margin={{ top: 8, right: 12, bottom: 0, left: 0 }}>
         <CartesianGrid stroke={GRID_COLOR} vertical={false} />
-        <XAxis dataKey="anio" tick={{ fontSize: 12, fill: TICK_COLOR }} tickLine={false} axisLine={{ stroke: GRID_COLOR }} />
+        <XAxis dataKey="anio" tick={AXIS_TICK_STYLE} tickLine={false} axisLine={{ stroke: GRID_COLOR }} />
         <YAxis
-          tick={{ fontSize: 12, fill: TICK_COLOR }}
+          tick={AXIS_TICK_STYLE}
           tickLine={false}
           axisLine={false}
           width={40}
-          tickFormatter={(v) => `${v}%`}
+          domain={[0, 100]}
+          tickFormatter={(v) => formatPct(v)}
         />
         <Tooltip content={<MultiSeriesTooltip />} cursor={{ fill: "#15803d", fillOpacity: 0.06 }} />
         <Legend wrapperStyle={{ fontSize: 12 }} />
