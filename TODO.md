@@ -273,6 +273,204 @@ Precios de góndola vía SEPA — **snapshot inicial cargado 2026-07-04** (ver F
 
 ---
 
+## FASE 9 — Refactor UI/UX: sistema de diseño + fixes priorizados
+**Estado: EN PROGRESO — OK del usuario 2026-07-13, arrancando por Parte A**
+
+Objetivo: no parchear pantalla por pantalla. Primero fundación (helpers/
+componentes compartidos), después aplicar en todas las páginas. Investigación
+de código ya hecha (archivos/líneas reales, no genérico) — ver detalle en
+cada ítem. Commits chicos por sub-fase, orden A → B → C → D.
+
+### Parte A — Design system (fundación)
+
+**A1. Formato numérico único**
+- Extender `lib/format.ts`: `formatCompacto()` (Intl es-AR `notation:"compact"`
+  — ya existe una implementación local en `components/mapa-kpi.tsx:11`
+  [`nfCompacto`] que se saca de ahí y se centraliza), `formatUsdCompacto()`
+  para KPIs héroe, `formatValorExacto()` para el tooltip del valor completo.
+  `formatNumero`/`formatPct`/`formatKg`/`formatToneladas`/`formatMasa`/
+  `formatUsd` ya están bien (es-AR real) — no se tocan.
+- Reemplazar los 10 `.toFixed(` sueltos encontrados (todos rompen la regla
+  "todo pasa por los helpers"):
+  `app/competencia/page.tsx:102` · `components/charts/hhi-chart.tsx:22` ·
+  `components/charts/multi-series-tooltip.tsx:21` ·
+  `components/exportaciones-flow-map.tsx:225,298` ·
+  `components/gauge-radial.tsx:36` · `components/heatmap-table.tsx:145` ·
+  `components/kpi-card.tsx:35,65` · `components/produccion-mapa-client.tsx:424`.
+- KPIs héroe con 9 dígitos hoy: revisar cada `KpiCard destacado` (~34
+  usos de `KpiCard` en total, 10 con `deltaPct`) y pasar el `value` por
+  `formatCompacto`/`formatUsdCompacto` + tooltip con el exacto.
+
+**A2. `<DeltaBadge>` (nuevo `components/delta-badge.tsx`)**
+- Un solo componente: color por signo (positivo verde, negativo rojo,
+  **cero gris sin flecha** — hoy `kpi-card.tsx` calcula `positivo = deltaPct >= 0`,
+  0 entra en la rama "positivo" y muestra flecha ascendente, bug real).
+  Label de base de comparación siempre visible ("vs. 2024").
+- `KpiCard` (`components/kpi-card.tsx`) deja de tener su lógica de
+  flecha/color duplicada (una vez en la rama `destacado`, otra en la
+  normal) y usa `<DeltaBadge>` adentro.
+- `heatmap-table.tsx:138-149` (columna Var%) también migra a `<DeltaBadge>`
+  en vez de su propio `<span>` con la misma lógica de signo repetida.
+- **Regla de series estacionales (el bug real del "+9.547,1% vs. Nov")**:
+  ubicado en `lib/insights.ts:51` — `generarInsightHover()` calcula
+  `vs. ${anterior.etiqueta}` como delta contra el punto INMEDIATO anterior
+  del arreglo, sin importar si la serie es mensual estacional (cosecha,
+  cadencia con valles/picos reales). Es el único caller de esta función:
+  `components/charts/serie-mensual-chart.tsx` (usado por
+  `SerieChartConFiltro`, que a su vez está en 6 páginas). Fix: para series
+  con `anio` presente (mensuales reales), priorizar/mostrar el delta
+  interanual (ya calculado en `lib/insights.ts:56-63`, hoy secundario) y
+  **omitir** el delta punto-a-punto cuando hay 12+ puntos de historia
+  disponibles (serie estacional real). Se mantiene el punto-a-punto solo
+  para series no mensuales (anuales) donde sí tiene sentido.
+
+**A3. Filtro temporal — una sola fuente de verdad**
+- `FilterBar` (`components/filter-bar.tsx`, Desde/Hasta a nivel página) se
+  mantiene como está — ya es la fuente global correcta.
+- El problema real está en 2 wrappers de gráfico que traen SU PROPIO
+  selector Desde/Hasta interno, independiente del de la página:
+  - `components/charts/serie-chart-con-filtro.tsx` — usado en **6 páginas**
+    (cadena-productiva, consumo, exportaciones, importaciones, precios ×6,
+    producción ×2). El más urgente de arreglar.
+  - `components/charts/annual-chart-con-filtro.tsx` — usado en
+    cadena-productiva (molino), competencia (cuotas, hhi), consumo (envases).
+  - Ambos YA reciben `data` pre-filtrada por el filtro global de la página
+    (está documentado en su propio comentario) — el selector interno es un
+    "zoom" redundante que hoy se ve como filtro primario.
+  - **Propuesta** (no borrar la funcionalidad de zoom, hacerla subordinada
+    como pide la Parte A): colapsar el selector detrás de un link chico
+    "Zoom en este gráfico" (oculto por default); cuando está cerrado, mostrar
+    un texto mudo "Mostrando todo el rango filtrado" en vez del `<select>`
+    doble siempre visible. Mismo patrón para los dos wrappers (unificar en
+    un solo hook/componente `useZoomLocal` en vez de la lógica duplicada
+    que hoy tienen ambos archivos casi idéntica).
+
+**A4. Tokens tipográficos de cards**
+- Centralizar `GRID_COLOR`/`TICK_COLOR`/tamaños de fuente hoy duplicados
+  literal en `envases-stacked-chart.tsx`, `cuotas-stacked-chart.tsx`,
+  `mapa-kpi.tsx`, `hhi-chart.tsx`, `serie-mensual-chart.tsx` → nuevo
+  `components/charts/chart-theme.ts` (colores + tamaños + helpers de eje).
+  `ChartCard` (`components/chart-card.tsx`) ya centraliza título/subtítulo
+  a nivel card — ahí sí solo hace falta ajustar tamaños (15px/600 título,
+  12px/400 gris subtítulo) una vez.
+
+**A5. Card destacado**
+- Auditar cada página: el `destacado` de `KpiCard` debe ser el KPI
+  principal de esa página (Exportaciones → volumen exportado, no un parcial).
+  Se revisa junto con B3/A6 (Exportaciones ya tiene cards "Sin dato" que no
+  deberían competir por atención).
+
+**A6. `<NoData>` (nuevo `components/no-data.tsx`)**
+- Variant "kpi" (— + tooltip con motivo) y variant "chart" (ícono + mensaje
+  + link a fuentes). Reemplaza los `"Sin dato"` inline encontrados en:
+  `app/cadena-productiva/page.tsx`, `app/competencia/page.tsx`,
+  `app/consumo/page.tsx`, `app/exportaciones/page.tsx` (los 2 cards
+  destacados por el usuario: `Valor FOB` y `Precio FOB` en
+  `app/exportaciones/page.tsx:113-114`), `app/importaciones/page.tsx`,
+  `app/page.tsx`, `app/precios/page.tsx`, `app/produccion/page.tsx`,
+  `components/data-table.tsx`, `components/heatmap-table.tsx`,
+  `components/mapa-gis-client.tsx`, `components/produccion-mapa-client.tsx`.
+
+### Parte B — P0 (con el sistema de A)
+
+- **B1.** `app/cadena-productiva/page.tsx:220` — "Salida de molino por año"
+  usa `<AnnualChartConFiltro tipo="cuotas" .../>`, que renderiza
+  `CuotasStackedChart` con eje `domain={[0,100]}` y sufijo `%` fijo — pero
+  `molinoStackedData` son KILOGRAMOS, no porcentajes. De ahí el
+  "1148%"/"000%": el eje intenta mostrar millones de kg dentro de un rango
+  0-100 con formato de porcentaje. Fix real: el `tipo="cuotas"` no debería
+  ser reutilizable para datos no-porcentuales. Se generaliza
+  `CuotasStackedChart`/`EnvasesStackedChart` en un solo
+  `<StackedBarChart>` (nuevo, en `components/charts/`) parametrizado por
+  `dominio`/`formatter` explícitos (kg vs %), y cadena-productiva pasa el
+  de kg. Esto también resuelve B5 de una — un solo componente en vez de 3
+  casi-duplicados.
+- **B2.** Ya cubierto por A2 (regla estacional de `lib/insights.ts`) +
+  auditoría de **todos** los footers de delta de la app para que usen
+  `<DeltaBadge>` (ningún cálculo de variación fuera del helper).
+- **B3.** `app/exportaciones/page.tsx:113-114` (`Valor FOB`, `Precio FOB`)
+  → patrón `<NoData variant="kpi">` de A6. Investigación de fondo INDEC FOB:
+  se agrega como ítem de backlog separado abajo (Fase 3f), **no se
+  implementa en este refactor**.
+- **B4.** Cubierto por A3 (los 2 wrappers con selector duplicado).
+- **B5.** (a) Con el `<StackedBarChart>` de B1, el clamp `domain={[0,100]}`
+  se define UNA vez en el componente compartido para el modo "%", no por
+  archivo — así no se puede volver a desincronizar como pasó con
+  Competencia vs. Consumo. (b) Año único → reemplazar el stacked de una
+  sola barra por barra horizontal 100% o donut: se agrega como modo del
+  mismo `<StackedBarChart>` (prop `anios.length === 1` conmuta el render),
+  usado por `envases-stacked-chart.tsx` (mix de envases, Consumo).
+
+### Parte C — P1
+
+- **C1. Basemap por propósito.** `lib/basemap.ts` ya tiene un estilo
+  "calles" que es CARTO Positron (neutro claro) — hoy simplemente no es el
+  default. Fix: `components/mapa-gis-client.tsx:76` y
+  `components/produccion-mapa-client.tsx:67` cambian
+  `useState<Basemap>("topo")` → `useState<Basemap>("calles")` para los 2
+  mapas coropléticos; topográfico queda como opción manual (ya está en el
+  toggle). **Propuesta para el mapa de flujos** (`exportaciones-flow-map.tsx`,
+  único dark de la app, `dark-matter-gl-style` hardcodeado): enmarcarlo
+  explícitamente como decisión — borde + header "Vista mundo" en vez de
+  pasarlo a claro, porque las líneas de flujo (naranja/verde brillante)
+  pierden todo el contraste sobre un basemap claro y es el único gráfico
+  de la app en proyección global (tiene una razón visual real para
+  diferenciarse). **Confirmado por el usuario (2026-07-13): enmarcar como decisión.**
+- **C2. Labels truncados.** `components/mapa-kpi.tsx:16-18`
+  (`truncarNombre`, `max=15`) y `width={112}` del eje Y en
+  `RankingChart` — ancho insuficiente para "Libertador Gral. San Martín"
+  etc. Fix: subir `width` a ~150-160, agregar diccionario de abreviaturas
+  curadas en `lib/texto.ts` (ya tiene `tituloCase()` y utilidades de texto)
+  para casos como "Gral. M. Belgrano"/"Lib. Gral. San Martín", y confirmar
+  que el tooltip de Recharts (no pasa por `tickFormatter`, así que ya
+  debería mostrar el nombre completo) efectivamente lo hace.
+- **C3. Nota de secaderos.** Ubicada en `components/produccion-panel.tsx:230-238`
+  — hoy ya es texto `muted-foreground` en un card normal (no la encontré
+  literalmente roja/`destructive`, aviso por si el usuario la recuerda de
+  otra pantalla), pero ocupa un lugar protagonista en la columna lateral
+  sin aportar un KPI. Se baja a ⓘ tooltip junto al KPI "Secaderos totales"
+  o al footer de fuentes. Revisar layout: si la columna izquierda queda
+  semivacía sin esta nota, el mapa pasa a ancho completo con KPIs arriba
+  (mismo archivo, cambio de grid).
+- **C4. Heatmap per cápita.** `components/heatmap-table.tsx` en Consumo
+  (`escala="global"`, per cápita) — reemplazar por columna anual + sparkline
+  + `<DeltaBadge>`, la matriz de 12 columnas mensuales queda solo para
+  Producción (`escala="fila"`, sí tiene estacionalidad real, ver memoria de
+  proyecto sobre `ym.inym_hoja_verde_zona`).
+- **C5. Curvas suavizadas.** `components/charts/serie-mensual-chart.tsx:154`
+  tiene `type="monotone"` hardcodeado — regla global: `type="linear"` para
+  series con menos de ~24 puntos, `monotone` solo para series densas. Se
+  centraliza en `chart-theme.ts` (A4) como una función
+  `tipoCurva(n: number)` en vez de una constante fija en el componente.
+
+### Parte D — P2
+
+- **D1.** `app/precios/page.tsx:196-199` — KPI "25 pts" es
+  `indiceRelativoYerba` con `deltaLabel="acumulado desde dic-2016 vs. IPC
+  general"`. Propuesta: promover el "-74,7% acumulado" (el delta) a valor
+  héroe del card y dejar "25" como secundario con label explícito "Precio
+  relativo vs. IPC (base dic-16=100)". **Confirmado por el usuario
+  (2026-07-13): el delta acumulado va de héroe.**
+- **D2.** `app/precios/page.tsx` — cards de precio nominal (líneas
+  ~150-160) vs. real (líneas ~188-199) hoy se distinguen por subtítulo;
+  pasan a distinguirse por TÍTULO del card ("Hoja verde (nominal)" /
+  "Hoja verde (real, deflactado IPC)").
+- **D3.** Auditar contraste AA de verdes sobre `bg-card`/sidebar verdoso
+  (Lighthouse/axe) — texto gris sobre panel verde claro, candidatos:
+  `text-muted-foreground` sobre `bg-primary/10` en varios badges/pills.
+
+### Entregable de esta fase
+Screenshot de cada página (9 páginas de datos + Mapa GIS) antes/después.
+No se toca capa de datos ni ETL — excepto B3 que es solo backlog (sin
+implementar).
+
+**Backlog nuevo (no implementar ahora): Fase 3f — Valor FOB en `ym.exportaciones_indec`.**
+El INDEC Comercio Exterior sí publica valores FOB por NCM/país/mes (mismo
+endpoint que ya usa `lib_indec_comex.py`) — evaluar sumar esa columna al
+ETL existente para cerrar los KPIs de Exportaciones que hoy son "Sin dato".
+
+---
+
 ## NOTAS Y SUPUESTOS A VERIFICAR
 
 1. ~~**Datos mensuales vs anuales**~~ **RESUELTO** (2026-07-01): se repiten dentro del año pero varían año a año en los 3 CSVs marcados (consumo per cápita 5,59–6,27 kg/persona; precio USD/kg 1,80–2,50; importaciones 83.333–3.222.222 kg/mes). Son series anuales publicadas con cadencia mensual (valor constante los 12 meses de cada año), consistente con la fuente (INYM/aduana suele publicar así). No son placeholders — se pueden usar en el ETL y en los modelos tal cual, documentando la granularidad real (anual, no mensual) al construir features de Fase 5.
