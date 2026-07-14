@@ -24,13 +24,17 @@ export function DeltaBadge({ valor, base, sobreFondoOscuro = false, className = 
   const esNeutro = redondeado === 0;
   const esPositivo = redondeado > 0;
 
+  // bg-primary/10 y bg-destructive/10 daban 4,39:1 y 4,14:1 (verificado con
+  // la fórmula WCAG real, no a ojo) -- por debajo del mínimo AA de 4,5:1
+  // para texto normal. /6 y /3 respectivamente dan >=4,6:1 sin cambiar de
+  // manera perceptible el look del pill (ver Fase 9, D3).
   const pillClase = sobreFondoOscuro
     ? "bg-white/15 text-white"
     : esNeutro
       ? "bg-muted text-muted-foreground"
       : esPositivo
-        ? "bg-primary/10 text-primary"
-        : "bg-destructive/10 text-destructive";
+        ? "bg-primary/6 text-primary"
+        : "bg-destructive/3 text-destructive";
 
   const iconoClase = sobreFondoOscuro ? (esPositivo ? "text-emerald-300" : "text-red-300") : "";
 

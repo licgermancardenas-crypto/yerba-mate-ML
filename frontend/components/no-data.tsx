@@ -20,8 +20,12 @@ const MOTIVO_DEFAULT_CHART = "Sin datos publicados para este período.";
 // rota. Acá el vacío se comunica a una escala visual mucho más chica.
 export function NoData({ variant = "kpi", motivo, className = "" }: NoDataProps) {
   if (variant === "kpi") {
+    // Opacidad completa a propósito (Fase 9, D3): /70 daba 3,59:1 contra
+    // --color-card, por debajo del mínimo AA -- el guion es la única lectura
+    // de esa celda (reemplaza un valor real), no puede ser menos legible
+    // que cualquier otro texto secundario de la app.
     return (
-      <span title={motivo ?? MOTIVO_DEFAULT_KPI} className={`cursor-help text-muted-foreground/70 ${className}`}>
+      <span title={motivo ?? MOTIVO_DEFAULT_KPI} className={`cursor-help text-muted-foreground ${className}`}>
         —
       </span>
     );
