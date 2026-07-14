@@ -8,7 +8,7 @@ import { FilterBar } from "@/components/filter-bar";
 import { FooterFuentes } from "@/components/footer-fuentes";
 import { SerieChartConFiltro } from "@/components/charts/serie-chart-con-filtro";
 import { AnnualChartConFiltro } from "@/components/charts/annual-chart-con-filtro";
-import type { EnvasesPunto } from "@/components/charts/envases-stacked-chart";
+import type { EnvasesPunto } from "@/components/charts/annual-chart-con-filtro";
 import { HistoricalTable } from "@/components/historical-table";
 import { HeatmapTable } from "@/components/heatmap-table";
 import type { ColumnaTabla } from "@/components/data-table";

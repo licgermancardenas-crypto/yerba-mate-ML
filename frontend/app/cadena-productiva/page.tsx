@@ -221,7 +221,8 @@ export default async function CadenaProductivaPage({
         className="mb-4"
       >
         <AnnualChartConFiltro
-          tipo="cuotas"
+          tipo="masa"
+          unidad={unidad}
           data={molinoStackedData}
           series={[
             { key: "Interno", color: "#15803d" },
