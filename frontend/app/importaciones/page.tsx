@@ -7,7 +7,7 @@ import { FooterFuentes } from "@/components/footer-fuentes";
 import { SerieChartConFiltro } from "@/components/charts/serie-chart-con-filtro";
 import { HistoricalTable } from "@/components/historical-table";
 import type { ColumnaTabla } from "@/components/data-table";
-import { esAnioCompleto, formatMasa, formatPct, type UnidadMasa } from "@/lib/format";
+import { esAnioCompleto, formatMasa, formatMasaCompacta, formatPct, type UnidadMasa } from "@/lib/format";
 import { getExportacionesAnualReal, getImportacionesIndec } from "@/lib/api";
 import {
   agregarComexIndecAnualNacional,
@@ -99,7 +99,8 @@ export default async function ImportacionesPage({
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
         <KpiCard
           label={`Importado ${ultimoAnio}${ultimoAnio !== undefined && !esAnioCompleto(ultimoAnio) ? " (parcial)" : ""}`}
-          value={importadoUltimo != null ? formatMasa(importadoUltimo, unidad) : "Sin dato"}
+          value={importadoUltimo != null ? formatMasaCompacta(importadoUltimo, unidad) : "Sin dato"}
+          valorExacto={importadoUltimo != null ? formatMasa(importadoUltimo, unidad) : undefined}
           icon={Package}
           deltaPct={deltaImportado}
           deltaLabel={`vs. ${penultimoAnio}`}

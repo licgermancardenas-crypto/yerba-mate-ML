@@ -1,12 +1,17 @@
 "use client";
 
+import { formatPct } from "@/lib/format";
+
 interface MultiSeriesTooltipProps {
   active?: boolean;
   label?: string;
   payload?: { value?: number; name?: string; color?: string }[];
+  /** Formatea cada valor de la serie -- default: porcentaje (uso original,
+   * cuotas/envases). Los stacked de kg (ver Fase 9, B1) pasan `formatMasa`. */
+  formatter?: (valor: number) => string;
 }
 
-export function MultiSeriesTooltip({ active, label, payload }: MultiSeriesTooltipProps) {
+export function MultiSeriesTooltip({ active, label, payload, formatter = formatPct }: MultiSeriesTooltipProps) {
   if (!active || !payload?.length) return null;
   return (
     <div className="rounded-lg border border-border bg-card px-3 py-2 shadow-lg min-w-[160px]">
@@ -18,7 +23,7 @@ export function MultiSeriesTooltip({ active, label, payload }: MultiSeriesToolti
               <span className="inline-block w-3 h-0.5 rounded-full" style={{ backgroundColor: entry.color }} />
               {entry.name}
             </span>
-            <span className="font-semibold tabular-nums text-card-foreground">{Number(entry.value).toFixed(1)}%</span>
+            <span className="font-semibold tabular-nums text-card-foreground">{formatter(Number(entry.value))}</span>
           </div>
         ))}
       </div>

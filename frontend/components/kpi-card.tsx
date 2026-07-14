@@ -8,9 +8,11 @@ interface KpiCardProps {
   deltaLabel?: string;
   /** Tarjeta "hero" con fondo verde sólido — usar en 1 KPI por página como máximo, para jerarquía visual. */
   destacado?: boolean;
+  /** Valor sin notación compacta, para el tooltip nativo cuando `value` viene compactado (ej. "889,3 M kg" -> "889.253.083 kg"). */
+  valorExacto?: string;
 }
 
-export function KpiCard({ label, value, icon: Icon, deltaPct, deltaLabel, destacado = false }: KpiCardProps) {
+export function KpiCard({ label, value, icon: Icon, deltaPct, deltaLabel, destacado = false, valorExacto }: KpiCardProps) {
   const positivo = (deltaPct ?? 0) >= 0;
 
   if (destacado) {
@@ -26,7 +28,9 @@ export function KpiCard({ label, value, icon: Icon, deltaPct, deltaLabel, destac
             <Icon size={18} aria-hidden="true" />
           </span>
         </div>
-        <div className="relative text-3xl font-bold tabular-nums text-white">{value}</div>
+        <div className="relative text-3xl font-bold tabular-nums text-white" title={valorExacto}>
+          {value}
+        </div>
         {deltaPct !== undefined && (
           <div className="relative inline-flex items-center gap-1 self-start rounded-full bg-white/15 px-2 py-0.5 text-xs font-semibold text-white">
             {positivo ? <ArrowUpRight size={13} aria-hidden="true" /> : <ArrowDownRight size={13} aria-hidden="true" />}
@@ -48,7 +52,9 @@ export function KpiCard({ label, value, icon: Icon, deltaPct, deltaLabel, destac
           <Icon size={18} aria-hidden="true" />
         </span>
       </div>
-      <div className="text-3xl font-bold tabular-nums text-card-foreground">{value}</div>
+      <div className="text-3xl font-bold tabular-nums text-card-foreground" title={valorExacto}>
+        {value}
+      </div>
       {deltaPct !== undefined && (
         <div
           className={`inline-flex items-center gap-1 self-start rounded-full px-2 py-0.5 text-xs font-semibold ${

@@ -9,7 +9,7 @@ import { SerieChartConFiltro } from "@/components/charts/serie-chart-con-filtro"
 import { HistoricalTable } from "@/components/historical-table";
 import { ExportacionesFlowMapLoader } from "@/components/exportaciones-flow-map-loader";
 import type { ColumnaTabla } from "@/components/data-table";
-import { formatMasa, formatNumero, formatPct, formatUsd, type UnidadMasa } from "@/lib/format";
+import { formatMasa, formatMasaCompacta, formatNumero, formatPct, formatUsd, type UnidadMasa } from "@/lib/format";
 import { getExportacionesAnualReal, getExportacionesIndec } from "@/lib/api";
 import {
   agregarExportacionesAnualNacional,
@@ -104,7 +104,8 @@ export default async function ExportacionesPage({
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
             <KpiCard
               label={`Volumen exportado ${ultimoAnio}`}
-              value={volumenUltimo != null ? formatMasa(volumenUltimo, unidad) : "Sin dato"}
+              value={volumenUltimo != null ? formatMasaCompacta(volumenUltimo, unidad) : "Sin dato"}
+              valorExacto={volumenUltimo != null ? formatMasa(volumenUltimo, unidad) : undefined}
               icon={Ship}
               deltaPct={deltaVolumen}
               deltaLabel={`vs. ${penultimoAnio}`}

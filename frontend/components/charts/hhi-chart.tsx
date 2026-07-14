@@ -2,6 +2,7 @@
 
 import { Bar, BarChart, CartesianGrid, ReferenceLine, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import { HHI_UMBRAL_ALTO, HHI_UMBRAL_MODERADO } from "@/lib/metricas-competencia";
+import { formatPct } from "@/lib/format";
 
 const GRID_COLOR = "#e2e8e4";
 const TICK_COLOR = "#64748b";
@@ -19,7 +20,7 @@ function HhiTooltip({ active, payload }: HhiTooltipProps) {
     <div className="rounded-lg border border-border bg-card px-3 py-2 shadow-lg">
       <div className="text-xs text-muted-foreground mb-0.5">{punto.anio}</div>
       <div className="text-sm font-semibold tabular-nums text-card-foreground">HHI {Math.round(punto.hhi)}</div>
-      <div className="text-xs text-muted-foreground">Cobertura: {punto.coberturaPct.toFixed(1)}% del mercado</div>
+      <div className="text-xs text-muted-foreground">Cobertura: {formatPct(punto.coberturaPct)} del mercado</div>
     </div>
   );
 }

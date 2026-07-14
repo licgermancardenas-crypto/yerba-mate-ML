@@ -6,6 +6,7 @@ import { ProduccionMapa, type VistaMapa, type Basemap, type BurbujaProduccion } 
 import { ProduccionPanel, type BurbujaSeleccionada, type RutaFlujo } from "@/components/produccion-panel";
 import { GrupoControl, BasemapToggle, pillClass, SELECT_CLASS, LEYENDA_CLASS } from "@/components/mapa-controles";
 import { normalizar } from "@/lib/texto";
+import { formatNumero } from "@/lib/format";
 
 interface DeptoContextoFeature {
   type: "Feature";
@@ -421,7 +422,7 @@ export function ProduccionMapaClient({ produccionPorCiudadAnio }: { produccionPo
             </div>
             <div className="flex justify-between text-muted-foreground mt-0.5 mb-1.5">
               <span>0%</span>
-              <span>{maxPct.toFixed(0)}%</span>
+              <span>{formatNumero(maxPct, 0)}%</span>
             </div>
             <div className="flex items-center gap-1.5 pt-1.5 border-t border-border">
               <span className="inline-block w-3 h-3 rounded-sm" style={{ backgroundColor: "#94a3b8", opacity: 0.4 }} />

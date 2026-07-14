@@ -4,7 +4,7 @@ import maplibregl from "maplibre-gl";
 import "maplibre-gl/dist/maplibre-gl.css";
 import { useEffect, useMemo, useRef } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
-import { formatKg, formatUsd } from "@/lib/format";
+import { formatKg, formatPct, formatUsd } from "@/lib/format";
 import { ORIGEN_ARGENTINA, PAISES_DESTINO, arcoGeodesico } from "@/lib/paises-destino";
 
 const BASEMAP_STYLE = "https://basemaps.cartocdn.com/gl/dark-matter-gl-style/style.json";
@@ -222,7 +222,7 @@ export function ExportacionesFlowMap({
                 <div class="text-sm font-semibold text-card-foreground mb-1">${p.label}</div>
                 <div class="flex justify-between gap-3 py-0.5"><span class="text-muted-foreground">Volumen</span><span class="font-semibold text-card-foreground">${formatKg(p.volumen_kg)}</span></div>
                 <div class="flex justify-between gap-3 py-0.5"><span class="text-muted-foreground">Valor FOB</span><span class="font-semibold text-card-foreground">${formatUsd(p.valor_fob_usd)}</span></div>
-                <div class="flex justify-between gap-3 py-0.5"><span class="text-muted-foreground">% del total</span><span class="font-semibold text-card-foreground">${p.porcentaje.toFixed(1)}%</span></div>
+                <div class="flex justify-between gap-3 py-0.5"><span class="text-muted-foreground">% del total</span><span class="font-semibold text-card-foreground">${formatPct(p.porcentaje)}</span></div>
               </div>`
             )
             .addTo(map);
@@ -295,7 +295,7 @@ export function ExportacionesFlowMap({
         </div>
         {sinGeocodificar && (
           <p className="text-muted-foreground italic leading-snug mt-1.5 pt-1.5 border-t border-border">
-            No incluye &quot;{sinGeocodificar.destino}&quot; ({sinGeocodificar.porcentaje.toFixed(1)}%): agrupa varios destinos
+            No incluye &quot;{sinGeocodificar.destino}&quot; ({formatPct(sinGeocodificar.porcentaje)}): agrupa varios destinos
             menores sin desagregar, no es un país puntual.
           </p>
         )}

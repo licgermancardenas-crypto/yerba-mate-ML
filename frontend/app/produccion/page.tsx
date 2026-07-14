@@ -10,7 +10,7 @@ import { HistoricalTable } from "@/components/historical-table";
 import { HeatmapTable } from "@/components/heatmap-table";
 import { ProduccionMapaLoader } from "@/components/produccion-mapa-loader";
 import type { ColumnaTabla } from "@/components/data-table";
-import { formatMasa, formatNumero, formatPct, formatUsd, type UnidadMasa } from "@/lib/format";
+import { formatMasa, formatMasaCompacta, formatNumero, formatPct, formatUsd, type UnidadMasa } from "@/lib/format";
 import { getProduccionAnualReal, getSuperficie, getHojaVerde, getGeoLayerAtributos } from "@/lib/api";
 import { tituloCase } from "@/lib/texto";
 import {
@@ -208,7 +208,8 @@ export default async function ProduccionPage({
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
               <KpiCard
                 label={`Producción ${ultimoAnio}`}
-                value={totalUltimo != null ? formatMasa(totalUltimo, unidad) : "Sin dato"}
+                value={totalUltimo != null ? formatMasaCompacta(totalUltimo, unidad) : "Sin dato"}
+                valorExacto={totalUltimo != null ? formatMasa(totalUltimo, unidad) : undefined}
                 icon={Sprout}
                 deltaPct={deltaAnual}
                 deltaLabel={`vs. ${penultimoAnio}`}

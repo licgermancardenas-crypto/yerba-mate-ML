@@ -10,7 +10,7 @@ import { AnnualChartConFiltro } from "@/components/charts/annual-chart-con-filtr
 import { SerieMensualChart } from "@/components/charts/serie-mensual-chart";
 import { HistoricalTable } from "@/components/historical-table";
 import { DataTable, type ColumnaTabla } from "@/components/data-table";
-import { esAnioCompleto, formatMasa, formatPct, type UnidadMasa } from "@/lib/format";
+import { esAnioCompleto, formatMasa, formatMasaCompacta, formatPct, type UnidadMasa } from "@/lib/format";
 import { getHojaVerde, getSalidaMolino } from "@/lib/api";
 import {
   agregarHojaVerdeAnual,
@@ -163,7 +163,8 @@ export default async function CadenaProductivaPage({
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
         <KpiCard
           label={`Hoja verde ${ultimoAnio}${ultimoAnio !== undefined && !esAnioCompleto(ultimoAnio) ? " (parcial)" : ""}`}
-          value={formatMasa(hojaVerdeUltimo, unidad)}
+          value={formatMasaCompacta(hojaVerdeUltimo, unidad)}
+          valorExacto={formatMasa(hojaVerdeUltimo, unidad)}
           icon={Leaf}
           deltaPct={deltaHojaVerde}
           deltaLabel={`vs. ${penultimoAnio}`}

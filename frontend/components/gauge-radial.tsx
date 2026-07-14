@@ -1,6 +1,7 @@
 "use client";
 
 import { RadialBar, RadialBarChart, PolarAngleAxis, ResponsiveContainer } from "recharts";
+import { formatNumero } from "@/lib/format";
 
 interface GaugeRadialProps {
   /** 0-100. Se clampea a ese rango. */
@@ -33,7 +34,7 @@ export function GaugeRadial({ valorPct, displayValue, color }: GaugeRadialProps)
         </RadialBarChart>
       </ResponsiveContainer>
       <div className="absolute inset-0 flex items-center justify-center">
-        <span className="text-2xl font-bold tabular-nums text-card-foreground">{displayValue ?? `${valor.toFixed(0)}%`}</span>
+        <span className="text-2xl font-bold tabular-nums text-card-foreground">{displayValue ?? `${formatNumero(valor, 0)}%`}</span>
       </div>
     </div>
   );
