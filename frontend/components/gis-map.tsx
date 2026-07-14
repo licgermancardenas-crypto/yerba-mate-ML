@@ -333,6 +333,12 @@ export function GisMap({
     }
     if (map.isStyleLoaded()) render();
     else map.once("idle", render); // ver comentario en el efecto de basemap
+    // transporteActivo se lee acá solo para la visibilidad INICIAL al crear
+    // la capa -- las actualizaciones posteriores las maneja el efecto de
+    // abajo (setLayoutProperty). Incluirlo en las deps volvería a disparar
+    // este efecto pesado (recrea 3 fuentes/capas) en cada click de
+    // checkbox, exactamente lo que ese segundo efecto existe para evitar.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [transporte]);
 
   // Toggle de visibilidad de transporte -- separado del efecto de arriba

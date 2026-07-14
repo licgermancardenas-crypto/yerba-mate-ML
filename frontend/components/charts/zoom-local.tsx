@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { X } from "lucide-react";
 
 // Único mecanismo de "zoom local" de gráfico en toda la app (ver Fase 9,
@@ -15,14 +15,18 @@ export function useZoomLocal(anios: number[]) {
   const [desde, setDesde] = useState(primero);
   const [hasta, setHasta] = useState(ultimo);
   const [activo, setActivo] = useState(false);
-
-  // Se resetea (y se cierra el zoom) cada vez que cambia el rango que llega
-  // desde afuera -- ej. el usuario tocó el filtro global de la página.
-  useEffect(() => {
+  // Ajuste de estado durante el render (no en un efecto) para resetear el
+  // zoom cuando cambia el rango que llega desde afuera -- ej. el usuario
+  // tocó el filtro global de la página. Patrón recomendado por React para
+  // "resetear estado cuando cambia una prop" (evita el render extra que
+  // causaría un efecto, ver react-hooks/set-state-in-effect).
+  const [rangoPrevio, setRangoPrevio] = useState([primero, ultimo]);
+  if (rangoPrevio[0] !== primero || rangoPrevio[1] !== ultimo) {
+    setRangoPrevio([primero, ultimo]);
     setDesde(primero);
     setHasta(ultimo);
     setActivo(false);
-  }, [primero, ultimo]);
+  }
 
   const dLo = desde ?? primero;
   const dHi = hasta ?? ultimo;

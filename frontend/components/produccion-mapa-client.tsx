@@ -89,14 +89,19 @@ export function ProduccionMapaClient({ produccionPorCiudadAnio }: { produccionPo
 
   // Limpia la selección puntual (burbuja/ruta) al cambiar de vista o de año
   // -- evita mostrar en el panel el detalle de una ciudad que ya no
-  // corresponde al año/capa que se está mirando.
-  useEffect(() => {
+  // corresponde al año/capa que se está mirando. Ajuste de estado durante
+  // el render (no en un efecto, ver react-hooks/set-state-in-effect): patrón
+  // recomendado por React para "resetear estado cuando cambia una prop",
+  // evita el render extra que causaría un efecto.
+  const [vistaAnioPrevio, setVistaAnioPrevio] = useState<[VistaMapa, number]>([vista, anio]);
+  if (vistaAnioPrevio[0] !== vista || vistaAnioPrevio[1] !== anio) {
+    setVistaAnioPrevio([vista, anio]);
     setCiudadSeleccionada(null);
     setRutaSeleccionada(null);
     setDeptoHover(null);
     setCiudadHover(null);
     setRutaHover(null);
-  }, [vista, anio]);
+  }
 
   useEffect(() => {
     fetchGeo("indec_jurisdicciones").then(setJurisdicciones);
@@ -160,11 +165,15 @@ export function ProduccionMapaClient({ produccionPorCiudadAnio }: { produccionPo
       .sort((a, b) => a.label.localeCompare(b.label));
   }, [departamentosContexto, provincia]);
 
-  // Reset de departamento si deja de pertenecer a la provincia elegida
-  useEffect(() => {
+  // Reset de departamento si deja de pertenecer a la provincia elegida --
+  // ajuste durante el render, no en un efecto (mismo motivo que arriba).
+  // `departamentos` ya está recalculado para la `provincia` de este render
+  // (el useMemo corre antes), así que el chequeo es contra la lista nueva.
+  const [provinciaPrevia, setProvinciaPrevia] = useState(provincia);
+  if (provinciaPrevia !== provincia) {
+    setProvinciaPrevia(provincia);
     if (departamento && !departamentos.some((d) => d.nam === departamento)) setDepartamento("");
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [provincia]);
+  }
 
   // Sincronización mapa -> UI: al clickear un departamento directamente sobre
   // el mapa (capa de contexto o coroplético), se resuelve su nombre exacto

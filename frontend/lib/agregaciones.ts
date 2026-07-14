@@ -1,7 +1,6 @@
 import type {
   ConsumoRow,
   ExportacionAnualRealRow,
-  ExportacionIndecRow,
   HojaVerdeRow,
   ImportacionRow,
   PrecioRow,

@@ -11,7 +11,7 @@ import { AnnualChartConFiltro } from "@/components/charts/annual-chart-con-filtr
 import { SerieMensualChart } from "@/components/charts/serie-mensual-chart";
 import { HistoricalTable } from "@/components/historical-table";
 import { DataTable, type ColumnaTabla } from "@/components/data-table";
-import { esAnioCompleto, formatMasa, formatMasaCompacta, formatPct, type UnidadMasa } from "@/lib/format";
+import { esAnioCompleto, formatMasa, formatMasaCompacta, type UnidadMasa } from "@/lib/format";
 import { getHojaVerde, getSalidaMolino } from "@/lib/api";
 import {
   agregarHojaVerdeAnual,

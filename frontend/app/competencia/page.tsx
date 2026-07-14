@@ -10,7 +10,7 @@ import { AnnualChartConFiltro } from "@/components/charts/annual-chart-con-filtr
 import { DataTable, type ColumnaTabla } from "@/components/data-table";
 import { formatPct } from "@/lib/format";
 import { getCompetencia } from "@/lib/api";
-import { calcularConcentracion, HHI_UMBRAL_ALTO, HHI_UMBRAL_MODERADO } from "@/lib/metricas-competencia";
+import { calcularConcentracion } from "@/lib/metricas-competencia";
 
 type EmpresaPivotRow = { empresa: string } & Record<string, string | number>;
 
