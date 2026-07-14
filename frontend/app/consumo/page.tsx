@@ -1,6 +1,7 @@
 import { Coffee, Package, ScrollText } from "lucide-react";
 import { PageHeader } from "@/components/page-header";
 import { KpiCard } from "@/components/kpi-card";
+import { NoData } from "@/components/no-data";
 import { GaugeCard } from "@/components/gauge-card";
 import { ChartCard } from "@/components/chart-card";
 import { FilterBar } from "@/components/filter-bar";
@@ -111,7 +112,7 @@ export default async function ConsumoPage({
     : [];
   const formatoPreferido = envasesConLabel.length
     ? envasesConLabel.reduce((max, actual) => (actual[1] > max[1] ? actual : max))[0]
-    : "Sin dato";
+    : null;
 
   const anualHistorico = agregarConsumoAnual(filas);
   const mensualHistorico = [...filas].sort((a, b) => b.anio - a.anio || b.mes - a.mes);
@@ -126,7 +127,7 @@ export default async function ConsumoPage({
       <FilterBar anios={todosLosAnios} />
 
       {filas.length === 0 || !filaUltimoAnio ? (
-        <p className="text-sm text-muted-foreground">Sin datos para los filtros seleccionados.</p>
+        <NoData variant="chart" motivo="Sin datos para los filtros seleccionados." />
       ) : (
         <>
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
@@ -140,7 +141,7 @@ export default async function ConsumoPage({
             />
             <KpiCard
               label="Formato preferido"
-              value={formatoPreferido}
+              value={formatoPreferido ?? <NoData variant="kpi" />}
               icon={Package}
             />
             {filaUltimoAnio.sin_estampillas_pct != null && (

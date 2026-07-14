@@ -2,6 +2,7 @@ import Link from "next/link";
 import { Sprout, Wheat, TrendingUp, DollarSign, Gauge, Map as MapIcon, BarChart3 } from "lucide-react";
 import { PageHeader } from "@/components/page-header";
 import { KpiCard } from "@/components/kpi-card";
+import { NoData } from "@/components/no-data";
 import { ChartCard } from "@/components/chart-card";
 import { FilterBar } from "@/components/filter-bar";
 import { FooterFuentes } from "@/components/footer-fuentes";
@@ -202,22 +203,22 @@ export default async function ProduccionPage({
         />
 
         {filas.length === 0 ? (
-          <p className="text-sm text-muted-foreground">Sin datos para los filtros seleccionados.</p>
+          <NoData variant="chart" motivo="Sin datos para los filtros seleccionados." />
         ) : (
           <>
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
               <KpiCard
                 label={`Producción ${ultimoAnio}`}
-                value={totalUltimo != null ? formatMasaCompacta(totalUltimo, unidad) : "Sin dato"}
+                value={totalUltimo != null ? formatMasaCompacta(totalUltimo, unidad) : <NoData variant="kpi" />}
                 valorExacto={totalUltimo != null ? formatMasa(totalUltimo, unidad) : undefined}
                 icon={Sprout}
                 deltaPct={deltaAnual}
                 deltaLabel={`vs. ${penultimoAnio}`}
                 destacado
               />
-              <KpiCard label={`Exportado ${ultimoAnio}`} value={exportadoUltimo != null ? formatMasa(exportadoUltimo, unidad) : "Sin dato"} icon={Wheat} />
-              <KpiCard label="Precio promedio USD/kg" value={precioPromedioUltimo != null ? formatNumero(precioPromedioUltimo, 2) : "Sin dato"} icon={TrendingUp} />
-              <KpiCard label={`Valor FOB exportado ${ultimoAnio}`} value={valorFobUltimo != null ? formatUsd(valorFobUltimo) : "Sin dato"} icon={DollarSign} />
+              <KpiCard label={`Exportado ${ultimoAnio}`} value={exportadoUltimo != null ? formatMasa(exportadoUltimo, unidad) : <NoData variant="kpi" />} icon={Wheat} />
+              <KpiCard label="Precio promedio USD/kg" value={precioPromedioUltimo != null ? formatNumero(precioPromedioUltimo, 2) : <NoData variant="kpi" />} icon={TrendingUp} />
+              <KpiCard label={`Valor FOB exportado ${ultimoAnio}`} value={valorFobUltimo != null ? formatUsd(valorFobUltimo) : <NoData variant="kpi" />} icon={DollarSign} />
             </div>
 
             <div className="grid grid-cols-1 xl:grid-cols-3 gap-4">
@@ -239,7 +240,7 @@ export default async function ProduccionPage({
                 description="Hectáreas reales (INYM GeoServer), 19 departamentos — no hay producción en kg publicada a este nivel de detalle, solo superficie (ver Mapa GIS para el coroplético)"
               >
                 {superficiePorDepto.length === 0 ? (
-                  <p className="text-sm text-muted-foreground py-4">Sin datos de superficie para los filtros seleccionados.</p>
+                  <NoData variant="chart" motivo="Sin datos de superficie para los filtros seleccionados." />
                 ) : (
                   <div className="max-h-[360px] overflow-y-auto">
                     <table className="w-full text-sm">
@@ -284,14 +285,14 @@ export default async function ProduccionPage({
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
                   <KpiCard
                     label={`Rendimiento ${ultimoAnio}`}
-                    value={rendimientoUltimo ? `${formatNumero(rendimientoUltimo.rendimiento_kg_ha, 0)} kg/ha` : "Sin dato"}
+                    value={rendimientoUltimo ? `${formatNumero(rendimientoUltimo.rendimiento_kg_ha, 0)} kg/ha` : <NoData variant="kpi" />}
                     icon={Gauge}
                     deltaPct={deltaRendimiento}
                     deltaLabel={`vs. ${penultimoAnio}`}
                   />
                   <KpiCard
                     label={`Superficie cultivada ${ultimoAnio}`}
-                    value={rendimientoUltimo ? `${formatNumero(rendimientoUltimo.superficie_ha, 0)} ha` : "Sin dato"}
+                    value={rendimientoUltimo ? `${formatNumero(rendimientoUltimo.superficie_ha, 0)} ha` : <NoData variant="kpi" />}
                     icon={Sprout}
                   />
                 </div>

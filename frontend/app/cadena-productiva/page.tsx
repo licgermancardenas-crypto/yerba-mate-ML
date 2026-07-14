@@ -1,6 +1,7 @@
 import { Leaf, Factory, Globe2, Percent, CalendarRange } from "lucide-react";
 import { PageHeader } from "@/components/page-header";
 import { KpiCard } from "@/components/kpi-card";
+import { NoData } from "@/components/no-data";
 import { GaugeCard } from "@/components/gauge-card";
 import { ChartCard } from "@/components/chart-card";
 import { FilterBar } from "@/components/filter-bar";
@@ -85,7 +86,7 @@ export default async function CadenaProductivaPage({
           description="Ingreso de hoja verde a secadero por zona y salida de molino (interno/externo) — fuente: reportes mensuales del INYM."
         />
         <FilterBar anios={todosLosAnios} mostrarUnidad />
-        <p className="text-sm text-muted-foreground">Sin datos para los filtros seleccionados.</p>
+        <NoData variant="chart" motivo="Sin datos para los filtros seleccionados." />
       </main>
     );
   }

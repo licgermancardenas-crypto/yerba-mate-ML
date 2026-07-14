@@ -1,6 +1,7 @@
 import { Users, Crown, Building2, Gauge, AlertTriangle } from "lucide-react";
 import { PageHeader } from "@/components/page-header";
 import { KpiCard } from "@/components/kpi-card";
+import { NoData } from "@/components/no-data";
 import { GaugeCard } from "@/components/gauge-card";
 import { ChartCard } from "@/components/chart-card";
 import { FilterBar } from "@/components/filter-bar";
@@ -61,7 +62,7 @@ export default async function CompetenciaPage({
           anioDesdeDefault={primerAnioConDato}
           dimension={{ param: "empresa", label: "Empresa", opciones: todasLasEmpresas }}
         />
-        <p className="text-sm text-muted-foreground">Sin datos para los filtros seleccionados.</p>
+        <NoData variant="chart" motivo="Sin datos para los filtros seleccionados." />
       </main>
     );
   }

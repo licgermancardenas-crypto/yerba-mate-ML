@@ -1,4 +1,5 @@
 import { DeltaBadge } from "@/components/delta-badge";
+import { NoData } from "@/components/no-data";
 
 const MESES_ABREV = ["Ene", "Feb", "Mar", "Abr", "May", "Jun", "Jul", "Ago", "Sep", "Oct", "Nov", "Dic"];
 
@@ -53,7 +54,7 @@ export function HeatmapTable({
   const globalMax = todosLosValores.length ? Math.max(...todosLosValores) : 0;
 
   if (anios.length === 0) {
-    return <p className="text-sm text-muted-foreground">Sin datos para los filtros seleccionados.</p>;
+    return <NoData variant="chart" motivo="Sin datos para los filtros seleccionados." />;
   }
 
   return (

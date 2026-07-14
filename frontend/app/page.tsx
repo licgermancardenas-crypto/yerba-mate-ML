@@ -14,9 +14,10 @@ import {
 } from "lucide-react";
 import { PageHeader } from "@/components/page-header";
 import { KpiCard } from "@/components/kpi-card";
+import { NoData } from "@/components/no-data";
 import { FilterBar } from "@/components/filter-bar";
 import { FooterFuentes } from "@/components/footer-fuentes";
-import { formatKg, formatNumero } from "@/lib/format";
+import { formatKg, formatKgCompacto, formatNumero } from "@/lib/format";
 import { getProduccionAnualReal, getConsumo } from "@/lib/api";
 import { agregarProduccionAnualNacional, agregarProduccionPorCiudad } from "@/lib/agregaciones";
 
@@ -66,14 +67,20 @@ export default async function ResumenPage({
       <FilterBar anios={todosLosAnios} anioUnico />
 
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
-        <KpiCard label={`Producción ${anioSeleccionado}`} value={totalProduccionUltimoAnio != null ? formatKg(totalProduccionUltimoAnio) : "Sin dato"} icon={Sprout} destacado />
+        <KpiCard
+          label={`Producción ${anioSeleccionado}`}
+          value={totalProduccionUltimoAnio != null ? formatKgCompacto(totalProduccionUltimoAnio) : <NoData variant="kpi" />}
+          valorExacto={totalProduccionUltimoAnio != null ? formatKg(totalProduccionUltimoAnio) : undefined}
+          icon={Sprout}
+          destacado
+        />
         <KpiCard
           label={`Consumo per cápita ${anioSeleccionado}`}
-          value={consumoPerCapitaUltimoAnio != null ? `${formatNumero(consumoPerCapitaUltimoAnio, 2)} kg` : "Sin dato"}
+          value={consumoPerCapitaUltimoAnio != null ? `${formatNumero(consumoPerCapitaUltimoAnio, 2)} kg` : <NoData variant="kpi" />}
           icon={Coffee}
         />
-        <KpiCard label={`Exportado ${anioSeleccionado}`} value={totalExportadoUltimoAnio != null ? formatKg(totalExportadoUltimoAnio) : "Sin dato"} icon={Ship} />
-        <KpiCard label="Precio promedio USD/kg" value={precioPromedioUltimoAnio != null ? formatNumero(precioPromedioUltimoAnio, 2) : "Sin dato"} icon={DollarSign} />
+        <KpiCard label={`Exportado ${anioSeleccionado}`} value={totalExportadoUltimoAnio != null ? formatKg(totalExportadoUltimoAnio) : <NoData variant="kpi" />} icon={Ship} />
+        <KpiCard label="Precio promedio USD/kg" value={precioPromedioUltimoAnio != null ? formatNumero(precioPromedioUltimoAnio, 2) : <NoData variant="kpi" />} icon={DollarSign} />
       </div>
 
       {ciudadLider && (

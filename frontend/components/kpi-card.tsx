@@ -1,9 +1,11 @@
 import type { LucideIcon } from "lucide-react";
+import type { ReactNode } from "react";
 import { DeltaBadge } from "@/components/delta-badge";
 
 interface KpiCardProps {
   label: string;
-  value: string;
+  /** String formateado, o `<NoData variant="kpi" />` cuando no hay dato (ver Fase 9, A6). */
+  value: ReactNode;
   icon: LucideIcon;
   deltaPct?: number;
   deltaLabel?: string;

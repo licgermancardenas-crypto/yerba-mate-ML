@@ -1,5 +1,7 @@
 "use client";
 
+import { NoData } from "@/components/no-data";
+
 export type ColumnFormat = "entero" | "decimal1" | "decimal2" | "porcentaje" | "usd" | "ars" | "texto";
 
 export interface ColumnaTabla<T> {
@@ -83,9 +85,7 @@ export function DataTable<T extends object>({
           ))}
         </tbody>
       </table>
-      {filas.length === 0 && (
-        <div className="flex items-center justify-center py-10 text-sm text-muted-foreground">Sin datos</div>
-      )}
+      {filas.length === 0 && <NoData variant="chart" />}
     </div>
   );
 }

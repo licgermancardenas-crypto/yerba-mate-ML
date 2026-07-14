@@ -1,6 +1,7 @@
 import { Ship, Globe2, DollarSign, TrendingUp, PieChart, Package2, Boxes, HelpCircle } from "lucide-react";
 import { PageHeader } from "@/components/page-header";
 import { KpiCard } from "@/components/kpi-card";
+import { NoData } from "@/components/no-data";
 import { GaugeCard } from "@/components/gauge-card";
 import { ChartCard } from "@/components/chart-card";
 import { FilterBar } from "@/components/filter-bar";
@@ -98,22 +99,30 @@ export default async function ExportacionesPage({
       <FilterBar anios={todosLosAnios} dimension={{ param: "destino", label: "Destino", opciones: todosLosDestinos }} mostrarUnidad />
 
       {filas.length === 0 ? (
-        <p className="text-sm text-muted-foreground">Sin datos para los filtros seleccionados.</p>
+        <NoData variant="chart" motivo="Sin datos para los filtros seleccionados." />
       ) : (
         <>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
             <KpiCard
               label={`Volumen exportado ${ultimoAnio}`}
-              value={volumenUltimo != null ? formatMasaCompacta(volumenUltimo, unidad) : "Sin dato"}
+              value={volumenUltimo != null ? formatMasaCompacta(volumenUltimo, unidad) : <NoData variant="kpi" />}
               valorExacto={volumenUltimo != null ? formatMasa(volumenUltimo, unidad) : undefined}
               icon={Ship}
               deltaPct={deltaVolumen}
               deltaLabel={`vs. ${penultimoAnio}`}
               destacado
             />
-            <KpiCard label={`Valor FOB ${ultimoAnio}`} value={valorFobUltimo != null ? formatUsd(valorFobUltimo) : "Sin dato"} icon={DollarSign} />
-            <KpiCard label="Precio FOB promedio USD/kg" value={precioPromedioUltimo != null ? formatNumero(precioPromedioUltimo, 2) : "Sin dato"} icon={TrendingUp} />
-            <KpiCard label="Países destino" value={destinosDelAnio.length ? String(destinosDelAnio.length) : "Sin dato"} icon={Globe2} />
+            <KpiCard
+              label={`Valor FOB ${ultimoAnio}`}
+              value={valorFobUltimo != null ? formatUsd(valorFobUltimo) : <NoData variant="kpi" motivo="Pendiente: el pipeline INDEC actual no trae valores FOB, solo volumen (ver TODO.md, Fase 3f)." />}
+              icon={DollarSign}
+            />
+            <KpiCard
+              label="Precio FOB promedio USD/kg"
+              value={precioPromedioUltimo != null ? formatNumero(precioPromedioUltimo, 2) : <NoData variant="kpi" motivo="Depende de Valor FOB, pendiente (ver TODO.md, Fase 3f)." />}
+              icon={TrendingUp}
+            />
+            <KpiCard label="Países destino" value={destinosDelAnio.length ? String(destinosDelAnio.length) : <NoData variant="kpi" />} icon={Globe2} />
           </div>
 
           <div className="grid grid-cols-1 xl:grid-cols-3 gap-4">

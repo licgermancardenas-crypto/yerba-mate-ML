@@ -1,6 +1,7 @@
 import { Package, Ship, Globe2 } from "lucide-react";
 import { PageHeader } from "@/components/page-header";
 import { KpiCard } from "@/components/kpi-card";
+import { NoData } from "@/components/no-data";
 import { ChartCard } from "@/components/chart-card";
 import { FilterBar } from "@/components/filter-bar";
 import { FooterFuentes } from "@/components/footer-fuentes";
@@ -58,7 +59,7 @@ export default async function ImportacionesPage({
       <main className="p-6 md:p-8">
         <PageHeader title="Importaciones" description="Volumen mensual importado, por país de origen." />
         <FilterBar anios={todosLosAnios} dimension={{ param: "origen", label: "Origen", opciones: todosLosOrigenes }} mostrarUnidad />
-        <p className="text-sm text-muted-foreground">Sin datos para los filtros seleccionados.</p>
+        <NoData variant="chart" motivo="Sin datos para los filtros seleccionados." />
       </main>
     );
   }
@@ -99,7 +100,7 @@ export default async function ImportacionesPage({
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
         <KpiCard
           label={`Importado ${ultimoAnio}${ultimoAnio !== undefined && !esAnioCompleto(ultimoAnio) ? " (parcial)" : ""}`}
-          value={importadoUltimo != null ? formatMasaCompacta(importadoUltimo, unidad) : "Sin dato"}
+          value={importadoUltimo != null ? formatMasaCompacta(importadoUltimo, unidad) : <NoData variant="kpi" />}
           valorExacto={importadoUltimo != null ? formatMasa(importadoUltimo, unidad) : undefined}
           icon={Package}
           deltaPct={deltaImportado}
@@ -108,10 +109,10 @@ export default async function ImportacionesPage({
         />
         <KpiCard
           label={`Balanza comercial ${ultimoAnio}`}
-          value={balanzaUltimo != null ? formatMasa(balanzaUltimo, unidad) : "Sin dato"}
+          value={balanzaUltimo != null ? formatMasa(balanzaUltimo, unidad) : <NoData variant="kpi" />}
           icon={Ship}
         />
-        <KpiCard label="Países de origen" value={origenesDelAnio.length ? String(origenesDelAnio.length) : "Sin dato"} icon={Globe2} />
+        <KpiCard label="Países de origen" value={origenesDelAnio.length ? String(origenesDelAnio.length) : <NoData variant="kpi" />} icon={Globe2} />
       </div>
 
       <div className="grid grid-cols-1 xl:grid-cols-3 gap-4">

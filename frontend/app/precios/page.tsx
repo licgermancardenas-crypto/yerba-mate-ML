@@ -1,6 +1,7 @@
 import { DollarSign, Leaf, Factory, TrendingUp, Scale } from "lucide-react";
 import { PageHeader } from "@/components/page-header";
 import { KpiCard } from "@/components/kpi-card";
+import { NoData } from "@/components/no-data";
 import { ChartCard } from "@/components/chart-card";
 import { FilterBar } from "@/components/filter-bar";
 import { FooterFuentes } from "@/components/footer-fuentes";
@@ -60,7 +61,7 @@ export default async function PreciosPage({
       <main className="p-6 md:p-8">
         <PageHeader title="Precios" description="Serie histórica de precio de hoja verde y canchada (ARS/kg)." />
         <FilterBar anios={todosLosAnios} />
-        <p className="text-sm text-muted-foreground">Sin datos para los filtros seleccionados.</p>
+        <NoData variant="chart" motivo="Sin datos para los filtros seleccionados." />
       </main>
     );
   }
@@ -146,7 +147,7 @@ export default async function PreciosPage({
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
         <KpiCard
           label={`Hoja verde ${MESES[ultima.mes - 1]} ${ultima.anio}`}
-          value={ultima.precio_hoja_verde_ars != null ? formatArsKg(ultima.precio_hoja_verde_ars) : "Sin dato"}
+          value={ultima.precio_hoja_verde_ars != null ? formatArsKg(ultima.precio_hoja_verde_ars) : <NoData variant="kpi" />}
           icon={Leaf}
           deltaPct={deltaHojaVerde}
           deltaLabel="vs. año anterior"
@@ -154,14 +155,14 @@ export default async function PreciosPage({
         />
         <KpiCard
           label={`Canchada ${MESES[ultima.mes - 1]} ${ultima.anio}`}
-          value={ultima.precio_canchada_ars != null ? formatArsKg(ultima.precio_canchada_ars) : "Sin dato"}
+          value={ultima.precio_canchada_ars != null ? formatArsKg(ultima.precio_canchada_ars) : <NoData variant="kpi" />}
           icon={Factory}
           deltaPct={deltaCanchada}
           deltaLabel="vs. año anterior"
         />
         <KpiCard
           label="Relación canchada / hoja verde"
-          value={relacion != null ? `${formatNumero(relacion, 2)}x` : "Sin dato"}
+          value={relacion != null ? `${formatNumero(relacion, 2)}x` : <NoData variant="kpi" />}
           icon={DollarSign}
         />
       </div>
@@ -186,14 +187,14 @@ export default async function PreciosPage({
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-6">
         <KpiCard
           label="Precio real hoja verde"
-          value={realHojaVerdeUltima != null ? formatArsKg(realHojaVerdeUltima) : "Sin dato"}
+          value={realHojaVerdeUltima != null ? formatArsKg(realHojaVerdeUltima) : <NoData variant="kpi" />}
           icon={TrendingUp}
           deltaPct={deltaRealHojaVerde}
           deltaLabel="real, vs. año anterior"
         />
         <KpiCard
           label="Yerba mate vs. inflación general"
-          value={indiceRelativoYerba != null ? `${formatNumero(indiceRelativoYerba, 0)} pts` : "Sin dato"}
+          value={indiceRelativoYerba != null ? `${formatNumero(indiceRelativoYerba, 0)} pts` : <NoData variant="kpi" />}
           icon={Scale}
           deltaPct={indiceRelativoYerba != null ? indiceRelativoYerba - 100 : undefined}
           deltaLabel="acumulado desde dic-2016 vs. IPC general"
