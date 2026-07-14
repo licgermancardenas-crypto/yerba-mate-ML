@@ -26,6 +26,7 @@ export function HistoricalTable<TAnual extends object, TMensual extends object>(
           <button
             type="button"
             onClick={() => setVista("anual")}
+            aria-pressed={vista === "anual"}
             className={`px-3 py-1 text-xs font-medium rounded-md transition-colors ${
               vista === "anual" ? "bg-card text-card-foreground shadow-sm" : "text-muted-foreground hover:text-card-foreground"
             }`}
@@ -35,6 +36,7 @@ export function HistoricalTable<TAnual extends object, TMensual extends object>(
           <button
             type="button"
             onClick={() => setVista("mensual")}
+            aria-pressed={vista === "mensual"}
             className={`px-3 py-1 text-xs font-medium rounded-md transition-colors ${
               vista === "mensual" ? "bg-card text-card-foreground shadow-sm" : "text-muted-foreground hover:text-card-foreground"
             }`}

@@ -109,6 +109,7 @@ export function SerieMensualChart({ data, color = "#15803d", prefix = "", suffix
         <button
           type="button"
           aria-label="Ver como línea"
+          aria-pressed={tipo === "linea"}
           onClick={() => setTipo("linea")}
           className={`flex items-center justify-center size-6 rounded-md transition-colors ${
             tipo === "linea" ? "bg-card text-primary shadow-sm" : "text-muted-foreground hover:text-card-foreground"
@@ -119,6 +120,7 @@ export function SerieMensualChart({ data, color = "#15803d", prefix = "", suffix
         <button
           type="button"
           aria-label="Ver como barras"
+          aria-pressed={tipo === "barra"}
           onClick={() => setTipo("barra")}
           className={`flex items-center justify-center size-6 rounded-md transition-colors ${
             tipo === "barra" ? "bg-card text-primary shadow-sm" : "text-muted-foreground hover:text-card-foreground"

@@ -77,6 +77,7 @@ export function Sidebar() {
         <button
           type="button"
           aria-label={open ? "Cerrar menú" : "Abrir menú"}
+          aria-expanded={open}
           className="cursor-pointer p-2 -mr-2"
           onClick={() => setOpen((v) => !v)}
         >

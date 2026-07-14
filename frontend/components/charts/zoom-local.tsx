@@ -61,6 +61,7 @@ export function ZoomLocalControl({ zoom }: { zoom: ZoomLocalState }) {
           <button
             type="button"
             onClick={() => setActivo(true)}
+            aria-expanded={false}
             className="text-[11px] font-medium text-primary hover:underline"
           >
             Zoom en este gráfico
