@@ -274,7 +274,7 @@ Precios de góndola vía SEPA — **snapshot inicial cargado 2026-07-04** (ver F
 ---
 
 ## FASE 9 — Refactor UI/UX: sistema de diseño + fixes priorizados
-**Estado: EN PROGRESO — OK del usuario 2026-07-13, arrancando por Parte A**
+**Estado: COMPLETA (2026-07-13/14)** — Parte A (A1-A6), B (B1-B5), C (C1-C5) y D (D1-D3) implementadas en 9 commits chicos. Detalle de lo hecho, item por item, en cada bloque de abajo (sin reescribir, ya queda como registro). Pendiente real: capturas de pantalla de cada página para revisión visual (no se pudo hacer en esta sesión, ver nota al final) y 1 hallazgo de contraste límite documentado en D3 que no se resolvió con certeza (texto verde sobre verde tenue en DeltaBadge positivo, ~4,4:1 estimado a mano, cerca del corte 4,5:1 AA — validar con una herramienta real de contraste antes de decidir si amerita otro ajuste).
 
 Objetivo: no parchear pantalla por pantalla. Primero fundación (helpers/
 componentes compartidos), después aplicar en todas las páginas. Investigación
