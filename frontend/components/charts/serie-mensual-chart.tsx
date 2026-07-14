@@ -33,6 +33,11 @@ interface SerieMensualChartProps {
   prefix?: string;
   suffix?: string;
   numberFormat?: Intl.NumberFormatOptions;
+  /** Serie mensual con estacionalidad real (cosecha, exportaciones/
+   * importaciones mensuales) -- el insight hover omite la comparación
+   * contra el mes previo (un valle real vs. un pico real da variaciones de
+   * miles de %) y usa solo la interanual. Ver lib/insights.ts. */
+  estacional?: boolean;
 }
 
 function ChartTooltip({
@@ -84,7 +89,7 @@ function SincronizarHover({ data, onCambio }: { data: PuntoSerie[]; onCambio: (i
   return null;
 }
 
-export function SerieMensualChart({ data, color = "#15803d", prefix = "", suffix = "", numberFormat }: SerieMensualChartProps) {
+export function SerieMensualChart({ data, color = "#15803d", prefix = "", suffix = "", numberFormat, estacional = false }: SerieMensualChartProps) {
   const [tipo, setTipo] = useState<"linea" | "barra">("linea");
   const [hoverIdx, setHoverIdx] = useState<number | null>(null);
   const gradientId = useId();
@@ -98,7 +103,7 @@ export function SerieMensualChart({ data, color = "#15803d", prefix = "", suffix
   // dejar el espacio vacío -- así el dato relevante es visible de entrada,
   // no solo para quien interactúa con el gráfico.
   const idxInsight = hoverIdx ?? (data.length ? data.length - 1 : null);
-  const insight = idxInsight !== null ? generarInsightHover(data, idxInsight) : null;
+  const insight = idxInsight !== null ? generarInsightHover(data, idxInsight, { estacional }) : null;
 
   return (
     <div className="flex flex-col gap-2">

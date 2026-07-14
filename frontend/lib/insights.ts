@@ -38,12 +38,22 @@ function calcularRacha(serie: PuntoInsight[], idx: number): number {
 // `anio` es opcional -- series ya agregadas por mes-calendario (promedio
 // entre todos los años) no tienen una identidad de año por punto, y en ese
 // caso se omite la comparación interanual sin romper el resto.
-export function generarInsightHover(serie: PuntoInsight[], idx: number): string | null {
+//
+// `estacional` (Fase 9, regla A2): series mensuales con estacionalidad real
+// (cosecha, exportaciones mensuales) NUNCA deben comparar contra el mes
+// previo -- un valle real (ej. noviembre) vs. un pico real (ej. mayo) da
+// variaciones de miles de % que no describen ningún cambio real, solo la
+// forma de la estacionalidad. Para esas series se omite la comparación
+// punto-a-punto y se prioriza la interanual (mismo mes, año anterior). Series
+// NO estacionales (IPC, precios) siguen usando el punto-a-punto -- ahí "vs.
+// mes anterior" sí es una lectura válida (ej. inflación mensual).
+export function generarInsightHover(serie: PuntoInsight[], idx: number, opciones?: { estacional?: boolean }): string | null {
   if (idx < 0 || idx >= serie.length) return null;
   const punto = serie[idx];
   const partes: string[] = [];
+  const estacional = opciones?.estacional ?? false;
 
-  if (idx > 0) {
+  if (idx > 0 && !estacional) {
     const anterior = serie[idx - 1];
     if (anterior.valor !== 0) {
       const deltaPct = ((punto.valor - anterior.valor) / Math.abs(anterior.valor)) * 100;

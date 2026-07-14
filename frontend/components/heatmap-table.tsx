@@ -1,3 +1,5 @@
+import { DeltaBadge } from "@/components/delta-badge";
+
 const MESES_ABREV = ["Ene", "Feb", "Mar", "Abr", "May", "Jun", "Jul", "Ago", "Sep", "Oct", "Nov", "Dic"];
 
 // Rampa secuencial de un solo hue (verde de marca), clara -> oscura, para
@@ -136,14 +138,7 @@ export function HeatmapTable({
                   </td>
                   <td className="px-3 py-1.5 text-right whitespace-nowrap">
                     {varPct !== null ? (
-                      <span
-                        className={`inline-flex items-center rounded-full px-2 py-0.5 text-[11px] font-semibold ${
-                          varPct >= 0 ? "bg-primary/10 text-primary" : "bg-destructive/10 text-destructive"
-                        }`}
-                      >
-                        {varPct >= 0 ? "+" : ""}
-                        {varPct.toFixed(1)}%
-                      </span>
+                      <DeltaBadge valor={varPct} base={`vs. ${anios[i - 1]}`} className="text-[11px]" />
                     ) : (
                       <span className="text-muted-foreground">—</span>
                     )}

@@ -125,6 +125,7 @@ export default async function ImportacionesPage({
             color="#1d4ed8"
             numberFormat={{ notation: "compact" }}
             suffix={sufijoUnidad}
+            estacional
           />
         </ChartCard>
 

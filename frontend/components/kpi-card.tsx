@@ -1,4 +1,5 @@
-import { ArrowDownRight, ArrowUpRight, type LucideIcon } from "lucide-react";
+import type { LucideIcon } from "lucide-react";
+import { DeltaBadge } from "@/components/delta-badge";
 
 interface KpiCardProps {
   label: string;
@@ -13,8 +14,6 @@ interface KpiCardProps {
 }
 
 export function KpiCard({ label, value, icon: Icon, deltaPct, deltaLabel, destacado = false, valorExacto }: KpiCardProps) {
-  const positivo = (deltaPct ?? 0) >= 0;
-
   if (destacado) {
     return (
       <div className="group relative overflow-hidden rounded-2xl bg-gradient-to-br from-primary to-[#0d3d1f] p-5 flex flex-col gap-3 shadow-md hover:shadow-lg hover:-translate-y-0.5 transition-all duration-200">
@@ -32,13 +31,7 @@ export function KpiCard({ label, value, icon: Icon, deltaPct, deltaLabel, destac
           {value}
         </div>
         {deltaPct !== undefined && (
-          <div className="relative inline-flex items-center gap-1 self-start rounded-full bg-white/15 px-2 py-0.5 text-xs font-semibold text-white">
-            {positivo ? <ArrowUpRight size={13} aria-hidden="true" /> : <ArrowDownRight size={13} aria-hidden="true" />}
-            <span>
-              {positivo ? "+" : ""}
-              {deltaPct.toFixed(1)}% {deltaLabel}
-            </span>
-          </div>
+          <DeltaBadge valor={deltaPct} base={deltaLabel ?? ""} sobreFondoOscuro className="relative self-start" />
         )}
       </div>
     );
@@ -55,23 +48,7 @@ export function KpiCard({ label, value, icon: Icon, deltaPct, deltaLabel, destac
       <div className="text-3xl font-bold tabular-nums text-card-foreground" title={valorExacto}>
         {value}
       </div>
-      {deltaPct !== undefined && (
-        <div
-          className={`inline-flex items-center gap-1 self-start rounded-full px-2 py-0.5 text-xs font-semibold ${
-            positivo ? "bg-primary/10 text-primary" : "bg-destructive/10 text-destructive"
-          }`}
-        >
-          {positivo ? (
-            <ArrowUpRight size={13} aria-hidden="true" />
-          ) : (
-            <ArrowDownRight size={13} aria-hidden="true" />
-          )}
-          <span>
-            {positivo ? "+" : ""}
-            {deltaPct.toFixed(1)}% {deltaLabel}
-          </span>
-        </div>
-      )}
+      {deltaPct !== undefined && <DeltaBadge valor={deltaPct} base={deltaLabel ?? ""} className="self-start" />}
     </div>
   );
 }

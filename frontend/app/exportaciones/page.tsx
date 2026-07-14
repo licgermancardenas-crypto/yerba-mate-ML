@@ -126,6 +126,7 @@ export default async function ExportacionesPage({
                 data={serieMensual.map((p) => ({ anio: p.anio, etiqueta: p.etiqueta, valor: p.produccion_kg * factorUnidad }))}
                 numberFormat={{ notation: "compact" }}
                 suffix={sufijoUnidad}
+                estacional
               />
             </ChartCard>
 

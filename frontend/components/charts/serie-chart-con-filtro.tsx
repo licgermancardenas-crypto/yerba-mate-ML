@@ -15,6 +15,8 @@ interface Props {
   prefix?: string;
   suffix?: string;
   numberFormat?: Intl.NumberFormatOptions;
+  /** Ver SerieMensualChartProps.estacional -- se pasa tal cual. */
+  estacional?: boolean;
 }
 
 // Filtro de año propio del gráfico, independiente del filtro general de la

@@ -185,6 +185,7 @@ export default async function CadenaProductivaPage({
           color="#15803d"
           numberFormat={{ notation: "compact" }}
           suffix={sufijoUnidad}
+          estacional
         />
       </ChartCard>
 
