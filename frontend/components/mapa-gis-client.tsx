@@ -5,6 +5,7 @@ import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { Info, Loader2 } from "lucide-react";
 import { GisMap, type CapasTransporte, type TransporteActivo } from "@/components/gis-map";
 import { GisPanel } from "@/components/gis-panel";
+import { MapErrorBoundary } from "@/components/map-error-boundary";
 import { GrupoControl, BasemapToggle, SELECT_CLASS, LEYENDA_CLASS, pillClass } from "@/components/mapa-controles";
 import { campoChoropleto } from "@/lib/gis-resumen";
 import { formatNumero } from "@/lib/format";
@@ -236,19 +237,21 @@ export function MapaGisClient({
           {error ? (
             <div className="flex items-center justify-center h-full text-sm text-muted-foreground">{error}</div>
           ) : (
-            <GisMap
-              data={datos}
-              geomType={capaActual.geom_type}
-              campoValor={campoValor}
-              jurisdicciones={jurisdicciones}
-              radiosContexto={radiosContexto}
-              transporte={transporte}
-              transporteActivo={transporteActivo}
-              basemap={basemap}
-              provinciaFiltro={provincia ? provincia.toUpperCase() : null}
-              bboxFoco={bboxFoco}
-              onSeleccionarFeature={setFeatureSeleccionada}
-            />
+            <MapErrorBoundary>
+              <GisMap
+                data={datos}
+                geomType={capaActual.geom_type}
+                campoValor={campoValor}
+                jurisdicciones={jurisdicciones}
+                radiosContexto={radiosContexto}
+                transporte={transporte}
+                transporteActivo={transporteActivo}
+                basemap={basemap}
+                provinciaFiltro={provincia ? provincia.toUpperCase() : null}
+                bboxFoco={bboxFoco}
+                onSeleccionarFeature={setFeatureSeleccionada}
+              />
+            </MapErrorBoundary>
           )}
 
           {!error && campoValor && (

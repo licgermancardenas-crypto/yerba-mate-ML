@@ -3,6 +3,7 @@
 import dynamic from "next/dynamic";
 import type { ComponentProps } from "react";
 import type { ExportacionesFlowMap } from "@/components/exportaciones-flow-map";
+import { MapErrorBoundary } from "@/components/map-error-boundary";
 
 // Mismo motivo que produccion-mapa-loader.tsx: MapLibre GL (WebGL) no debe
 // intentar hidratarse en el servidor, y `next/dynamic` con `ssr:false` solo
@@ -23,5 +24,9 @@ const ExportacionesFlowMapDinamico = dynamic(
 );
 
 export function ExportacionesFlowMapLoader(props: ComponentProps<typeof ExportacionesFlowMap>) {
-  return <ExportacionesFlowMapDinamico {...props} />;
+  return (
+    <MapErrorBoundary>
+      <ExportacionesFlowMapDinamico {...props} />
+    </MapErrorBoundary>
+  );
 }

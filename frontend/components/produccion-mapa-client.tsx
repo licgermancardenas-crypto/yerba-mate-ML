@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { Map as MapIcon, Factory, Flame, Circle, Route, Info, Loader2 } from "lucide-react";
 import { ProduccionMapa, type VistaMapa, type Basemap, type BurbujaProduccion } from "@/components/produccion-mapa";
 import { ProduccionPanel, type BurbujaSeleccionada, type RutaFlujo } from "@/components/produccion-panel";
+import { MapErrorBoundary } from "@/components/map-error-boundary";
 import { GrupoControl, BasemapToggle, pillClass, SELECT_CLASS, LEYENDA_CLASS } from "@/components/mapa-controles";
 import { normalizar } from "@/lib/texto";
 import { formatNumero } from "@/lib/format";
@@ -390,26 +391,28 @@ export function ProduccionMapaClient({ produccionPorCiudadAnio }: { produccionPo
             <span className="text-sm text-muted-foreground">Cargando capas del mapa…</span>
           </div>
         )}
-        <ProduccionMapa
-          vista={vista}
-          jurisdicciones={jurisdicciones}
-          departamentosContexto={departamentosContexto}
-          departamentosDatos={departamentosDatos}
-          municipios={municipios}
-          secaderos={secaderos}
-          burbujas={burbujas}
-          flujo={flujo}
-          basemap={basemap}
-          provinciaFiltro={provincia ? provincia.toUpperCase() : null}
-          departamentoFiltro={departamento ? normalizar(departamento) : null}
-          bboxFoco={bboxFoco}
-          onSeleccionarDepartamento={manejarClickDepartamentoEnMapa}
-          onSeleccionarBurbuja={setCiudadSeleccionada}
-          onSeleccionarFlujo={setRutaSeleccionada}
-          onHoverDepartamento={setDeptoHover}
-          onHoverBurbuja={setCiudadHover}
-          onHoverFlujo={setRutaHover}
-        />
+        <MapErrorBoundary>
+          <ProduccionMapa
+            vista={vista}
+            jurisdicciones={jurisdicciones}
+            departamentosContexto={departamentosContexto}
+            departamentosDatos={departamentosDatos}
+            municipios={municipios}
+            secaderos={secaderos}
+            burbujas={burbujas}
+            flujo={flujo}
+            basemap={basemap}
+            provinciaFiltro={provincia ? provincia.toUpperCase() : null}
+            departamentoFiltro={departamento ? normalizar(departamento) : null}
+            bboxFoco={bboxFoco}
+            onSeleccionarDepartamento={manejarClickDepartamentoEnMapa}
+            onSeleccionarBurbuja={setCiudadSeleccionada}
+            onSeleccionarFlujo={setRutaSeleccionada}
+            onHoverDepartamento={setDeptoHover}
+            onHoverBurbuja={setCiudadHover}
+            onHoverFlujo={setRutaHover}
+          />
+        </MapErrorBoundary>
 
         {vista === "coropletico" && (
           <div className={LEYENDA_CLASS}>
