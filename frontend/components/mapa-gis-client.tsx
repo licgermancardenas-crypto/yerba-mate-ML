@@ -73,7 +73,10 @@ export function MapaGisClient({
   const [error, setError] = useState<string | null>(null);
   const [featureSeleccionada, setFeatureSeleccionada] = useState<Record<string, unknown> | null>(null);
 
-  const [basemap, setBasemap] = useState<Basemap>("topo");
+  // Neutro (CARTO Positron) por default -- topográfico (verde) hacía que los
+  // departamentos coropléticos no se distinguieran del terreno de fondo
+  // (ver Fase 9, C1). Topográfico queda disponible como opción manual.
+  const [basemap, setBasemap] = useState<Basemap>("calles");
   const [provincia, setProvincia] = useState<string>(""); // "" = todas
   const [jurisdicciones, setJurisdicciones] = useState<GeoJSON.FeatureCollection | null>(null);
   const [radiosContexto, setRadiosContexto] = useState<GeoJSON.FeatureCollection | null>(null);

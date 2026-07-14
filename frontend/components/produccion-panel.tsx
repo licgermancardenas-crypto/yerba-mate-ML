@@ -225,17 +225,18 @@ export function ProduccionPanel({
 
   // heatmap / secaderos (clústeres): el dataset de secaderos del INYM no
   // trae departamento/municipio asignado (ver docs), así que no hay un
-  // desglose territorial real para mostrar -- solo el total, sin inventar
-  // ninguna categoría adicional.
+  // desglose territorial real para mostrar -- solo el total. Antes esto
+  // vivía en un segundo card ancho debajo (protagonismo desproporcionado
+  // para una aclaración) -- ahora es una nota chica dentro del mismo card,
+  // mismo tratamiento que otras aclaraciones del panel (ver vista "flujo").
   return (
     <div className="flex flex-col gap-4 lg:w-[340px] lg:shrink-0">
       <PanelCard titulo={vista === "heatmap" ? "Densidad de secaderos" : "Secaderos"} subtitulo="Plantas de secado del INYM">
         <KpiRow label="Secaderos totales" valor={nf0(nSecaderos)} />
+        <p className="text-[10px] text-muted-foreground italic mt-2 pt-2 border-t border-border">
+          El dataset del INYM no tiene departamento/municipio asignado, así que no hay desglose territorial real para mostrar acá.
+        </p>
       </PanelCard>
-      <p className="text-xs text-muted-foreground rounded-2xl border border-border bg-card p-4 shadow-sm">
-        El dataset de secaderos no tiene departamento/municipio asignado en el INYM, así que no hay un desglose territorial
-        real para mostrar acá.
-      </p>
     </div>
   );
 }

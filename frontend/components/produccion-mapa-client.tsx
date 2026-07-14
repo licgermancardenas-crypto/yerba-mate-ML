@@ -65,7 +65,8 @@ export function ProduccionMapaClient({ produccionPorCiudadAnio }: { produccionPo
   );
   const [anio, setAnio] = useState(anios[anios.length - 1]);
   const [vista, setVista] = useState<VistaMapa>("coropletico");
-  const [basemap, setBasemap] = useState<Basemap>("topo");
+  // Neutro (CARTO Positron) por default -- ver Fase 9, C1.
+  const [basemap, setBasemap] = useState<Basemap>("calles");
   const [provincia, setProvincia] = useState<string>(""); // "" = todas
   const [departamento, setDepartamento] = useState<string>(""); // "" = todos
 

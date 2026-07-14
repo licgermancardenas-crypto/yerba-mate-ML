@@ -10,7 +10,8 @@ import { SerieChartConFiltro } from "@/components/charts/serie-chart-con-filtro"
 import { AnnualChartConFiltro } from "@/components/charts/annual-chart-con-filtro";
 import type { EnvasesPunto } from "@/components/charts/annual-chart-con-filtro";
 import { HistoricalTable } from "@/components/historical-table";
-import { HeatmapTable } from "@/components/heatmap-table";
+import { Sparkline } from "@/components/charts/sparkline";
+import { DeltaBadge } from "@/components/delta-badge";
 import type { ColumnaTabla } from "@/components/data-table";
 import { formatNumero } from "@/lib/format";
 import { getConsumo } from "@/lib/api";
@@ -186,16 +187,19 @@ export default async function ConsumoPage({
           </ChartCard>
 
           <ChartCard
-            title="Mapa de calor — consumo per cápita"
+            title="Consumo per cápita — tendencia"
             className="mt-4"
-            description="Escala de color por toda la serie (no por año): la fuente publica el mismo valor los 12 meses de cada año, así que el color acá muestra la tendencia entre años, no estacionalidad mensual."
+            description="La fuente publica el mismo valor los 12 meses de cada año (cadencia anual, no mensual) -- una matriz de 12 columnas idénticas por fila no aporta lectura, solo la tendencia entre años."
           >
-            <HeatmapTable
-              filas={mensualHistorico.map((f) => ({ anio: f.anio, mes: f.mes, valor: f.consumo_per_capita_kg }))}
-              formatearValor={(v) => formatNumero(v, 2)}
-              formatearTotal={(v) => `${formatNumero(v / 12, 2)} kg prom.`}
-              escala="global"
-            />
+            <div className="flex items-center gap-4">
+              <Sparkline valores={[...anualHistorico].reverse().map((f) => f.consumo_per_capita_kg)} />
+              <div className="flex flex-col gap-1">
+                <span className="text-sm font-semibold tabular-nums text-card-foreground">
+                  {formatNumero(anualHistorico[0]?.consumo_per_capita_kg ?? 0, 2)} kg/persona ({ultimoAnio})
+                </span>
+                <DeltaBadge valor={deltaConsumo} base={`vs. ${penultimoAnio}`} />
+              </div>
+            </div>
           </ChartCard>
         </>
       )}
