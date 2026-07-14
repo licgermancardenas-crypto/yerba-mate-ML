@@ -13,9 +13,11 @@ interface KpiCardProps {
   destacado?: boolean;
   /** Valor sin notación compacta, para el tooltip nativo cuando `value` viene compactado (ej. "889,3 M kg" -> "889.253.083 kg"). */
   valorExacto?: string;
+  /** Dato secundario chico debajo del valor principal (ej. un índice cuando el héroe es su variación, ver Fase 9 D1) -- no reemplaza a `deltaPct`. */
+  secundario?: ReactNode;
 }
 
-export function KpiCard({ label, value, icon: Icon, deltaPct, deltaLabel, destacado = false, valorExacto }: KpiCardProps) {
+export function KpiCard({ label, value, icon: Icon, deltaPct, deltaLabel, destacado = false, valorExacto, secundario }: KpiCardProps) {
   if (destacado) {
     return (
       <div className="group relative overflow-hidden rounded-2xl bg-gradient-to-br from-primary to-[#0d3d1f] p-5 flex flex-col gap-3 shadow-md hover:shadow-lg hover:-translate-y-0.5 transition-all duration-200">
@@ -32,6 +34,7 @@ export function KpiCard({ label, value, icon: Icon, deltaPct, deltaLabel, destac
         <div className="relative text-3xl font-bold tabular-nums text-white" title={valorExacto}>
           {value}
         </div>
+        {secundario && <div className="relative text-xs text-white/70">{secundario}</div>}
         {deltaPct !== undefined && (
           <DeltaBadge valor={deltaPct} base={deltaLabel ?? ""} sobreFondoOscuro className="relative self-start" />
         )}
@@ -50,6 +53,7 @@ export function KpiCard({ label, value, icon: Icon, deltaPct, deltaLabel, destac
       <div className="text-3xl font-bold tabular-nums text-card-foreground" title={valorExacto}>
         {value}
       </div>
+      {secundario && <div className="text-xs text-muted-foreground">{secundario}</div>}
       {deltaPct !== undefined && <DeltaBadge valor={deltaPct} base={deltaLabel ?? ""} className="self-start" />}
     </div>
   );

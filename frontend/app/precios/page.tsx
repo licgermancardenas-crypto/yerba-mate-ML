@@ -8,7 +8,7 @@ import { FooterFuentes } from "@/components/footer-fuentes";
 import { SerieChartConFiltro } from "@/components/charts/serie-chart-con-filtro";
 import { HistoricalTable } from "@/components/historical-table";
 import type { ColumnaTabla } from "@/components/data-table";
-import { formatNumero } from "@/lib/format";
+import { formatNumero, formatPct } from "@/lib/format";
 import { getPrecios, getPreciosGondola } from "@/lib/api";
 import { agregarPreciosAnual, type PrecioAnualRow } from "@/lib/agregaciones";
 import type { PrecioRow } from "@/lib/types";
@@ -146,7 +146,7 @@ export default async function PreciosPage({
 
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
         <KpiCard
-          label={`Hoja verde ${MESES[ultima.mes - 1]} ${ultima.anio}`}
+          label={`Hoja verde (nominal) ${MESES[ultima.mes - 1]} ${ultima.anio}`}
           value={ultima.precio_hoja_verde_ars != null ? formatArsKg(ultima.precio_hoja_verde_ars) : <NoData variant="kpi" />}
           icon={Leaf}
           deltaPct={deltaHojaVerde}
@@ -154,7 +154,7 @@ export default async function PreciosPage({
           destacado
         />
         <KpiCard
-          label={`Canchada ${MESES[ultima.mes - 1]} ${ultima.anio}`}
+          label={`Canchada (nominal) ${MESES[ultima.mes - 1]} ${ultima.anio}`}
           value={ultima.precio_canchada_ars != null ? formatArsKg(ultima.precio_canchada_ars) : <NoData variant="kpi" />}
           icon={Factory}
           deltaPct={deltaCanchada}
@@ -168,11 +168,11 @@ export default async function PreciosPage({
       </div>
 
       <div className="grid grid-cols-1 xl:grid-cols-2 gap-4">
-        <ChartCard title="Precio hoja verde" description="ARS/kg, serie completa">
+        <ChartCard title="Precio hoja verde (nominal)" description="ARS/kg, serie completa">
           <SerieChartConFiltro data={serieHojaVerde} color="#15803d" prefix="$" suffix="/kg" numberFormat={{ minimumFractionDigits: 2, maximumFractionDigits: 2 }} />
         </ChartCard>
 
-        <ChartCard title="Precio canchada" description="ARS/kg, serie completa">
+        <ChartCard title="Precio canchada (nominal)" description="ARS/kg, serie completa">
           <SerieChartConFiltro data={serieCanchada} color="#a16207" prefix="$" suffix="/kg" numberFormat={{ minimumFractionDigits: 2, maximumFractionDigits: 2 }} />
         </ChartCard>
       </div>
@@ -186,26 +186,27 @@ export default async function PreciosPage({
 
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-6">
         <KpiCard
-          label="Precio real hoja verde"
+          label="Hoja verde (real, deflactado IPC)"
           value={realHojaVerdeUltima != null ? formatArsKg(realHojaVerdeUltima) : <NoData variant="kpi" />}
           icon={TrendingUp}
           deltaPct={deltaRealHojaVerde}
           deltaLabel="real, vs. año anterior"
         />
         <KpiCard
-          label="Yerba mate vs. inflación general"
-          value={indiceRelativoYerba != null ? `${formatNumero(indiceRelativoYerba, 0)} pts` : <NoData variant="kpi" />}
+          label="Yerba mate vs. inflación general (acum. desde dic-2016)"
+          value={indiceRelativoYerba != null ? formatPct(indiceRelativoYerba - 100) : <NoData variant="kpi" />}
+          secundario={
+            indiceRelativoYerba != null ? `Índice: ${formatNumero(indiceRelativoYerba, 0)} pts (precio relativo vs. IPC, base dic-16=100)` : undefined
+          }
           icon={Scale}
-          deltaPct={indiceRelativoYerba != null ? indiceRelativoYerba - 100 : undefined}
-          deltaLabel="acumulado desde dic-2016 vs. IPC general"
         />
       </div>
 
       <div className="grid grid-cols-1 xl:grid-cols-2 gap-4">
-        <ChartCard title="Precio real hoja verde" description="ARS/kg deflactado, en pesos del último mes con dato de IPC">
+        <ChartCard title="Precio hoja verde (real, deflactado IPC)" description="ARS/kg deflactado, en pesos del último mes con dato de IPC">
           <SerieChartConFiltro data={serieHojaVerdeReal} color="#15803d" prefix="$" suffix="/kg" numberFormat={{ minimumFractionDigits: 2, maximumFractionDigits: 2 }} />
         </ChartCard>
-        <ChartCard title="Precio real canchada" description="ARS/kg deflactado, en pesos del último mes con dato de IPC">
+        <ChartCard title="Precio canchada (real, deflactado IPC)" description="ARS/kg deflactado, en pesos del último mes con dato de IPC">
           <SerieChartConFiltro data={serieCanchadaReal} color="#a16207" prefix="$" suffix="/kg" numberFormat={{ minimumFractionDigits: 2, maximumFractionDigits: 2 }} />
         </ChartCard>
       </div>
