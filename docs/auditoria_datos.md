@@ -375,8 +375,8 @@ incorrecto** en las tres columnas (producción, consumo, exportaciones), no solo
       y validada (resoluciones INYM/SAGyP, ver `docs/fuentes_precios_materia_prima.md`) — nota
       importante encontrada en el camino: el mecanismo de precio de referencia fue **discontinuado
       por el INYM el 31/03/2026** (Decreto 812, desregulación), no esperar valores nuevos.
-    - ⏳ `superficie_productores` en sus tramos válidos: sin investigar todavía — único punto
-      abierto de la lista original de categoría B.
+    - ✅ `superficie_productores`: investigado 2026-07-16, ver §7.11 — revisa la conclusión de julio
+      (177.533 ha 2020-2024 NO estaba validada como se creía, se anuló 2021-2024).
 
 ### 7.1 — Reglas permanentes de la Etapa 4
 
@@ -419,6 +419,66 @@ incorrecto** en las tres columnas (producción, consumo, exportaciones), no solo
 Pendiente, no bloqueante: formalizar T7 (consistencia cruzada interna) y T8 (consistencia contra
 benchmark externo) como funciones reusables dentro de `audit_datos.py` — hoy son queries ad-hoc
 que se corrieron a mano durante la auditoría (ver §6 y §8), no están en el loop de CI.
+
+### 7.11 — `superficie_productores`, investigación de fuente cerrada (2026-07-16)
+
+Único punto abierto de categoría B que quedaba de la lista original. Se buscó la fuente primaria
+real del INYM para `superficie_ha` y `productores` por ciudad. Resultado: se encontró la fuente,
+pero revisa (no confirma) lo que se había dado por válido en julio.
+
+**Fuente encontrada**: INYM publica "Superficie Cultivada por Departamento"
+(`inym.org.ar/descargar/publicaciones/estadisticas/superficie-cultivada-por-departamento.html`),
+un PDF por año — 2016, 2018, 2019, 2020, 2021, 2022, 2023, 2024, 2025 (falta 2017). Se descargaron
+y parsearon los 8 disponibles (2016-2023, 2025) con `PyMuPDF` (mismo método que
+`etl_inym_pdf.py`). Total nacional real por año:
+
+| Año | Total real INYM (ha) |
+|---|---|
+| 2016 | 165.326,8 |
+| 2018 | 169.595,1 |
+| 2019 | 170.782,4 |
+| 2020 | 174.820,1 |
+| 2021 | 191.391,7 |
+| 2022 | 209.276,9 |
+| 2023 | 222.168,6 |
+| 2025 | 231.352,4 |
+
+**Hallazgo 1 — revisa §2.6/§7 (lista priorizada)**: "177.533 ha congelado 2020-2024" coincide casi
+exacto con el real de **2020 solamente** (174.820,1 ha, Δ 1,6%). El real sigue creciendo fuerte
+cada año después — no hay ningún año donde se estabilice en ~177.500 ha. La validación de julio
+contra "un benchmark externo del usuario" comparó orden de magnitud de un único punto, no la serie
+completa, y no detectó que el valor debía seguir subiendo. **Acción**: migración
+`008_superficie_congelada_2026-07-16.sql` anula `superficie_ha` 2021-2024 (las 7 ciudades), se
+conserva 2020 como último año real. Nota de `audit_datos.py` para esta serie corregida para no
+repetir la afirmación de "validado".
+
+**Hallazgo 2 — la columna `ciudad` no corresponde a ningún `departamento` real del INYM.** Este
+informe reporta por los 19 departamentos administrativos de Misiones (17) y Corrientes (2) — los
+mismos de `view_superficie_por_departamentos` (GIS, ya cargado, ver `docs/inym_geoserver_layers.md`).
+Comparado 1 a 1 contra 2022 (real): Apóstoles departamento 17.914,9 ha vs. "Apóstoles ciudad" en
+nuestra tabla 92.669 ha (5,2x); Montecarlo departamento 7.088,4 ha vs. "Montecarlo ciudad" 23.167 ha
+(3,3x); Oberá departamento 24.472,6 ha vs. "Oberá ciudad" 10.811 ha (0,44x — al revés que los otros
+dos). Sin patrón de factor constante ni de dirección — no es un simple problema de escala o de
+agrupar varios departamentos bajo un nombre, la partición es otra cosa (posiblemente zonas de acopio
+comercial históricas, no administrativas) y no se pudo identificar cuál. **Se deja documentado como
+no verificable por partida** — no se reemplaza (a diferencia de "Producción por ciudad" en julio, acá
+no hay una fuente real por departamento con series 2010-2019 para no perder histórico, y los datos
+de "ciudad" restantes no tienen con qué contrastarse).
+
+**Bloqueo aparte, por qué no se usó este informe como fuente citada pese a ser real**: los 8 PDFs,
+sin excepción, tienen este pie de página: *"Los datos consignados en el presente informe son
+confidenciales y de uso exclusivo para fines de INYM. Por ello se prohíbe su copia, distribución,
+difusión, retención o uso de la información que no se ajuste a los fines expresados."* Se verificó
+que los PDFs mensuales de "Avance de Cosecha" ya usados (`ym.inym_hoja_verde_zona`/
+`ym.inym_salida_molino`, Fase 3c) **no** tienen esta cláusula — es una restricción específica de
+esta publicación, no una boilerplate genérica del sitio. Aunque el archivo esté en una URL pública,
+el documento mismo prohíbe redistribuirlo — no se usó para citar ni cargar datos nuevos en la
+plataforma pública, solo para las comparaciones de esta investigación (no persistidas en la DB).
+
+**`productores`**: no existe un informe histórico equivalente por departamento/ciudad — solo cifras
+de prensa del total nacional actual (2024: 9.709 productores, Misiones 9.112 + Corrientes 597).
+Nuestra suma de las 7 "ciudades" en 2024 da 9.334 (Δ 3,9%), orden de magnitud razonable pero sin
+fuente citable por partida. Se deja como está (categoría B débil, sin cambios en la DB).
 
 ---
 

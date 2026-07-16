@@ -150,12 +150,15 @@ SERIES: list[Serie] = [
         entity_cols=["provincia", "ciudad"],
         value_cols=["valor"],
         permite_repeticion_anual=True,
-        nota="Fuente sin documentar (ver Etapa 1), pero el patrón de congelamiento SÍ está investigado "
-        "(§2.6, docs/auditoria_datos.md): 191.000 ha congelado 2010-2016, variación real 2017-2019, "
-        "177.533 ha congelado 2020-2024 -- el relevamiento de superficie no se hace todos los años, el "
-        "mismo número real se repite hasta el próximo censo. 177.533 ha validado contra benchmark "
-        "externo del usuario. No es fabricación, uniforme en las 7 ciudades porque el dato nacional se "
-        "reparte igual entre censos.",
+        nota="Fuente sin documentar (ver Etapa 1). Investigado en dos rondas: (1) §2.6, 191.000 ha "
+        "congelado 2010-2016 -- todavía sin fuente que lo confirme ni lo descarte. (2) §7.11 "
+        "(2026-07-16): la serie histórica real del INYM ('Superficie Cultivada por Departamento', "
+        "2016-2025) mostró que el '177.533 ha congelado 2020-2024' que se había dado por validado en "
+        "julio en realidad solo coincide con el real de 2020 -- el real sigue creciendo cada año "
+        "después (231.352 ha en 2025). Se anuló 2021-2024 (migración 008), se conserva 2020 como "
+        "último año con valor real. La columna 'ciudad' tampoco corresponde a ningún 'departamento' "
+        "real del INYM (comparado 1 a 1: factores de 0,44x a 5,2x sin patrón), documentado como no "
+        "verificable por partida en §7.11.",
     ),
     Serie(
         nombre="superficie_productores.productores",
