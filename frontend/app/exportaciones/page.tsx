@@ -14,6 +14,7 @@ import { formatMasa, formatMasaCompacta, formatNumero, formatPct, formatUsd, typ
 import { getExportacionesAnualReal, getExportacionesIndec } from "@/lib/api";
 import {
   agregarExportacionesAnualNacional,
+  agregarComexIndecAnualNacional,
   agregarComexIndecMensualNacional,
   agregarComexIndecMensualHistorico,
   agregarComexIndecPorPais,
@@ -65,7 +66,21 @@ export default async function ExportacionesPage({
   const ultimoAnio = anios[anios.length - 1];
   const penultimoAnio = anios[anios.length - 2];
 
-  const anualHistorico = agregarExportacionesAnualNacional(filas);
+  // ym.exportaciones_anual (comunicados INYM) no siempre publica FOB para el
+  // año más reciente -- si falta, se completa con el total real de
+  // ym.exportaciones_indec (misma fuente que ya alimenta el desglose por
+  // destino de esta página), año por año.
+  const anualHistoricoBase = agregarExportacionesAnualNacional(filas);
+  const indecAnualHistorico = agregarComexIndecAnualNacional(indecCompleta);
+  const indecPorAnio = new Map(indecAnualHistorico.map((f) => [f.anio, f]));
+  const aniosConFallbackFob = new Set<number>();
+  const anualHistorico: ExportacionAnualRow[] = anualHistoricoBase.map((f) => {
+    if (f.valor_fob_usd != null) return f;
+    const indec = indecPorAnio.get(f.anio);
+    if (indec?.valor_fob_usd == null || !indec.volumen_kg) return f;
+    aniosConFallbackFob.add(f.anio);
+    return { ...f, valor_fob_usd: indec.valor_fob_usd, precio_fob_usd_kg_promedio: indec.valor_fob_usd / indec.volumen_kg };
+  });
   const anualUltimo = anualHistorico.find((f) => f.anio === ultimoAnio);
   const anualPenultimo = anualHistorico.find((f) => f.anio === penultimoAnio);
 
@@ -76,6 +91,9 @@ export default async function ExportacionesPage({
       : undefined;
   const valorFobUltimo = anualUltimo?.valor_fob_usd ?? null;
   const precioPromedioUltimo = anualUltimo?.precio_fob_usd_kg_promedio ?? null;
+  const usaFallbackFob = ultimoAnio != null && aniosConFallbackFob.has(ultimoAnio);
+  const coberturaFobPct =
+    usaFallbackFob && volumenUltimo ? ((indecPorAnio.get(ultimoAnio)?.volumen_kg ?? 0) / volumenUltimo) * 100 : null;
 
   const serieMensual = agregarComexIndecMensualNacional(indecFiltrado);
   const mensualHistorico = agregarComexIndecMensualHistorico(indecFiltrado);
@@ -114,12 +132,13 @@ export default async function ExportacionesPage({
             />
             <KpiCard
               label={`Valor FOB ${ultimoAnio}`}
-              value={valorFobUltimo != null ? formatUsd(valorFobUltimo) : <NoData variant="kpi" motivo="Pendiente: el pipeline INDEC actual no trae valores FOB, solo volumen (ver TODO.md, Fase 3f)." />}
+              value={valorFobUltimo != null ? formatUsd(valorFobUltimo) : <NoData variant="kpi" motivo="Sin dato FOB para este año, ni en el comunicado INYM ni en INDEC Comercio Exterior." />}
               icon={DollarSign}
+              secundario={usaFallbackFob ? `INDEC, real — ${formatNumero(coberturaFobPct ?? 0, 0)}% del volumen (resto sin país/valor por secreto estadístico)` : undefined}
             />
             <KpiCard
               label="Precio FOB promedio USD/kg"
-              value={precioPromedioUltimo != null ? formatNumero(precioPromedioUltimo, 2) : <NoData variant="kpi" motivo="Depende de Valor FOB, pendiente (ver TODO.md, Fase 3f)." />}
+              value={precioPromedioUltimo != null ? formatNumero(precioPromedioUltimo, 2) : <NoData variant="kpi" motivo="Depende de Valor FOB, sin dato para este año." />}
               icon={TrendingUp}
             />
             <KpiCard label="Países destino" value={destinosDelAnio.length ? String(destinosDelAnio.length) : <NoData variant="kpi" />} icon={Globe2} />

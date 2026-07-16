@@ -308,20 +308,29 @@ export function agregarComexIndecPorPais(filas: ComexIndecRow[], anio: number): 
 export interface ComexAnualRow {
   anio: number;
   volumen_kg: number | null;
+  valor_fob_usd: number | null;
 }
 
 export function agregarComexIndecAnualNacional(filas: ComexIndecRow[]): ComexAnualRow[] {
-  const porAnio = new Map<number, { suma: number; tieneDato: boolean }>();
+  const porAnio = new Map<number, { sumaPeso: number; tienePeso: boolean; sumaFob: number; tieneFob: boolean }>();
   for (const f of filas) {
-    const acc = porAnio.get(f.anio) ?? { suma: 0, tieneDato: false };
+    const acc = porAnio.get(f.anio) ?? { sumaPeso: 0, tienePeso: false, sumaFob: 0, tieneFob: false };
     if (f.peso_kg != null) {
-      acc.suma += f.peso_kg;
-      acc.tieneDato = true;
+      acc.sumaPeso += f.peso_kg;
+      acc.tienePeso = true;
+    }
+    if (f.monto_fob_usd != null) {
+      acc.sumaFob += f.monto_fob_usd;
+      acc.tieneFob = true;
     }
     porAnio.set(f.anio, acc);
   }
   return Array.from(porAnio.entries())
-    .map(([anio, a]) => ({ anio, volumen_kg: a.tieneDato ? a.suma : null }))
+    .map(([anio, a]) => ({
+      anio,
+      volumen_kg: a.tienePeso ? a.sumaPeso : null,
+      valor_fob_usd: a.tieneFob ? a.sumaFob : null,
+    }))
     .sort((a, b) => b.anio - a.anio);
 }
 

@@ -464,10 +464,18 @@ Screenshot de cada página (9 páginas de datos + Mapa GIS) antes/después.
 No se toca capa de datos ni ETL — excepto B3 que es solo backlog (sin
 implementar).
 
-**Backlog nuevo (no implementar ahora): Fase 3f — Valor FOB en `ym.exportaciones_indec`.**
-El INDEC Comercio Exterior sí publica valores FOB por NCM/país/mes (mismo
-endpoint que ya usa `lib_indec_comex.py`) — evaluar sumar esa columna al
-ETL existente para cerrar los KPIs de Exportaciones que hoy son "Sin dato".
+**Fase 3f — CERRADA 2026-07-16.** El hallazgo original estaba desactualizado:
+`monto_fob_usd` ya venía en `lib_indec_comex.py`/`ym.exportaciones_indec`
+desde el ETL original (Fase 3e), poblado real (4.669/6.094 filas, el resto
+confidencial = NULL correcto). Lo que faltaba era cablearlo: los KPIs
+"Valor FOB"/"Precio FOB promedio" de `/exportaciones` leían solo
+`ym.exportaciones_anual` (comunicados INYM), que no trae FOB para 2025
+todavía. `agregarComexIndecAnualNacional` (`frontend/lib/agregaciones.ts`)
+ahora también agrega `monto_fob_usd` por año, y `exportaciones/page.tsx`
+completa con ese total real cuando el anual INYM no lo tiene (año por año,
+no solo el último) — mostrando además la cobertura real (~96% del volumen
+2025) como nota, no como estimación. Verificado en vivo: KPI pasó de "Sin
+dato" a "US$ 107.010.484" / "1,92" USD/kg.
 
 ---
 
