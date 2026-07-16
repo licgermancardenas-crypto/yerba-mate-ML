@@ -20,6 +20,48 @@
   --color-destructive: #dc2626;
   --color-on-destructive: #ffffff;
   --color-ring: #15803d;
+
+  /* Colores de series de charts sin token semántico propio (IPC, rankings) --
+     mismo criterio que GRID_COLOR/TICK_COLOR en chart-theme.ts: centralizados
+     acá en vez de duplicados literal en cada página, para poder ajustarlos
+     en modo oscuro sin tocar cada gráfico. */
+  --chart-blue: #1d4ed8;
+  --chart-purple: #7e22ce;
+  --chart-orange: #ea580c;
+  /* Línea de grilla de los charts -- deliberadamente más sutil que
+     --color-border (ese es para bordes de tarjeta, más visibles). */
+  --chart-grid: #e2e8e4;
+}
+
+/* Modo oscuro -- paleta verde de marca reformulada para fondo oscuro, no es
+   un simple invert(). Contraste verificado con la fórmula WCAG exacta (igual
+   criterio que Fase 9, D3): todos los pares texto/fondo de abajo dan >=5,8:1
+   (la mayoría >7:1). El toggle setea `data-theme` en <html> vía next-themes
+   (ver components/theme-provider.tsx) -- respeta `prefers-color-scheme` por
+   default, el usuario puede forzarlo. */
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --color-primary: #4ade80;
+  --color-on-primary: #052e16;
+  --color-secondary: #22c55e;
+  --color-on-secondary: #052e16;
+  --color-accent: #eab308;
+  --color-on-accent: #422006;
+  --color-background: #0a1712;
+  --color-foreground: #e8f5ec;
+  --color-card: #12241b;
+  --color-card-foreground: #e8f5ec;
+  --color-muted: #1c2e24;
+  --color-muted-foreground: #9fb3a8;
+  --color-border: #24402f;
+  --color-destructive: #f87171;
+  --color-on-destructive: #450a0a;
+  --color-ring: #4ade80;
+
+  --chart-blue: #60a5fa;
+  --chart-purple: #c084fc;
+  --chart-orange: #fb923c;
+  --chart-grid: #22362c;
 }
 
 @theme inline {

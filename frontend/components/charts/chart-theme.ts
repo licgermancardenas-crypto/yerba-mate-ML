@@ -2,8 +2,17 @@
 // (ver Fase 9, A4) -- antes GRID_COLOR/TICK_COLOR estaban duplicados
 // literal en 5 archivos, cada uno podía desviarse sin que se notara.
 
-export const GRID_COLOR = "#e2e8e4";
-export const TICK_COLOR = "#64748b";
+// var() en vez de hex fijo -- Recharts resuelve custom properties CSS en sus
+// props de color (soporte nativo del navegador), así que estos tokens se
+// adaptan solos al modo oscuro sin lógica de tema en cada chart.
+export const GRID_COLOR = "var(--chart-grid)";
+export const TICK_COLOR = "var(--color-muted-foreground)";
+
+/** Series sin token semántico propio (IPC, rankings) -- ver globals.css para
+ * los valores claro/oscuro de cada uno. */
+export const CHART_BLUE = "var(--chart-blue)";
+export const CHART_PURPLE = "var(--chart-purple)";
+export const CHART_ORANGE = "var(--chart-orange)";
 
 /** Tamaño de fuente de eje (A4: "Ejes: 11px"). */
 export const AXIS_TICK_SIZE = 11;

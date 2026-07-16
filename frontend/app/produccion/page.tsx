@@ -300,7 +300,7 @@ export default async function ProduccionPage({
                 <ChartCard title="Rendimiento nacional por año" description="kg de hoja verde por hectárea cultivada">
                   <SerieChartConFiltro
                     data={rendimientoAnual.map((f) => ({ anio: f.anio, etiqueta: String(f.anio), valor: f.rendimiento_kg_ha }))}
-                    color="#a16207"
+                    color="var(--color-accent)"
                     numberFormat={{ maximumFractionDigits: 0 }}
                     suffix=" kg/ha"
                   />

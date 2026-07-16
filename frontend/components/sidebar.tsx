@@ -18,6 +18,7 @@ import {
   Leaf,
   Factory,
 } from "lucide-react";
+import { ThemeToggle } from "@/components/theme-toggle";
 
 const NAV_ITEMS = [
   { href: "/", label: "Resumen", icon: LayoutDashboard },
@@ -85,8 +86,13 @@ export function Sidebar() {
         </button>
       </header>
 
-      {/* Sidebar desktop */}
-      <aside className={`hidden md:flex md:flex-col md:w-64 md:shrink-0 text-white ${SIDEBAR_BG}`}>
+      {/* Sidebar desktop -- sticky+h-screen: antes no estaba fijado al viewport
+          (solo scrolleaba con el resto de la página), pasaba desapercibido
+          porque los 10 links de nav siempre entraban en cualquier viewport
+          razonable sin necesidad de scroll. El toggle de tema, al ir después
+          de todos los links, es el primer elemento que sí puede quedar fuera
+          de vista sin este fix. */}
+      <aside className={`hidden md:flex md:flex-col md:w-64 md:shrink-0 md:sticky md:top-0 md:h-screen text-white ${SIDEBAR_BG}`}>
         <div className="flex items-center gap-2.5 h-16 px-5 border-b border-white/10">
           <span className="flex items-center justify-center size-9 rounded-xl bg-white/15 shrink-0">
             <Leaf size={20} aria-hidden="true" />
@@ -100,6 +106,9 @@ export function Sidebar() {
         <div className="flex-1 overflow-y-auto py-4">
           <NavLinks pathname={pathname} />
         </div>
+        <div className="px-3 py-3 border-t border-white/10">
+          <ThemeToggle />
+        </div>
       </aside>
 
       {/* Drawer mobile */}
@@ -111,8 +120,13 @@ export function Sidebar() {
             className="absolute inset-0 bg-black/50"
             onClick={() => setOpen(false)}
           />
-          <aside className={`absolute left-0 top-14 bottom-0 w-72 overflow-y-auto py-4 shadow-xl text-white ${SIDEBAR_BG}`}>
-            <NavLinks pathname={pathname} onNavigate={() => setOpen(false)} />
+          <aside className={`absolute left-0 top-14 bottom-0 w-72 overflow-y-auto py-4 shadow-xl text-white flex flex-col ${SIDEBAR_BG}`}>
+            <div className="flex-1">
+              <NavLinks pathname={pathname} onNavigate={() => setOpen(false)} />
+            </div>
+            <div className="px-3 py-3 border-t border-white/10">
+              <ThemeToggle />
+            </div>
           </aside>
         </div>
       )}

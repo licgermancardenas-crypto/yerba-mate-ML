@@ -87,7 +87,7 @@ function SincronizarHover({ data, onCambio }: { data: PuntoSerie[]; onCambio: (i
   return null;
 }
 
-export function SerieMensualChart({ data, color = "#15803d", prefix = "", suffix = "", numberFormat, estacional = false }: SerieMensualChartProps) {
+export function SerieMensualChart({ data, color = "var(--color-primary)", prefix = "", suffix = "", numberFormat, estacional = false }: SerieMensualChartProps) {
   const [tipo, setTipo] = useState<"linea" | "barra">("linea");
   const [hoverIdx, setHoverIdx] = useState<number | null>(null);
   const gradientId = useId();
@@ -162,7 +162,7 @@ export function SerieMensualChart({ data, color = "#15803d", prefix = "", suffix
               strokeWidth={2}
               fill={`url(#${gradientId})`}
               dot={false}
-              activeDot={{ r: 5, fill: color, stroke: "#ffffff", strokeWidth: 2 }}
+              activeDot={{ r: 5, fill: color, stroke: "var(--color-card)", strokeWidth: 2 }}
               isAnimationActive={false}
             />
             {ultimo && (
@@ -171,9 +171,9 @@ export function SerieMensualChart({ data, color = "#15803d", prefix = "", suffix
                 y={ultimo.valor}
                 r={4}
                 fill={color}
-                stroke="#ffffff"
+                stroke="var(--color-card)"
                 strokeWidth={2}
-                label={{ value: formatear(ultimo.valor), position: "top", fill: "#14532d", fontSize: 12, fontWeight: 600 }}
+                label={{ value: formatear(ultimo.valor), position: "top", fill: "var(--color-foreground)", fontSize: 12, fontWeight: 600 }}
               />
             )}
             <SincronizarHover data={data} onCambio={setHoverIdx} />

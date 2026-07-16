@@ -183,7 +183,7 @@ export default async function CadenaProductivaPage({
       >
         <SerieChartConFiltro
           data={serieHojaVerdeMensual.map((p) => ({ ...p, valor: p.valor * factorUnidad }))}
-          color="#15803d"
+          color="var(--color-primary)"
           numberFormat={{ notation: "compact" }}
           suffix={sufijoUnidad}
           estacional
@@ -209,7 +209,7 @@ export default async function CadenaProductivaPage({
       >
         <SerieMensualChart
           data={promedioPorMes.map(({ etiqueta, valor }) => ({ etiqueta, valor }))}
-          color="#a16207"
+          color="var(--color-accent)"
           numberFormat={{ notation: "compact" }}
           suffix={sufijoUnidad}
           estacional

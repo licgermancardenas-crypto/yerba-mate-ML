@@ -40,7 +40,7 @@ export function StackedBarChart({ data, series, domain, formatter }: StackedBarC
           domain={domain}
           tickFormatter={formatter}
         />
-        <Tooltip content={<MultiSeriesTooltip formatter={formatter} />} cursor={{ fill: "#15803d", fillOpacity: 0.06 }} />
+        <Tooltip content={<MultiSeriesTooltip formatter={formatter} />} cursor={{ fill: "var(--color-primary)", fillOpacity: 0.06 }} />
         <Legend wrapperStyle={{ fontSize: 12 }} />
         {series.map(({ key, color }, i) => (
           <Bar

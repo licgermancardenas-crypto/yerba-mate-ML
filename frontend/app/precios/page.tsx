@@ -6,6 +6,7 @@ import { ChartCard } from "@/components/chart-card";
 import { FilterBar } from "@/components/filter-bar";
 import { FooterFuentes } from "@/components/footer-fuentes";
 import { SerieChartConFiltro } from "@/components/charts/serie-chart-con-filtro";
+import { CHART_BLUE, CHART_PURPLE } from "@/components/charts/chart-theme";
 import { HistoricalTable } from "@/components/historical-table";
 import type { ColumnaTabla } from "@/components/data-table";
 import { formatNumero, formatPct } from "@/lib/format";
@@ -169,11 +170,11 @@ export default async function PreciosPage({
 
       <div className="grid grid-cols-1 xl:grid-cols-2 gap-4">
         <ChartCard title="Precio hoja verde (nominal)" description="ARS/kg, serie completa">
-          <SerieChartConFiltro data={serieHojaVerde} color="#15803d" prefix="$" suffix="/kg" numberFormat={{ minimumFractionDigits: 2, maximumFractionDigits: 2 }} />
+          <SerieChartConFiltro data={serieHojaVerde} color="var(--color-primary)" prefix="$" suffix="/kg" numberFormat={{ minimumFractionDigits: 2, maximumFractionDigits: 2 }} />
         </ChartCard>
 
         <ChartCard title="Precio canchada (nominal)" description="ARS/kg, serie completa">
-          <SerieChartConFiltro data={serieCanchada} color="#a16207" prefix="$" suffix="/kg" numberFormat={{ minimumFractionDigits: 2, maximumFractionDigits: 2 }} />
+          <SerieChartConFiltro data={serieCanchada} color="var(--color-accent)" prefix="$" suffix="/kg" numberFormat={{ minimumFractionDigits: 2, maximumFractionDigits: 2 }} />
         </ChartCard>
       </div>
 
@@ -204,19 +205,19 @@ export default async function PreciosPage({
 
       <div className="grid grid-cols-1 xl:grid-cols-2 gap-4">
         <ChartCard title="Precio hoja verde (real, deflactado IPC)" description="ARS/kg deflactado, en pesos del último mes con dato de IPC">
-          <SerieChartConFiltro data={serieHojaVerdeReal} color="#15803d" prefix="$" suffix="/kg" numberFormat={{ minimumFractionDigits: 2, maximumFractionDigits: 2 }} />
+          <SerieChartConFiltro data={serieHojaVerdeReal} color="var(--color-primary)" prefix="$" suffix="/kg" numberFormat={{ minimumFractionDigits: 2, maximumFractionDigits: 2 }} />
         </ChartCard>
         <ChartCard title="Precio canchada (real, deflactado IPC)" description="ARS/kg deflactado, en pesos del último mes con dato de IPC">
-          <SerieChartConFiltro data={serieCanchadaReal} color="#a16207" prefix="$" suffix="/kg" numberFormat={{ minimumFractionDigits: 2, maximumFractionDigits: 2 }} />
+          <SerieChartConFiltro data={serieCanchadaReal} color="var(--color-accent)" prefix="$" suffix="/kg" numberFormat={{ minimumFractionDigits: 2, maximumFractionDigits: 2 }} />
         </ChartCard>
       </div>
 
       <div className="grid grid-cols-1 xl:grid-cols-2 gap-4 mt-4">
         <ChartCard title="IPC Nacional" description="Índice, base dic-2016=100 (INDEC)">
-          <SerieChartConFiltro data={serieIpcNacional} color="#1d4ed8" numberFormat={{ maximumFractionDigits: 0 }} />
+          <SerieChartConFiltro data={serieIpcNacional} color={CHART_BLUE} numberFormat={{ maximumFractionDigits: 0 }} />
         </ChartCard>
         <ChartCard title="IPC yerba mate (GBA)" description="Índice, base dic-2016=100 (INDEC) — precio al consumidor">
-          <SerieChartConFiltro data={serieIpcYerbaMate} color="#7e22ce" numberFormat={{ maximumFractionDigits: 0 }} />
+          <SerieChartConFiltro data={serieIpcYerbaMate} color={CHART_PURPLE} numberFormat={{ maximumFractionDigits: 0 }} />
         </ChartCard>
       </div>
 

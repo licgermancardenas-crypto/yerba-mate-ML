@@ -6,6 +6,7 @@ import { ChartCard } from "@/components/chart-card";
 import { FilterBar } from "@/components/filter-bar";
 import { FooterFuentes } from "@/components/footer-fuentes";
 import { SerieChartConFiltro } from "@/components/charts/serie-chart-con-filtro";
+import { CHART_BLUE } from "@/components/charts/chart-theme";
 import { HistoricalTable } from "@/components/historical-table";
 import type { ColumnaTabla } from "@/components/data-table";
 import { esAnioCompleto, formatMasa, formatMasaCompacta, formatPct, type UnidadMasa } from "@/lib/format";
@@ -123,7 +124,7 @@ export default async function ImportacionesPage({
         >
           <SerieChartConFiltro
             data={serieMensual.map((p) => ({ anio: p.anio, etiqueta: p.etiqueta, valor: p.produccion_kg * factorUnidad }))}
-            color="#1d4ed8"
+            color={CHART_BLUE}
             numberFormat={{ notation: "compact" }}
             suffix={sufijoUnidad}
             estacional

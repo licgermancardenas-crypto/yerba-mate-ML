@@ -19,8 +19,12 @@ interface KpiCardProps {
 
 export function KpiCard({ label, value, icon: Icon, deltaPct, deltaLabel, destacado = false, valorExacto, secundario }: KpiCardProps) {
   if (destacado) {
+    // Gradiente fijo (no depende de --color-primary/tema) -- mismo criterio
+    // que el verde de marca del Sidebar: una franja "hero" siempre oscura
+    // para que el texto blanco tenga contraste garantizado en los dos
+    // extremos del degradé, sin importar modo claro/oscuro.
     return (
-      <div className="group relative overflow-hidden rounded-2xl bg-gradient-to-br from-primary to-[#0d3d1f] p-5 flex flex-col gap-3 shadow-md hover:shadow-lg hover:-translate-y-0.5 transition-all duration-200">
+      <div className="group relative overflow-hidden rounded-2xl bg-gradient-to-br from-[#15803d] to-[#0d3d1f] p-5 flex flex-col gap-3 shadow-md hover:shadow-lg hover:-translate-y-0.5 transition-all duration-200">
         <div
           className="pointer-events-none absolute -right-6 -top-6 size-28 rounded-full bg-white/10"
           aria-hidden="true"

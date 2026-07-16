@@ -16,7 +16,7 @@ function truncarNombre(s: string, max = 20): string {
 
 // Bar chart horizontal reutilizado por los paneles laterales de Mapa GIS y
 // Producción -- ranking (top-N) o desglose de una feature seleccionada.
-export function RankingChart({ data, color = "#15803d" }: { data: { nombre: string; valor: number }[]; color?: string }) {
+export function RankingChart({ data, color = "var(--color-primary)" }: { data: { nombre: string; valor: number }[]; color?: string }) {
   if (data.length === 0) return null;
   return (
     <ResponsiveContainer width="100%" height={Math.max(140, data.length * 26)}>

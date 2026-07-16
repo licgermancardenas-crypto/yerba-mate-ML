@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Fira_Sans, Fira_Code } from "next/font/google";
 import "./globals.css";
 import { Sidebar } from "@/components/sidebar";
+import { ThemeProvider } from "@/components/theme-provider";
 
 const firaSans = Fira_Sans({
   variable: "--font-fira-sans",
@@ -29,10 +30,13 @@ export default function RootLayout({
     <html
       lang="es-AR"
       className={`${firaSans.variable} ${firaCode.variable} h-full antialiased`}
+      suppressHydrationWarning
     >
       <body className="min-h-full flex">
-        <Sidebar />
-        <div className="flex-1 min-w-0 pt-14 md:pt-0">{children}</div>
+        <ThemeProvider attribute="data-theme" defaultTheme="system" enableSystem>
+          <Sidebar />
+          <div className="flex-1 min-w-0 pt-14 md:pt-0">{children}</div>
+        </ThemeProvider>
       </body>
     </html>
   );

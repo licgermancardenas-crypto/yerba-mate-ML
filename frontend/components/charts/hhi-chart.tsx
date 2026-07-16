@@ -32,18 +32,18 @@ export function HhiChart({ data }: { data: { anio: string; hhi: number; cobertur
         <YAxis tick={AXIS_TICK_STYLE} tickLine={false} axisLine={false} width={50} domain={[0, 10000]} />
         <ReferenceLine
           y={HHI_UMBRAL_MODERADO}
-          stroke="#a16207"
+          stroke="var(--color-accent)"
           strokeDasharray="4 4"
-          label={{ value: "1500", position: "right", fontSize: 11, fill: "#a16207" }}
+          label={{ value: "1500", position: "right", fontSize: 11, fill: "var(--color-accent)" }}
         />
         <ReferenceLine
           y={HHI_UMBRAL_ALTO}
-          stroke="#dc2626"
+          stroke="var(--color-destructive)"
           strokeDasharray="4 4"
-          label={{ value: "2500", position: "right", fontSize: 11, fill: "#dc2626" }}
+          label={{ value: "2500", position: "right", fontSize: 11, fill: "var(--color-destructive)" }}
         />
-        <Tooltip content={<HhiTooltip />} cursor={{ fill: "#15803d", fillOpacity: 0.06 }} />
-        <Bar dataKey="hhi" fill="#15803d" radius={[4, 4, 0, 0]} maxBarSize={48} isAnimationActive={false} />
+        <Tooltip content={<HhiTooltip />} cursor={{ fill: "var(--color-primary)", fillOpacity: 0.06 }} />
+        <Bar dataKey="hhi" fill="var(--color-primary)" radius={[4, 4, 0, 0]} maxBarSize={48} isAnimationActive={false} />
       </BarChart>
     </ResponsiveContainer>
   );

@@ -1,6 +1,7 @@
 "use client";
 
 import { KpiRow, PanelCard, RankingChart } from "@/components/mapa-kpi";
+import { CHART_BLUE, CHART_ORANGE } from "@/components/charts/chart-theme";
 import { formatNumero, formatPct } from "@/lib/format";
 import { tituloCase } from "@/lib/texto";
 import type { VistaMapa } from "@/components/produccion-mapa";
@@ -149,7 +150,7 @@ export function ProduccionPanel({
 
         {ranking.length > 0 && (
           <PanelCard titulo="Ranking" subtitulo="Producción por ciudad (kg)">
-            <RankingChart data={ranking} color="#ea580c" />
+            <RankingChart data={ranking} color={CHART_ORANGE} />
           </PanelCard>
         )}
 
@@ -198,7 +199,7 @@ export function ProduccionPanel({
 
         {ranking.length > 0 && (
           <PanelCard titulo="Ranking" subtitulo="Distancia al secadero más cercano (km)">
-            <RankingChart data={ranking} color="#1d4ed8" />
+            <RankingChart data={ranking} color={CHART_BLUE} />
           </PanelCard>
         )}
 
