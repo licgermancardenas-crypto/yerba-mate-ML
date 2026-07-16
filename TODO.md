@@ -480,6 +480,42 @@ dato" a "US$ 107.010.484" / "1,92" USD/kg.
 
 ---
 
+## FASE 10 — Modo oscuro
+
+**COMPLETA 2026-07-16.** `next-themes` (toggle en el sidebar, respeta
+`prefers-color-scheme` por default, override persistido). El sistema de
+tokens CSS ya existente (`--color-primary`/`card`/`muted`/etc., Fase 9 A4)
+adaptó la mayoría de la UI solo con agregar los valores dark de cada token
+(`app/globals.css`, `:root[data-theme="dark"]`) — contraste verificado con
+la fórmula WCAG real (mismo criterio que Fase 9 D3), todos los pares
+texto/fondo dan >=5,8:1. Se migraron ~15 colores de chart hardcodeados a
+`var(--color-*)`/`CHART_BLUE`/`CHART_PURPLE`/`CHART_ORANGE`
+(`components/charts/chart-theme.ts`) — Recharts resuelve custom properties
+CSS nativamente en sus props de color, sin lógica de tema por gráfico.
+
+Deliberadamente fuera de alcance (documentado, no roto en silencio): paint
+layers de MapLibre en los 3 mapas (calibrados contra el basemap que el
+usuario elige — calles/satelital/topográfico —, no contra el tema del
+sitio), la rampa secuencial verde del heatmap (escala de datos
+autocontenida, mismo criterio que los choropléticos del mapa), y los 6
+colores de `ENVASES_SERIES` en `annual-chart-con-filtro.tsx` (paleta
+CVD-safe validada con el script de la skill `dataviz` — recolorear para
+dark sin volver a correr esa validación arriesga romper la separación
+entre colores adyacentes).
+
+Bug real encontrado en el camino: el `<aside>` del sidebar desktop no era
+`sticky`/`h-screen`, solo scrolleaba junto con el resto de la página —
+pasaba desapercibido porque los 10 links de nav siempre entraban en
+cualquier viewport razonable sin necesidad de scroll. El toggle nuevo, al
+ir después de todos los links, exponía el problema (quedaba fuera de vista
+sin poder scrollear hasta él). Arreglado (`components/sidebar.tsx`).
+
+Próximo paso real: **Modelo 1 de Fase 5 (Producción por departamento)** —
+conectar Google Earth Engine para NDVI satelital como variable, a pedido
+explícito del usuario, antes de discutir el resto de Fase 5.
+
+---
+
 ## NOTAS Y SUPUESTOS A VERIFICAR
 
 1. ~~**Datos mensuales vs anuales**~~ **RESUELTO** (2026-07-01): se repiten dentro del año pero varían año a año en los 3 CSVs marcados (consumo per cápita 5,59–6,27 kg/persona; precio USD/kg 1,80–2,50; importaciones 83.333–3.222.222 kg/mes). Son series anuales publicadas con cadencia mensual (valor constante los 12 meses de cada año), consistente con la fuente (INYM/aduana suele publicar así). No son placeholders — se pueden usar en el ETL y en los modelos tal cual, documentando la granularidad real (anual, no mensual) al construir features de Fase 5.
