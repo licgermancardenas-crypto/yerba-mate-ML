@@ -198,6 +198,21 @@ SERIES: list[Serie] = [
         "algunos meses, no es fabricación. Feature directo de Fase 5 (ML).",
     ),
     Serie(
+        nombre="ndvi_mensual.ndvi_promedio",
+        sql="SELECT anio, mes, depto, ndvi_promedio AS valor FROM ym.ndvi_mensual ORDER BY depto, anio, mes",
+        entity_cols=["depto"],
+        value_cols=["valor"],
+        permite_repeticion_anual=True,
+        nota="Google Earth Engine (MODIS/061/MOD13Q1, Fase 5 Modelo 1), auditado 2026-07-16 -- backfill "
+        "2011-2026 completo (3.534 filas, 186 meses x 19 departamentos, 0 NULL), T1-T5 limpio. T6 dio 17 "
+        "coincidencias sobre ~31.806 pares posibles (186 meses x C(19,2) departamentos) -- inspeccionado caso "
+        "por caso: cada coincidencia es un par de departamentos DISTINTO (nunca se repite el mismo par), nunca "
+        "3+ departamentos a la vez, sin ningún patrón de desfasaje constante -- consistente con colisión de "
+        "redondeo a 4 decimales entre solo 19 muestras por mes (paradoja del cumpleaños), no con fabricación. "
+        "Contraste con los patrones fabricados ya encontrados en este proyecto (mismo par repetido, offset "
+        "constante entre corridas) -- acá no hay ninguno de esos dos.",
+    ),
+    Serie(
         nombre="competencia.cuota_mercado_pct",
         sql="SELECT anio, empresa, cuota_mercado_pct AS valor FROM ym.competencia WHERE cuota_mercado_pct IS NOT NULL ORDER BY empresa, anio",
         entity_cols=["empresa"],

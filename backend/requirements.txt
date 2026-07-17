@@ -21,6 +21,7 @@ numpy>=1.26.0
 # ML (instalación diferida hasta Fase 5)
 # statsmodels>=0.14.0
 # scikit-learn>=1.4.0
+earthengine-api>=1.0.0   # NDVI satelital (Google Earth Engine, Fase 5 Modelo 1)
 
 # Testing
 pytest>=8.0.0

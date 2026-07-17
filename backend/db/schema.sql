@@ -625,3 +625,24 @@ CREATE TABLE IF NOT EXISTS ym.importaciones_indec (
     PRIMARY KEY (anio, mes, ncm, pais_iso2)
 );
 CREATE INDEX IF NOT EXISTS idx_importaciones_indec_anio ON ym.importaciones_indec (anio, mes);
+
+-- ----------------------------------------------------------------------------
+-- 16) ndvi_mensual — NDVI satelital (vegetación) por departamento, mensual
+--     (Google Earth Engine, MODIS/061/MOD13Q1) -- variable del Modelo 1 de
+--     Fase 5 (Producción por departamento). Compuesto mensual = promedio de
+--     los composites de 16 días de MOD13Q1 que caen en ese mes, enmascarados
+--     por SummaryQA<=1 (bueno/marginal, descarta nieve/hielo y nublado).
+--     Geometría de cada departamento: inym_gis.v_features_4326, capa
+--     'view_superficie_por_departamentos' (las mismas 19 unidades reales del
+--     INYM ya usadas en Mapa GIS / "Superficie cultivada por departamento").
+-- ----------------------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS ym.ndvi_mensual (
+    depto           TEXT NOT NULL,
+    pcia            TEXT NOT NULL,
+    anio            SMALLINT NOT NULL,
+    mes             SMALLINT NOT NULL CHECK (mes BETWEEN 1 AND 12),
+    ndvi_promedio   NUMERIC(5,4),   -- rango real -1 a 1; NULL si el mes quedó 100% cubierto de nubes
+    pixeles_validos INTEGER,        -- cantidad de píxeles de 250m no enmascarados -- indicador de cobertura/calidad
+    PRIMARY KEY (depto, pcia, anio, mes)
+);
+CREATE INDEX IF NOT EXISTS idx_ndvi_mensual_anio ON ym.ndvi_mensual (anio, mes);

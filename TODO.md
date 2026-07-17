@@ -158,6 +158,7 @@ Stack: Next.js (Vercel) · FastAPI (Render/Railway) · Postgres+PostGIS (Supabas
 - Variables: clima rezagado (precipitación, temperatura), edad/densidad plantación (GIS), superficie cosechable, NDVI satelital (Google Earth Engine, futuro)
 - Validación: walk-forward, ventana mínima 12 meses de test
 - Restricción agronómica: producción no puede crecer más del X% por año (límite biológico de las plantas)
+- ✅ **NDVI (Google Earth Engine) — CARGADO 2026-07-16**, a pedido explícito del usuario, antes del resto de la Fase 5. `ym.ndvi_mensual` (migración `009`), `backend/etl/etl_gee_ndvi.py`: NDVI mensual real (MODIS/061/MOD13Q1, 250m, enmascarado por calidad) para los 19 departamentos reales de `inym_gis`, 2011-presente. Auth interactiva (no cuenta de servicio -- bloqueada por política de organización de Google Cloud del usuario), ver `docs/fuentes_ndvi_gee.md`. El resto de Fase 5 (algoritmos, entrenamiento) sigue sin arrancar, esperando acuerdo explícito.
 
 ### Modelo 2 — Consumo interno nacional
 - Algoritmo tentativo: SARIMAX con regresores exógenos
