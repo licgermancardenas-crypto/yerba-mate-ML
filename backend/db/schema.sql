@@ -646,3 +646,27 @@ CREATE TABLE IF NOT EXISTS ym.ndvi_mensual (
     PRIMARY KEY (depto, pcia, anio, mes)
 );
 CREATE INDEX IF NOT EXISTS idx_ndvi_mensual_anio ON ym.ndvi_mensual (anio, mes);
+
+-- ----------------------------------------------------------------------------
+-- 17) clima_zona_mensual — precipitación y temperatura por zona INYM, mensual
+--     (NASA POWER, mismo mecanismo que clima_mensual) -- Modelo 1 de Fase 5
+--     necesita clima a la MISMA granularidad que el target real de
+--     producción (ym.inym_hoja_verde_zona, por zona), no por ciudad:
+--     clima_mensual solo cubre 4 de las 6 zonas (las 6 "ciudades productoras"
+--     no caen una en cada zona). El punto de consulta de cada zona es el
+--     centroide ponderado por superficie cultivada real (sup_ym) de sus
+--     departamentos -- no el centroide geométrico de todo el polígono de la
+--     zona, que incluye mucha superficie no yerbatera (sobre todo en
+--     Corrientes) y sesgaría el punto lejos de donde se cultiva.
+-- ----------------------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS ym.clima_zona_mensual (
+    zona                    TEXT NOT NULL,
+    latitud                 DOUBLE PRECISION NOT NULL,
+    longitud                DOUBLE PRECISION NOT NULL,
+    anio                    SMALLINT NOT NULL,
+    mes                     SMALLINT NOT NULL CHECK (mes BETWEEN 1 AND 12),
+    precipitacion_mm_dia    NUMERIC(6,2),
+    temperatura_media_c     NUMERIC(5,2),
+    PRIMARY KEY (zona, anio, mes)
+);
+CREATE INDEX IF NOT EXISTS idx_clima_zona_mensual_anio ON ym.clima_zona_mensual (anio, mes);

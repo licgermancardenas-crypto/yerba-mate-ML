@@ -198,6 +198,18 @@ SERIES: list[Serie] = [
         "algunos meses, no es fabricación. Feature directo de Fase 5 (ML).",
     ),
     Serie(
+        nombre="clima_zona_mensual.precipitacion_temperatura",
+        sql="SELECT anio, mes, zona, precipitacion_mm_dia, temperatura_media_c FROM ym.clima_zona_mensual ORDER BY zona, anio, mes",
+        entity_cols=["zona"],
+        value_cols=["precipitacion_mm_dia", "temperatura_media_c"],
+        permite_repeticion_anual=True,
+        nota="NASA POWER, mismo mecanismo que clima_mensual pero por zona INYM en vez de por ciudad (Modelo 1, "
+        "Fase 5) -- ver etl_nasa_power_zona.py. Mismo artefacto esperado de la grilla ~0.5°x0.5° de MERRA-2: "
+        "verificado que las 192/192 coincidencias son SIEMPRE el mismo par (NORESTE-NOROESTE, centroides a "
+        "~50km, misma celda todos los meses de la serie), ningún otro par -- no es fabricación, es que caen en "
+        "la misma celda nativa siempre, no a veces.",
+    ),
+    Serie(
         nombre="ndvi_mensual.ndvi_promedio",
         sql="SELECT anio, mes, depto, ndvi_promedio AS valor FROM ym.ndvi_mensual ORDER BY depto, anio, mes",
         entity_cols=["depto"],
