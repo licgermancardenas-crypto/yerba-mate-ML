@@ -670,3 +670,30 @@ CREATE TABLE IF NOT EXISTS ym.clima_zona_mensual (
     PRIMARY KEY (zona, anio, mes)
 );
 CREATE INDEX IF NOT EXISTS idx_clima_zona_mensual_anio ON ym.clima_zona_mensual (anio, mes);
+
+-- ----------------------------------------------------------------------------
+-- 18) pbi_pais_anual — PBI corriente (USD) por país destino, anual (Banco
+--     Mundial, indicador NY.GDP.MKTP.CD) -- Modelo 3 de Fase 5 (modelo
+--     gravitacional de exportaciones). Solo los ~20 países destino con
+--     volumen real y consistente en ym.exportaciones_indec (2011-2025) --
+--     el resto son embarques sueltos, ajustar el modelo a esos sería
+--     ajustar ruido, no señal real de gravedad comercial.
+-- ----------------------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS ym.pbi_pais_anual (
+    pais_iso2   TEXT NOT NULL,
+    anio        SMALLINT NOT NULL,
+    pbi_usd     NUMERIC(20,2),   -- NULL si el Banco Mundial no lo publicó ese año (ej. Siria 2023-2025, guerra civil)
+    PRIMARY KEY (pais_iso2, anio)
+);
+
+-- ----------------------------------------------------------------------------
+-- 19) tipo_cambio_anual — dólar oficial ARS/USD, promedio anual (fuente:
+--     ArgentinaDatos, cotizaciones diarias agregadas) -- Modelo 3 de Fase 5.
+--     Nacional (no por país destino) -- competitividad exportadora
+--     argentina, no cambia según a quién se le vende.
+-- ----------------------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS ym.tipo_cambio_anual (
+    anio            SMALLINT NOT NULL PRIMARY KEY,
+    ars_usd_oficial NUMERIC(12,4) NOT NULL,   -- promedio de las cotizaciones diarias "oficial" del año
+    dias_con_dato   INTEGER NOT NULL
+);
