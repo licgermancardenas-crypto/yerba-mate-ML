@@ -15,6 +15,15 @@ IDs de series confirmados manualmente contra la API real (2026-07-01):
 - IPC-GBA, precio de yerba mate específicamente, base dic-2016, mensual: 105.1_I2YM_2016_M_19
   (más específico que 'infusiones' en general — sirve directo para Modelo 2)
 
+Agregado 2026-07-17 (Modelo 2, Fase 5 — salario real):
+- RIPTE (Remuneración Imponible Promedio de los Trabajadores Estables),
+  mensual, 1994-07 hasta el presente: 158.1_REPTE_0_0_5. Se eligió sobre
+  el "Índice de Salarios" general de INDEC (149.1_TL_INDIIOS_OCTU_0_21)
+  porque ese solo arranca en 2016-10 -- RIPTE cubre todo el rango 2011+
+  que necesita el modelo. Salario NOMINAL -- deflactar con
+  ipc_nacional_nivel_general para "salario real" (mismo criterio que ya
+  se usa para precio_usd_kg/consumo_per_capita_kg).
+
 Buscadas pero NO usadas (ver docs/indec_series.md):
 - Comercio exterior NCM 'café, té, yerba mate y especias': viene mezclado con
   otros productos, no es yerba mate pura — los datos de exportaciones del
@@ -52,6 +61,11 @@ SERIES = [
         "id": "105.1_I2YM_2016_M_19",
         "nombre": "ipc_gba_yerba_mate",
         "unidad": "índice (dic-2016=100)",
+    },
+    {
+        "id": "158.1_REPTE_0_0_5",
+        "nombre": "ripte",
+        "unidad": "pesos (nominal)",
     },
 ]
 
