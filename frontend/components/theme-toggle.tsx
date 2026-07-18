@@ -1,16 +1,47 @@
 "use client";
 
+import { useSyncExternalStore } from "react";
 import { useTheme } from "next-themes";
 import { Moon, Sun } from "lucide-react";
 
-// `resolvedTheme` viene `undefined` en el primer render del cliente (next-themes
-// recién sabe el tema real -- incluido "system" -- después de hidratar), server
-// y cliente coinciden en ese primer render (los dos ven `undefined`) así que no
-// hace falta un flag de "montado" en un efecto para evitar mismatch de
-// hidratación -- solo un parpadeo cosmético de un frame en el ícono/label
-// mientras next-themes termina de resolver, no un error de React.
+// `useSyncExternalStore` en vez de `useEffect` + `setState` (regla
+// react-hooks/set-state-in-effect del repo, ver Fase 9) para detectar
+// "ya montado en el cliente" -- no hay store real, es el truco estándar
+// para esto: `getServerSnapshot` fuerza `false` en SSR/primer render de
+// cliente (coinciden, cero mismatch), `getSnapshot` da `true` después.
+function useMontadoEnCliente() {
+  return useSyncExternalStore(
+    () => () => {},
+    () => true,
+    () => false
+  );
+}
+
+// La suposición previa ("resolvedTheme siempre undefined en el primer
+// render del cliente, sin riesgo real de mismatch") resultó falsa en la
+// práctica -- reproducido un hydration error real de React (no solo un
+// parpadeo cosmético) apenas el usuario ya tenía un tema persistido
+// distinto del default. Patrón estándar de next-themes: no renderizar el
+// ícono/label real hasta después de montar en el cliente -- antes de eso,
+// un placeholder neutro idéntico en server y primer render de cliente.
 export function ThemeToggle({ className = "" }: { className?: string }) {
   const { resolvedTheme, setTheme } = useTheme();
+  const montado = useMontadoEnCliente();
+
+  if (!montado) {
+    return (
+      <button
+        type="button"
+        aria-label="Cambiar tema"
+        disabled
+        className={`flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium text-white/70 ${className}`}
+      >
+        <Moon size={18} strokeWidth={2} aria-hidden="true" />
+        <span>Tema</span>
+      </button>
+    );
+  }
+
   const esOscuro = resolvedTheme === "dark";
 
   return (
