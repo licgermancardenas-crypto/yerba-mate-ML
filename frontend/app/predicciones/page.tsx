@@ -39,6 +39,11 @@ const BACKTEST_MODELO1: Record<string, string> = {
 
 const TOP5_MODELO3 = ["SY", "CL", "ES", "LB", "US"] as const;
 
+// Ver docs/modelo1_produccion_zona.md §6 -- hipótesis regulatoria, evidencia
+// parcial y no concluyente, solo Corrientes tiene el dato atípico real.
+const NOTA_REGULATORIA_CORRIENTES =
+  "Oct 2025: 2,37M kg, 2-90x cualquier otro oct/nov de los 14 años de dataset (nov 2025 volvió a lo normal). Coincide con el proceso de desregulación yerbatera (Decreto 812/2025, nov 2025) que culminó en la Resolución 2/2026 (INYM, ene 2026) eliminando la veda de cosecha oct-nov -- sugestivo, no concluyente (un solo dato, una sola zona, la veda se eliminó formalmente después de este pico). Ver docs/modelo1_produccion_zona.md §6.";
+
 function etiquetaMes(anio: number, mes: number): string {
   return `${MESES[mes - 1].slice(0, 3)} ${String(anio).slice(2)}`;
 }
@@ -136,8 +141,14 @@ async function TabProduccion() {
               title={zona.charAt(0) + zona.slice(1).toLowerCase()}
               description="Ingreso de hoja verde a secadero -- histórico real + pronóstico 12 meses (SARIMA)"
             >
-              <ForecastBandChart data={datos} numberFormat={{ notation: "compact" }} suffix=" kg" />
+              <ForecastBandChart
+                data={datos}
+                numberFormat={{ notation: "compact" }}
+                suffix=" kg"
+                referencia={zona === "CORRIENTES" ? { etiqueta: etiquetaMes(2025, 10), texto: "Resolución 2/2026" } : undefined}
+              />
               <ReliabilityBadge tipo="backtest" texto={BACKTEST_MODELO1[zona]} className="mt-3" />
+              {zona === "CORRIENTES" && <p className="text-xs text-muted-foreground mt-2">{NOTA_REGULATORIA_CORRIENTES}</p>}
             </ChartCard>
           );
         })}

@@ -1,6 +1,6 @@
 "use client";
 
-import { Area, CartesianGrid, ComposedChart, Line, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
+import { Area, CartesianGrid, ComposedChart, Line, ReferenceLine, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import { GRID_COLOR, AXIS_TICK_STYLE } from "@/components/charts/chart-theme";
 
 export interface PuntoForecast {
@@ -18,6 +18,10 @@ interface ForecastBandChartProps {
   color?: string;
   suffix?: string;
   numberFormat?: Intl.NumberFormatOptions;
+  /** Línea vertical sobre un punto real del eje X (debe matchear `etiqueta`
+   * exacto) -- para anotar un evento puntual ya documentado (ej. cambio
+   * regulatorio), no decorativa. `texto` queda en el `title` del elemento. */
+  referencia?: { etiqueta: string; texto: string };
 }
 
 interface DatoInterno extends PuntoForecast {
@@ -81,7 +85,7 @@ function ForecastTooltip({
  * para bandas de intervalo, ver Fase 5 /predicciones). Puntos sin IC quedan
  * con un hueco real en la banda (no se inventa un intervalo), mismo criterio
  * que el resto de los charts de esta app con `connectNulls={false}`. */
-export function ForecastBandChart({ data, color = "var(--color-primary)", suffix = "", numberFormat }: ForecastBandChartProps) {
+export function ForecastBandChart({ data, color = "var(--color-primary)", suffix = "", numberFormat, referencia }: ForecastBandChartProps) {
   const formatear = (v: number) => `${new Intl.NumberFormat("es-AR", numberFormat).format(v)}${suffix}`;
   const datos: DatoInterno[] = data.map((d) => ({
     ...d,
@@ -95,6 +99,16 @@ export function ForecastBandChart({ data, color = "var(--color-primary)", suffix
         <XAxis dataKey="etiqueta" tick={AXIS_TICK_STYLE} tickLine={false} axisLine={{ stroke: GRID_COLOR }} />
         <YAxis tick={AXIS_TICK_STYLE} tickLine={false} axisLine={false} width={84} tickFormatter={(v) => formatear(v)} />
         <Tooltip content={<ForecastTooltip color={color} formatear={formatear} />} />
+        {referencia && (
+          <ReferenceLine
+            x={referencia.etiqueta}
+            stroke="var(--color-warning)"
+            strokeDasharray="4 3"
+            strokeWidth={1.5}
+            ifOverflow="extendDomain"
+            label={{ value: referencia.texto, position: "top", fill: "var(--color-warning)", fontSize: 10 }}
+          />
+        )}
         <Area dataKey="icInferior" stackId="ic" stroke="none" fill="transparent" isAnimationActive={false} connectNulls={false} />
         <Area
           dataKey="banda"
