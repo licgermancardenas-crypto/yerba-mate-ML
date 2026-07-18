@@ -169,6 +169,31 @@ export interface SalidaMolinoRow {
   volumen_kg: number;
 }
 
+/** Salida de los 3 modelos de Fase 5 -- GET /predicciones (ym.ml_predicciones).
+ * No es dato observado, es salida de modelo (declarado en `metodo`/`supuestos`). */
+export interface PrediccionRow {
+  modelo: "modelo1_produccion_zona" | "modelo2_consumo_interno" | "modelo3_exportaciones";
+  /** zona (modelo1), '(nacional)' (modelo2), o pais_iso2 (modelo3). */
+  dimension: string;
+  anio: number;
+  /** NULL en modelo3 (panel anual, no mensual). */
+  mes: number | null;
+  /** true = pronóstico/proyección futura; false = ajustado-vs-real histórico (solo modelo3 hoy). */
+  es_pronostico: boolean;
+  /** Solo no-NULL en filas es_pronostico=false. */
+  valor_real: number | null;
+  valor_predicho: number;
+  /** NULL si el intervalo no se pudo calcular de forma confiable para ese punto (ver docs/modelo1_produccion_zona.md). */
+  ic_inferior: number | null;
+  ic_superior: number | null;
+  nivel_confianza: number;
+  unidad: string;
+  metodo: string;
+  /** Solo no-NULL en la proyección futura de modelo3 (ej. año de PBI congelado por país). */
+  supuestos: string | null;
+  generado_en: string;
+}
+
 export interface CapaCatalogo {
   layer_name: string;
   categoria:

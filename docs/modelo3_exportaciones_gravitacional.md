@@ -99,8 +99,30 @@ Pendiente real, no bloqueante:
 - Probar PPML en vez de OLS log-log (maneja los ceros reales sin descartarlos).
 - Ampliar la cobertura de PBI de Siria si el Banco Mundial publica 2023+
   en el futuro (guerra civil sigue sin datos).
-- No integrado al frontend (`/predicciones` sigue "Coming Soon").
 
-## Con esto, los 3 modelos de Fase 5 tienen v1 completa y documentada
-(`docs/modelo1_produccion_zona.md`, `docs/modelo2_consumo_interno.md`,
-este documento). Ninguno está integrado al frontend todavía.
+## 8. Integración a frontend
+
+`backend/ml/scoring_modelo3.py` reentrena la regresión de §3 sobre TODO
+`df` (sin split) y persiste dos cosas distintas en `ym.ml_predicciones`
+(`modelo='modelo3_exportaciones'`):
+
+- **Ajustado-vs-real** (`fitted_vs_actual`): una fila por país-año real
+  del panel, `es_pronostico=false`, con `valor_real`/`valor_predicho`/IC
+  del *mean* de `get_prediction().summary_frame()`. Es la pieza
+  explicativa (qué tan bien el modelo explica el patrón ya observado).
+- **Proyección año próximo** (`proyeccion_siguiente_anio`): una fila por
+  país, `es_pronostico=true`, asumiendo PBI y tipo de cambio congelados en
+  el último dato real conocido de cada país por separado (Siria y Líbano
+  quedan en años distintos al resto, ver §4/§6) -- el supuesto exacto por
+  país queda en la columna `supuestos`, nunca implícito.
+
+Se sirve por `GET /predicciones?modelo=modelo3_exportaciones&es_pronostico=<bool>`
+y se muestra en `/predicciones` (tab "Exportaciones"): un
+`ReliabilityBadge` de página con el R²/MAPE de este documento (el más
+visible de los 3, es el modelo menos confiable para volumen exacto), 5
+`ChartCard` de ajustado-vs-real (top 5 destinos) y la tabla completa de 20
+países con la proyección + `ReliabilityBadge tipo="supuesto"` por fila.
+
+## Con esto, los 3 modelos de Fase 5 tienen v1 completa, documentada e
+integrada a `/predicciones` (`docs/modelo1_produccion_zona.md`,
+`docs/modelo2_consumo_interno.md`, este documento).

@@ -130,5 +130,19 @@ Pendiente real, no bloqueante:
 - Si se quiere insistir con clima/NDVI, probar ventanas acumuladas de
   varios meses en vez de anomalía de un mes puntual (no se probó en esta
   sesión).
-- El modelo no está integrado al backend/frontend todavía (`/predicciones`
-  sigue "Coming Soon") -- eso es un paso aparte, no evaluado en esta sesión.
+
+## 8. Integración a frontend
+
+`backend/ml/scoring_modelo1.py` entrena el SARIMA final sobre la serie
+completa de cada una de las 6 zonas (sin hold-out, a diferencia del
+backtest de §2-§6) y persiste 12 meses de pronóstico por zona en
+`ym.ml_predicciones` (`modelo='modelo1_produccion_zona'`, `dimension=zona`,
+`es_pronostico=true`). El intervalo de confianza queda NULL en los puntos
+donde `np.exp` del límite superior en escala log desborda a `inf` (colas
+de temporada baja a 10-11 meses de horizonte, ver commit de la
+integración) -- el punto (`valor_predicho`) sigue siendo válido, solo el
+IC de ese punto puntual se omite en vez de inventarse. Se sirve por
+`GET /predicciones?modelo=modelo1_produccion_zona&dimension=<ZONA>` y se
+muestra en `/predicciones` (tab "Producción por zona"), un `ChartCard` con
+`ForecastBandChart` por zona + el `ReliabilityBadge` con el MAPE de esta
+tabla.

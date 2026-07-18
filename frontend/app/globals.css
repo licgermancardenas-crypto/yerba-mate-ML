@@ -31,6 +31,14 @@
   /* Línea de grilla de los charts -- deliberadamente más sutil que
      --color-border (ese es para bordes de tarjeta, más visibles). */
   --chart-grid: #e2e8e4;
+
+  /* Advertencia/supuesto (ej. ReliabilityBadge tipo="supuesto" en
+     /predicciones -- "PBI congelado en el último dato real") -- distinto de
+     --color-destructive (error) y de los pills neutros de backtest.
+     Contraste verificado con la fórmula WCAG exacta (mismo criterio que
+     Fase 9 D3): >=6:1 en todos los pares texto/fondo relevantes. */
+  --color-warning: #92400e;
+  --color-on-warning: #ffffff;
 }
 
 /* Modo oscuro -- paleta verde de marca reformulada para fondo oscuro, no es
@@ -62,6 +70,9 @@
   --chart-purple: #c084fc;
   --chart-orange: #fb923c;
   --chart-grid: #22362c;
+
+  --color-warning: #fbbf24;
+  --color-on-warning: #422006;
 }
 
 @theme inline {
@@ -80,6 +91,8 @@
   --color-border: var(--color-border);
   --color-destructive: var(--color-destructive);
   --color-on-destructive: var(--color-on-destructive);
+  --color-warning: var(--color-warning);
+  --color-on-warning: var(--color-on-warning);
   --color-ring: var(--color-ring);
   --font-sans: var(--font-fira-sans);
   --font-mono: var(--font-fira-code);

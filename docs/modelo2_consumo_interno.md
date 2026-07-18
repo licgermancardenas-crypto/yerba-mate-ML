@@ -79,4 +79,15 @@ Pendiente real, no bloqueante:
 - El error se concentra en shocks macro agudos (2024) -- no probado si una
   variable de crisis/recesión (ej. variación interanual del salario real,
   no el nivel) ayudaría más que el nivel de salario real usado acá.
-- No integrado al frontend (`/predicciones` sigue "Coming Soon").
+
+## 7. Integración a frontend
+
+`backend/ml/scoring_modelo2.py` reusa `pronosticar_serie` de
+`scoring_modelo1.py` (la función es genérica, no específica de zona) para
+entrenar el mismo baseline sin exógenas de §2-§5 sobre la serie nacional
+completa y persistir 12 meses de pronóstico en `ym.ml_predicciones`
+(`modelo='modelo2_consumo_interno'`, `dimension='(nacional)'`,
+`es_pronostico=true`). Se sirve por
+`GET /predicciones?modelo=modelo2_consumo_interno` y se muestra en
+`/predicciones` (tab "Consumo interno") con el `ReliabilityBadge` citando
+el MAPE 6,3% de este documento.

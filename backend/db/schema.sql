@@ -697,3 +697,40 @@ CREATE TABLE IF NOT EXISTS ym.tipo_cambio_anual (
     ars_usd_oficial NUMERIC(12,4) NOT NULL,   -- promedio de las cotizaciones diarias "oficial" del año
     dias_con_dato   INTEGER NOT NULL
 );
+
+-- ----------------------------------------------------------------------------
+-- 20) ml_predicciones — salida de los 3 modelos de Fase 5 (Producción por
+--     zona, Consumo interno, Exportaciones gravitacional), no dato crudo --
+--     NO pasa por backend/etl/audit_datos.py (ese script detecta series
+--     fabricadas pasadas como reales; acá el contenido es explícitamente
+--     salida de modelo, declarado por `metodo`/`supuestos`/`es_pronostico`).
+--     Tabla genérica (mismo criterio que ym.indec_series) en vez de una
+--     tabla por modelo -- `dimension` es zona (modelo1), '(nacional)'
+--     (modelo2) o pais_iso2 (modelo3); `es_pronostico` distingue el
+--     forecast futuro real (modelo1/2, 12 meses) de la proyección con
+--     supuestos explícitos o el ajustado-vs-real histórico (modelo3, que
+--     no tiene PBI/tipo de cambio futuros reales para pronosticar).
+-- ----------------------------------------------------------------------------
+CREATE TABLE IF NOT EXISTS ym.ml_predicciones (
+    id              BIGSERIAL PRIMARY KEY,
+    modelo          TEXT NOT NULL,      -- 'modelo1_produccion_zona' | 'modelo2_consumo_interno' | 'modelo3_exportaciones'
+    dimension       TEXT NOT NULL DEFAULT '(nacional)',  -- zona | '(nacional)' | pais_iso2
+    anio            SMALLINT NOT NULL,
+    mes             SMALLINT,           -- NULL en modelo3 (panel anual, no mensual)
+    es_pronostico   BOOLEAN NOT NULL,   -- true = forecast/proyección futura; false = ajustado-vs-real histórico (solo modelo3 hoy)
+    valor_real      NUMERIC(20,4),      -- solo se llena en filas es_pronostico=false
+    valor_predicho  NUMERIC(20,4) NOT NULL,
+    ic_inferior     NUMERIC(20,4),
+    ic_superior     NUMERIC(20,4),
+    nivel_confianza NUMERIC(4,3) NOT NULL DEFAULT 0.95,
+    unidad          TEXT NOT NULL DEFAULT 'kg',
+    metodo          TEXT NOT NULL,      -- ej. 'SARIMA(1,1,1)(0,1,1,12)' o 'OLS log-log, R²=0.42, n=232'
+    supuestos       TEXT,               -- solo en la proyección futura de modelo3 (ej. año de PBI congelado por país)
+    generado_en     TIMESTAMPTZ NOT NULL DEFAULT now(),
+    -- NULLS NOT DISTINCT: mes es NULL en TODAS las filas de modelo3 (panel
+    -- anual) -- sin esto, un UNIQUE normal trata cada NULL como distinto y
+    -- el ON CONFLICT del upsert nunca matchea, acumulando filas duplicadas
+    -- en cada corrida en vez de actualizar.
+    CONSTRAINT ml_predicciones_unico UNIQUE NULLS NOT DISTINCT (modelo, dimension, anio, mes, es_pronostico)
+);
+CREATE INDEX IF NOT EXISTS idx_ml_predicciones_modelo ON ym.ml_predicciones (modelo, dimension, anio, mes);

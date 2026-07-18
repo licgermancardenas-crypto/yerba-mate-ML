@@ -10,6 +10,7 @@ from backend.api.routers import (
     importaciones,
     precios,
     precios_gondola,
+    predicciones,
     produccion,
     superficie,
 )
@@ -27,6 +28,7 @@ app.include_router(competencia.router)
 app.include_router(cadena_productiva.router)
 app.include_router(geo.router)
 app.include_router(fuentes.router)
+app.include_router(predicciones.router)
 
 
 @app.get("/health")

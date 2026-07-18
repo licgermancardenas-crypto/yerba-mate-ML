@@ -12,6 +12,7 @@ import type {
   ImportacionRow,
   PrecioGondolaRow,
   PrecioRow,
+  PrediccionRow,
   ProduccionAnualRealRow,
   ProduccionRow,
   SalidaMolinoRow,
@@ -170,4 +171,12 @@ export function getGeoCatalogo() {
 /** Fuente(s) de una o más tablas, para el footer "Fuentes de esta vista". */
 export function getFuentesPorTabla(tablas: string[]) {
   return apiFetch<FuentesPorTabla>(`/fuentes/por-tabla?tablas=${encodeURIComponent(tablas.join(","))}`);
+}
+
+/** Salida de los 3 modelos de Fase 5 (ym.ml_predicciones) -- ver Fase 5, /predicciones. */
+export function getPredicciones(params: { modelo: string; dimension?: string; esPronostico?: boolean }) {
+  const qs = new URLSearchParams({ modelo: params.modelo });
+  if (params.dimension) qs.set("dimension", params.dimension);
+  if (params.esPronostico !== undefined) qs.set("es_pronostico", String(params.esPronostico));
+  return apiFetch<PrediccionRow[]>(`/predicciones?${qs.toString()}`);
 }
