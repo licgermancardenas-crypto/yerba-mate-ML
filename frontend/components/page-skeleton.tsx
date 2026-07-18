@@ -24,7 +24,7 @@ export function PageSkeleton({ kpis = 4, charts = 2 }: PageSkeletonProps) {
       </div>
       <div className="animate-pulse rounded-full bg-muted h-9 w-full max-w-md mb-6" />
       {kpis > 0 && (
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
           {Array.from({ length: kpis }).map((_, i) => (
             <Bloque key={i} className="h-32" />
           ))}
