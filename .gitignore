@@ -40,3 +40,6 @@ Thumbs.db
 # Logs
 *.log
 logs/
+
+# ML — artefactos regenerables (paneles/predicciones intermedias, no el código)
+backend/ml/outputs/
