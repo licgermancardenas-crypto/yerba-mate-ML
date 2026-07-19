@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { Download } from "lucide-react";
 import { DeltaBadge, deltaClasses } from "@/components/delta-badge";
 import { NoData } from "@/components/no-data";
 import { pillClass } from "@/components/mapa-controles";
@@ -77,6 +78,48 @@ function StatChip({ label, valor }: { label: string; valor: string }) {
   );
 }
 
+/** CSV de la serie activa -- valores brutos (no formateados con unidad/kg/t,
+ * más útil para reabrir en Excel y seguir operando), respeta el mismo NULL
+ * "sin dato" de la tabla (celda vacía, nunca 0). Exporta siempre valor + Var%
+ * anual, independiente del toggle Valor/Variación en pantalla -- ese toggle
+ * es una vista efímera de UI, el CSV es un artefacto que debería quedar
+ * completo por sí solo. */
+function construirCsv(
+  anios: number[],
+  porAnio: Map<number, (number | null)[]>,
+  totalPorAnio: Map<number, number | null>,
+  varPctPorAnio: Map<number, number | null>,
+  promedioPorMes: (number | null)[]
+): string {
+  const encabezado = ["Año", ...MESES_ABREV, "Total anual", "Var % anual"];
+  const filaPromedio = ["Promedio", ...promedioPorMes.map((v) => (v !== null ? v.toFixed(2) : "")), "", ""];
+  const filasAnio = anios.map((anio) => {
+    const valores = porAnio.get(anio)!;
+    const total = totalPorAnio.get(anio) ?? null;
+    const varPct = varPctPorAnio.get(anio) ?? null;
+    return [
+      String(anio),
+      ...valores.map((v) => (v !== null ? v.toFixed(2) : "")),
+      total !== null ? total.toFixed(2) : "",
+      varPct !== null ? varPct.toFixed(1) : "",
+    ];
+  });
+  const filas = [encabezado, filaPromedio, ...filasAnio];
+  return filas.map((fila) => fila.map((v) => `"${String(v).replace(/"/g, '""')}"`).join(",")).join("\n");
+}
+
+function descargarCsv(contenido: string, nombreArchivo: string) {
+  // BOM UTF-8 -- sin esto Excel en Windows a veces malinterpreta acentos/ñ
+  // del encabezado ("Año") como otra codificación.
+  const blob = new Blob([`﻿${contenido}`], { type: "text/csv;charset=utf-8;" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = nombreArchivo;
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
 /** Celda "s/d" reusada para valor y variación -- mismo criterio de honestidad
  * (nunca inventar un número donde falta la fuente o el mes anterior no es
  * consecutivo). */
@@ -121,6 +164,33 @@ export function HeatmapTable({
   for (const anio of anios) {
     const valores = porAnio.get(anio)!.filter((v): v is number => v !== null);
     totalPorAnio.set(anio, valores.length ? valores.reduce((a, b) => a + b, 0) : null);
+  }
+
+  // Variación año a año -- calculada una sola vez (reusada por la tabla y
+  // por la descarga CSV). Comparación "mismo período": solo suma los meses
+  // presentes en AMBOS años, no el total completo del año anterior contra
+  // un año en curso todavía parcial.
+  const varPctPorAnio = new Map<number, number | null>();
+  for (let i = 0; i < anios.length; i++) {
+    if (i === 0) {
+      varPctPorAnio.set(anios[i], null);
+      continue;
+    }
+    const valoresMes = porAnio.get(anios[i])!;
+    const valoresMesAnterior = porAnio.get(anios[i - 1])!;
+    let sumaActual = 0;
+    let sumaAnterior = 0;
+    let comparable = false;
+    for (let m = 0; m < 12; m++) {
+      const actual = valoresMes[m];
+      const anterior = valoresMesAnterior[m];
+      if (actual !== null && anterior !== null) {
+        sumaActual += actual;
+        sumaAnterior += anterior;
+        comparable = true;
+      }
+    }
+    varPctPorAnio.set(anios[i], calcularVarPct(sumaActual, comparable ? sumaAnterior : null));
   }
 
   // Promedio por mes calendario, a través de todos los años mostrados --
@@ -224,6 +294,21 @@ export function HeatmapTable({
             Serie completa
           </button>
         </div>
+
+        <button
+          type="button"
+          onClick={() =>
+            descargarCsv(
+              construirCsv(anios, porAnio, totalPorAnio, varPctPorAnio, promedioPorMes),
+              `${serieActiva.label.replace(/\s+/g, "_")}.csv`
+            )
+          }
+          title="Descargar esta tabla como CSV (valores brutos, sin formatear)"
+          className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg border border-border bg-card text-foreground/70 hover:text-foreground hover:border-primary/40 transition-colors"
+        >
+          <Download size={13} aria-hidden="true" />
+          CSV
+        </button>
       </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2">
@@ -278,26 +363,7 @@ export function HeatmapTable({
               const filaMin = valoresFila.length ? Math.min(...valoresFila) : 0;
               const filaMax = valoresFila.length ? Math.max(...valoresFila) : 0;
               const total = totalPorAnio.get(anio) ?? null;
-
-              // Comparación "mismo período": solo suma los meses presentes en
-              // AMBOS años, no el total completo del año anterior contra un
-              // año en curso todavía parcial.
-              const valoresMesAnterior = i > 0 ? porAnio.get(anios[i - 1])! : null;
-              let sumaActual = 0;
-              let sumaAnterior = 0;
-              let comparable = false;
-              if (valoresMesAnterior) {
-                for (let m = 0; m < 12; m++) {
-                  const actual = valoresMes[m];
-                  const anterior = valoresMesAnterior[m];
-                  if (actual !== null && anterior !== null) {
-                    sumaActual += actual;
-                    sumaAnterior += anterior;
-                    comparable = true;
-                  }
-                }
-              }
-              const varPctAnual = calcularVarPct(sumaActual, comparable ? sumaAnterior : null);
+              const varPctAnual = varPctPorAnio.get(anio) ?? null;
 
               return (
                 <tr key={anio} className="border-b border-border/60 last:border-0">
