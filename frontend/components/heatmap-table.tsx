@@ -226,7 +226,7 @@ export function HeatmapTable({
         </div>
       </div>
 
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2">
         <StatChip label="Total del período" valor={totalPeriodo !== null ? formatearTot(totalPeriodo) : "s/d"} />
         <StatChip label="Promedio mensual" valor={promedioMensual !== null ? formatearValor(promedioMensual) : "s/d"} />
         <StatChip
