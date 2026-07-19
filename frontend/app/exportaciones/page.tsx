@@ -8,6 +8,7 @@ import { FilterBar } from "@/components/filter-bar";
 import { FooterFuentes } from "@/components/footer-fuentes";
 import { SerieChartConFiltro } from "@/components/charts/serie-chart-con-filtro";
 import { HistoricalTable } from "@/components/historical-table";
+import { HeatmapTable, type HeatmapTableSerie } from "@/components/heatmap-table";
 import { ExportacionesFlowMapLoader } from "@/components/exportaciones-flow-map-loader";
 import type { ColumnaTabla } from "@/components/data-table";
 import { formatMasa, formatMasaCompacta, formatNumero, formatPct, formatUsd, type UnidadMasa } from "@/lib/format";
@@ -106,6 +107,30 @@ export default async function ExportacionesPage({
     valor_fob_usd: d.valor_fob_usd,
     porcentaje: d.porcentaje,
   }));
+
+  // Mapa de calor por país -- filtrado SOLO por año (deliberadamente sin
+  // destinoFiltro: el selector de este widget es independiente del FilterBar
+  // de la página, para poder comparar cualquier país sin perder el filtro
+  // general). "Confidencial" ya excluido en todosLosDestinos.
+  const indecSoloAnio = indecCompleta.filter((f) => (!anioDesde || f.anio >= anioDesde) && (!anioHasta || f.anio <= anioHasta));
+  const seriesExportacionesPais: HeatmapTableSerie[] = [
+    {
+      id: "(nacional)",
+      label: "Total nacional",
+      puntos: agregarComexIndecMensualHistorico(indecSoloAnio).map((f) => ({
+        anio: f.anio,
+        mes: f.mes,
+        valor: f.volumen_kg != null ? f.volumen_kg * factorUnidad : null,
+      })),
+    },
+    ...todosLosDestinos.map((destino) => ({
+      id: destino,
+      label: destino,
+      puntos: indecSoloAnio
+        .filter((f) => f.pais_nombre === destino)
+        .map((f) => ({ anio: f.anio, mes: f.mes, valor: f.peso_kg != null ? f.peso_kg * factorUnidad : null })),
+    })),
+  ];
 
   return (
     <main className="p-6 md:p-8">
@@ -212,6 +237,19 @@ export default async function ExportacionesPage({
             <GaugeCard label="Fraccionado" valorPct={29} icon={Boxes} color="var(--color-accent)" descripcion="Consumo minorista (1/4 kg a 2 kg)" />
             <GaugeCard label="Resto" valorPct={14} displayValue="~14%" icon={HelpCircle} color="var(--color-muted-foreground)" descripcion="Sin desglosar en la fuente" />
           </div>
+
+          <ChartCard
+            title="Mapa de calor por país"
+            className="mt-8 mb-4"
+            description="Volumen mensual real (INDEC) por país destino — elegí el país en el selector. Independiente del filtro Destino de arriba."
+          >
+            <HeatmapTable
+              series={seriesExportacionesPais}
+              selectorLabel="Destino"
+              formatearValor={(v) => formatNumero(v, unidad === "t" ? 1 : 0)}
+              formatearTotal={(v) => formatMasa(v, unidad)}
+            />
+          </ChartCard>
 
           <ChartCard
             title="Histórico completo"

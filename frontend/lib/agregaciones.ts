@@ -14,6 +14,16 @@ export const MESES = [
   "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre",
 ];
 
+/** Variación % entre dos valores -- `null` si falta alguno de los dos o el
+ * anterior es cero (no hay base real de comparación, no se fuerza un número).
+ * Usada por HeatmapTable (columna año-a-año y celdas mes-a-mes) -- NO
+ * reemplaza los deltas de KPI por página, que tienen sus propias guardas
+ * específicas (ej. esAnioCompleto) y quedan como están. */
+export function calcularVarPct(actual: number | null | undefined, anterior: number | null | undefined): number | null {
+  if (actual == null || anterior == null || anterior === 0) return null;
+  return ((actual - anterior) / anterior) * 100;
+}
+
 // ----------------------------------------------------------------------------
 // Producción mensual nacional — AUDITORÍA 2026-07-11: el desglose mensual de
 // ym.dataset_principal era sintético y se anuló (ver docs/auditoria_datos.md).

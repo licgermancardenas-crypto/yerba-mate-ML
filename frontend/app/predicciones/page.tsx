@@ -9,20 +9,8 @@ import { formatNumero } from "@/lib/format";
 import { getHojaVerde, getSalidaMolino, getPredicciones } from "@/lib/api";
 import { MESES, agregarSalidaMolinoMensual } from "@/lib/agregaciones";
 import { PAISES_DESTINO } from "@/lib/paises-destino";
+import { ZONA_RAW_A_LIMPIA, ZONAS, etiquetaZona } from "@/lib/zonas";
 import type { PrediccionRow } from "@/lib/types";
-
-// 'ZONA CENTRO' -> 'CENTRO', etc. -- ym.inym_hoja_verde_zona (fuente real)
-// usa el prefijo "ZONA " salvo en Corrientes; ym.ml_predicciones (salida del
-// Modelo 1) ya guarda el nombre limpio -- ver backend/ml/build_panel_modelo1.py.
-const ZONA_RAW_A_LIMPIA: Record<string, string> = {
-  "ZONA CENTRO": "CENTRO",
-  "ZONA NORESTE": "NORESTE",
-  "ZONA NOROESTE": "NOROESTE",
-  "ZONA OESTE": "OESTE",
-  "ZONA SUR": "SUR",
-  CORRIENTES: "CORRIENTES",
-};
-const ZONAS = ["CENTRO", "CORRIENTES", "NORESTE", "NOROESTE", "OESTE", "SUR"] as const;
 
 // Texto de confiabilidad por zona -- ver docs/modelo1_produccion_zona.md
 // (backtest walk-forward, MAE = % del promedio histórico de cada zona;
@@ -138,7 +126,7 @@ async function TabProduccion() {
           return (
             <ChartCard
               key={zona}
-              title={zona.charAt(0) + zona.slice(1).toLowerCase()}
+              title={etiquetaZona(zona)}
               description="Ingreso de hoja verde a secadero -- histórico real + pronóstico 12 meses (SARIMA)"
             >
               <ForecastBandChart

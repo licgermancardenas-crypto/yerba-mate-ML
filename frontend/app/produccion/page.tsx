@@ -335,10 +335,15 @@ export default async function ProduccionPage({
               }
             >
               <HeatmapTable
-                filas={hojaVerdeTotalPorZona.map((f) => ({ anio: f.anio, mes: f.mes, valor: f.hoja_verde_kg * factorUnidad }))}
+                series={[
+                  {
+                    id: "nacional",
+                    label: "Nacional",
+                    puntos: hojaVerdeTotalPorZona.map((f) => ({ anio: f.anio, mes: f.mes, valor: f.hoja_verde_kg * factorUnidad })),
+                  },
+                ]}
                 formatearValor={(v) => formatNumero(v, unidad === "t" ? 1 : 0)}
                 formatearTotal={(v) => formatMasa(v, unidad)}
-                escala="fila"
               />
             </ChartCard>
           </>

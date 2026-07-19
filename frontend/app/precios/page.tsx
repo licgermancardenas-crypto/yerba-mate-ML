@@ -8,6 +8,7 @@ import { FooterFuentes } from "@/components/footer-fuentes";
 import { SerieChartConFiltro } from "@/components/charts/serie-chart-con-filtro";
 import { CHART_BLUE, CHART_PURPLE } from "@/components/charts/chart-theme";
 import { HistoricalTable } from "@/components/historical-table";
+import { HeatmapTable, type HeatmapTableSerie } from "@/components/heatmap-table";
 import type { ColumnaTabla } from "@/components/data-table";
 import { formatNumero, formatPct } from "@/lib/format";
 import { getPrecios, getPreciosGondola } from "@/lib/api";
@@ -135,6 +136,11 @@ export default async function PreciosPage({
 
   const serieIpcNacional = conAmbosIpc.map((f) => ({ anio: f.anio, etiqueta: etiqueta(f), valor: f.ipc_nacional as number }));
   const serieIpcYerbaMate = conAmbosIpc.map((f) => ({ anio: f.anio, etiqueta: etiqueta(f), valor: f.ipc_yerba_mate as number }));
+
+  const seriesPrecios: HeatmapTableSerie[] = [
+    { id: "hoja_verde", label: "Hoja verde", puntos: filas.map((f) => ({ anio: f.anio, mes: f.mes, valor: f.precio_hoja_verde_ars })) },
+    { id: "canchada", label: "Canchada", puntos: filas.map((f) => ({ anio: f.anio, mes: f.mes, valor: f.precio_canchada_ars })) },
+  ];
 
   return (
     <main className="p-6 md:p-8">
@@ -266,6 +272,19 @@ export default async function PreciosPage({
           </div>
         </>
       )}
+
+      <ChartCard
+        title="Mapa de calor — precio hoja verde / canchada"
+        className="mt-4 mb-4"
+        description={
+          <>
+            ARS/kg mensual real. El mecanismo de precio de referencia fue discontinuado por el INYM el 31/03/2026 (Decreto 812) — los
+            meses posteriores quedan &ldquo;s/d&rdquo;, no es un hueco de carga.
+          </>
+        }
+      >
+        <HeatmapTable series={seriesPrecios} selectorLabel="Serie" formatearValor={(v) => formatArsKg(v)} />
+      </ChartCard>
 
       <ChartCard
         title="Histórico completo"

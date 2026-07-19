@@ -39,6 +39,31 @@
      Fase 9 D3): >=6:1 en todos los pares texto/fondo relevantes. */
   --color-warning: #92400e;
   --color-on-warning: #ffffff;
+
+  /* Rampa semáforo de HeatmapTable (mín=rojo -> máx=verde), a pedido
+     explícito del usuario -- reemplaza la rampa de un solo verde que
+     usaba antes (ver heatmap-table.tsx). Sigue siendo puramente relativa
+     (min->max del rango mostrado), no hay un "cero" semántico de magnitud
+     real -- la leyenda debajo de la tabla aclara esto en el texto.
+     Contraste verificado con la fórmula WCAG exacta (mismo criterio que
+     Fase 9 D3): la rampa NO es monótona en luminancia (rojo/naranja/verde
+     oscuro necesitan texto blanco, amarillo/lima necesitan texto oscuro),
+     por eso cada paso tiene su propio --heatmap-text-N en vez de un solo
+     corte -- todos los pares dan >=4,5:1 (la mayoría >=4,8:1). */
+  --heatmap-1: #dc2626;
+  --heatmap-text-1: #ffffff;
+  --heatmap-2: #c2410c;
+  --heatmap-text-2: #ffffff;
+  --heatmap-3: #b45309;
+  --heatmap-text-3: #ffffff;
+  --heatmap-4: #a16207;
+  --heatmap-text-4: #ffffff;
+  --heatmap-5: #65a30d;
+  --heatmap-text-5: #0f172a;
+  --heatmap-6: #16a34a;
+  --heatmap-text-6: #0f172a;
+  --heatmap-7: #15803d;
+  --heatmap-text-7: #ffffff;
 }
 
 /* Modo oscuro -- paleta verde de marca reformulada para fondo oscuro, no es
@@ -73,6 +98,25 @@
 
   --color-warning: #fbbf24;
   --color-on-warning: #422006;
+
+  /* Misma rampa semáforo, tonos ajustados para fondo oscuro -- acá los 7
+     pasos verificaron mejor contraste con texto oscuro neutro en TODOS
+     los pasos (>=6,4:1, la mayoría >=7,8:1), a diferencia del modo claro
+     donde alterna con blanco -- normal, no es un error de copy/paste. */
+  --heatmap-1: #f87171;
+  --heatmap-text-1: #0f172a;
+  --heatmap-2: #fb923c;
+  --heatmap-text-2: #0f172a;
+  --heatmap-3: #fbbf24;
+  --heatmap-text-3: #0f172a;
+  --heatmap-4: #facc15;
+  --heatmap-text-4: #0f172a;
+  --heatmap-5: #bef264;
+  --heatmap-text-5: #0f172a;
+  --heatmap-6: #4ade80;
+  --heatmap-text-6: #0f172a;
+  --heatmap-7: #22c55e;
+  --heatmap-text-7: #0f172a;
 }
 
 @theme inline {

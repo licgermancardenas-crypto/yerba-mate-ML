@@ -10,8 +10,9 @@ import { SerieChartConFiltro } from "@/components/charts/serie-chart-con-filtro"
 import { AnnualChartConFiltro } from "@/components/charts/annual-chart-con-filtro";
 import { SerieMensualChart } from "@/components/charts/serie-mensual-chart";
 import { HistoricalTable } from "@/components/historical-table";
+import { HeatmapTable, type HeatmapTableSerie } from "@/components/heatmap-table";
 import { DataTable, type ColumnaTabla } from "@/components/data-table";
-import { esAnioCompleto, formatMasa, formatMasaCompacta, type UnidadMasa } from "@/lib/format";
+import { esAnioCompleto, formatMasa, formatMasaCompacta, formatNumero, type UnidadMasa } from "@/lib/format";
 import { getHojaVerde, getSalidaMolino } from "@/lib/api";
 import {
   agregarHojaVerdeAnual,
@@ -21,6 +22,7 @@ import {
   type SalidaMolinoAnualRow,
   type SalidaMolinoMensualRow,
 } from "@/lib/agregaciones";
+import { ZONA_RAW_A_LIMPIA, ZONAS, etiquetaZona } from "@/lib/zonas";
 import type { HojaVerdeRow } from "@/lib/types";
 
 const MESES = [
@@ -152,6 +154,46 @@ export default async function CadenaProductivaPage({
     return fila;
   });
 
+  // Mapa de calor por zona -- serie "TOTAL" nacional + las 6 zonas reales,
+  // mismos nombres crudos ("ZONA CENTRO", "CORRIENTES" sin prefijo) que en
+  // /predicciones, limpiados con el mismo mapeo compartido (lib/zonas.ts).
+  const seriesHojaVerdeZona: HeatmapTableSerie[] = [
+    {
+      id: "TOTAL",
+      label: "Nacional (total)",
+      puntos: filasHojaVerde
+        .filter((f) => f.zona === "TOTAL")
+        .map((f) => ({ anio: f.anio, mes: f.mes, valor: f.hoja_verde_kg * factorUnidad })),
+    },
+    ...ZONAS.map((zonaLimpia) => ({
+      id: zonaLimpia,
+      label: etiquetaZona(zonaLimpia),
+      puntos: filasHojaVerde
+        .filter((f) => (ZONA_RAW_A_LIMPIA[f.zona] ?? f.zona) === zonaLimpia)
+        .map((f) => ({ anio: f.anio, mes: f.mes, valor: f.hoja_verde_kg * factorUnidad })),
+    })),
+  ];
+
+  // Mapa de calor de salida de molino -- 2 series (interno/externo) desde las
+  // filas crudas (agregarSalidaMolinoMensual ya fusiona ambos destinos en una
+  // sola fila, forma equivocada para series separadas de HeatmapTable).
+  const seriesMolino: HeatmapTableSerie[] = [
+    {
+      id: "interno",
+      label: "Mercado interno",
+      puntos: filasMolino
+        .filter((f) => f.destino === "interno")
+        .map((f) => ({ anio: f.anio, mes: f.mes, valor: f.volumen_kg * factorUnidad })),
+    },
+    {
+      id: "externo",
+      label: "Mercado externo",
+      puntos: filasMolino
+        .filter((f) => f.destino === "externo")
+        .map((f) => ({ anio: f.anio, mes: f.mes, valor: f.volumen_kg * factorUnidad })),
+    },
+  ];
+
   return (
     <main className="p-6 md:p-8">
       <PageHeader
@@ -261,8 +303,35 @@ export default async function CadenaProductivaPage({
       <ChartCard
         title="Hoja verde por zona"
         description={<>Kilogramos por año (excluye la fila &quot;TOTAL&quot; nacional, ya mostrada arriba)</>}
+        className="mb-4"
       >
         <DataTable columnas={columnasZona} filas={filasZona} maxHeightPx={420} />
+      </ChartCard>
+
+      <ChartCard
+        title="Mapa de calor — hoja verde por zona"
+        description="Ingreso mensual real por zona (INYM) — elegí la zona en el selector."
+        className="mb-4"
+      >
+        <HeatmapTable
+          series={seriesHojaVerdeZona}
+          selectorLabel="Zona"
+          formatearValor={(v) => formatNumero(v, unidad === "t" ? 1 : 0)}
+          formatearTotal={(v) => formatMasa(v, unidad)}
+        />
+      </ChartCard>
+
+      <ChartCard
+        title="Mapa de calor — salida de molino"
+        description="Mercado interno vs. externo, mensual real (INYM)."
+        className="mb-4"
+      >
+        <HeatmapTable
+          series={seriesMolino}
+          selectorLabel="Destino"
+          formatearValor={(v) => formatNumero(v, unidad === "t" ? 1 : 0)}
+          formatearTotal={(v) => formatMasa(v, unidad)}
+        />
       </ChartCard>
 
       <FooterFuentes tablas={["ym.inym_hoja_verde_zona", "ym.inym_salida_molino"]} />

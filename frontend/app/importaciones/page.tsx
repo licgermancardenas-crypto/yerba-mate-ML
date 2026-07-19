@@ -8,8 +8,9 @@ import { FooterFuentes } from "@/components/footer-fuentes";
 import { SerieChartConFiltro } from "@/components/charts/serie-chart-con-filtro";
 import { CHART_BLUE } from "@/components/charts/chart-theme";
 import { HistoricalTable } from "@/components/historical-table";
+import { HeatmapTable, type HeatmapTableSerie } from "@/components/heatmap-table";
 import type { ColumnaTabla } from "@/components/data-table";
-import { esAnioCompleto, formatMasa, formatMasaCompacta, formatPct, type UnidadMasa } from "@/lib/format";
+import { esAnioCompleto, formatMasa, formatMasaCompacta, formatNumero, formatPct, type UnidadMasa } from "@/lib/format";
 import { getExportacionesAnualReal, getImportacionesIndec } from "@/lib/api";
 import {
   agregarComexIndecAnualNacional,
@@ -92,6 +93,28 @@ export default async function ImportacionesPage({
       .reduce((acc, f) => acc + (f.volumen_kg ?? 0), 0);
   const balanzaUltimo = exportadoUltimo != null && importadoUltimo != null ? exportadoUltimo - importadoUltimo : null;
 
+  // Mapa de calor por país -- filtrado SOLO por año (independiente de
+  // origenFiltro, mismo criterio que el heatmap de Exportaciones).
+  const indecSoloAnio = indecCompleta.filter((f) => (!anioDesde || f.anio >= anioDesde) && (!anioHasta || f.anio <= anioHasta));
+  const seriesImportacionesPais: HeatmapTableSerie[] = [
+    {
+      id: "(nacional)",
+      label: "Total nacional",
+      puntos: agregarComexIndecMensualHistorico(indecSoloAnio).map((f) => ({
+        anio: f.anio,
+        mes: f.mes,
+        valor: f.volumen_kg != null ? f.volumen_kg * factorUnidad : null,
+      })),
+    },
+    ...todosLosOrigenes.map((origen) => ({
+      id: origen,
+      label: origen,
+      puntos: indecSoloAnio
+        .filter((f) => f.pais_nombre === origen)
+        .map((f) => ({ anio: f.anio, mes: f.mes, valor: f.peso_kg != null ? f.peso_kg * factorUnidad : null })),
+    })),
+  ];
+
   return (
     <main className="p-6 md:p-8">
       <PageHeader title="Importaciones" description="Volumen mensual importado, por país de origen (INDEC, real)." />
@@ -157,6 +180,19 @@ export default async function ImportacionesPage({
           )}
         </ChartCard>
       </div>
+
+      <ChartCard
+        title="Mapa de calor por país"
+        className="mt-4 mb-4"
+        description="Volumen mensual real (INDEC) por país de origen — elegí el país en el selector. Independiente del filtro Origen de arriba."
+      >
+        <HeatmapTable
+          series={seriesImportacionesPais}
+          selectorLabel="Origen"
+          formatearValor={(v) => formatNumero(v, unidad === "t" ? 1 : 0)}
+          formatearTotal={(v) => formatMasa(v, unidad)}
+        />
+      </ChartCard>
 
       <ChartCard
         title="Histórico completo"

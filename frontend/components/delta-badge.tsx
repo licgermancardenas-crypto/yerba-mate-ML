@@ -11,6 +11,21 @@ interface DeltaBadgeProps {
   className?: string;
 }
 
+// bg-primary/10 y bg-destructive/10 daban 4,39:1 y 4,14:1 (verificado con
+// la fórmula WCAG real, no a ojo) -- por debajo del mínimo AA de 4,5:1
+// para texto normal. /6 y /3 respectivamente dan >=4,6:1 sin cambiar de
+// manera perceptible el look del pill (ver Fase 9, D3).
+// Extraída de <DeltaBadge> para que las celdas de variación mes-a-mes de
+// HeatmapTable usen exactamente el mismo semantic de color (nunca una 2da
+// definición del mismo rojo/verde) -- ahí se aplica como fondo de celda,
+// no como pill.
+export function deltaClasses(valor: number | null | undefined): string {
+  if (valor == null || !Number.isFinite(valor)) return "text-muted-foreground";
+  const redondeado = Math.round(valor * 10) / 10;
+  if (redondeado === 0) return "bg-muted text-muted-foreground";
+  return redondeado > 0 ? "bg-primary/6 text-primary" : "bg-destructive/3 text-destructive";
+}
+
 // Único componente de badge de variación de toda la app (ver Fase 9, A2).
 // Regla de neutralidad: se redondea a la misma precisión que se muestra
 // (1 decimal, igual que formatPct) ANTES de decidir signo/flecha -- así un
@@ -24,18 +39,7 @@ export function DeltaBadge({ valor, base, sobreFondoOscuro = false, className = 
   const esNeutro = redondeado === 0;
   const esPositivo = redondeado > 0;
 
-  // bg-primary/10 y bg-destructive/10 daban 4,39:1 y 4,14:1 (verificado con
-  // la fórmula WCAG real, no a ojo) -- por debajo del mínimo AA de 4,5:1
-  // para texto normal. /6 y /3 respectivamente dan >=4,6:1 sin cambiar de
-  // manera perceptible el look del pill (ver Fase 9, D3).
-  const pillClase = sobreFondoOscuro
-    ? "bg-white/15 text-white"
-    : esNeutro
-      ? "bg-muted text-muted-foreground"
-      : esPositivo
-        ? "bg-primary/6 text-primary"
-        : "bg-destructive/3 text-destructive";
-
+  const pillClase = sobreFondoOscuro ? "bg-white/15 text-white" : deltaClasses(valor);
   const iconoClase = sobreFondoOscuro ? (esPositivo ? "text-emerald-300" : "text-red-300") : "";
 
   return (
