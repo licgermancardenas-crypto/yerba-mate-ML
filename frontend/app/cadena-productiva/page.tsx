@@ -12,7 +12,7 @@ import { SerieMensualChart } from "@/components/charts/serie-mensual-chart";
 import { HistoricalTable } from "@/components/historical-table";
 import { HeatmapTable, type HeatmapTableSerie } from "@/components/heatmap-table";
 import { DataTable, type ColumnaTabla } from "@/components/data-table";
-import { esAnioCompleto, formatMasa, formatMasaCompacta, formatNumero, type UnidadMasa } from "@/lib/format";
+import { esAnioCompleto, formatMasa, formatMasaCompacta, type UnidadMasa } from "@/lib/format";
 import { getHojaVerde, getSalidaMolino } from "@/lib/api";
 import {
   agregarHojaVerdeAnual,
@@ -316,8 +316,7 @@ export default async function CadenaProductivaPage({
         <HeatmapTable
           series={seriesHojaVerdeZona}
           selectorLabel="Zona"
-          formatearValor={(v) => formatNumero(v, unidad === "t" ? 1 : 0)}
-          formatearTotal={(v) => formatMasa(v, unidad)}
+          formato={{ tipo: "masa", unidad }}
         />
       </ChartCard>
 
@@ -329,8 +328,7 @@ export default async function CadenaProductivaPage({
         <HeatmapTable
           series={seriesMolino}
           selectorLabel="Destino"
-          formatearValor={(v) => formatNumero(v, unidad === "t" ? 1 : 0)}
-          formatearTotal={(v) => formatMasa(v, unidad)}
+          formato={{ tipo: "masa", unidad }}
         />
       </ChartCard>
 

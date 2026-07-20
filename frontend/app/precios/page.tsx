@@ -283,7 +283,7 @@ export default async function PreciosPage({
           </>
         }
       >
-        <HeatmapTable series={seriesPrecios} selectorLabel="Serie" formatearValor={(v) => formatArsKg(v)} />
+        <HeatmapTable series={seriesPrecios} selectorLabel="Serie" formato={{ tipo: "ars" }} />
       </ChartCard>
 
       <ChartCard

@@ -10,7 +10,7 @@ import { CHART_BLUE } from "@/components/charts/chart-theme";
 import { HistoricalTable } from "@/components/historical-table";
 import { HeatmapTable, type HeatmapTableSerie } from "@/components/heatmap-table";
 import type { ColumnaTabla } from "@/components/data-table";
-import { esAnioCompleto, formatMasa, formatMasaCompacta, formatNumero, formatPct, type UnidadMasa } from "@/lib/format";
+import { esAnioCompleto, formatMasa, formatMasaCompacta, formatPct, type UnidadMasa } from "@/lib/format";
 import { getExportacionesAnualReal, getImportacionesIndec } from "@/lib/api";
 import {
   agregarComexIndecAnualNacional,
@@ -189,8 +189,7 @@ export default async function ImportacionesPage({
         <HeatmapTable
           series={seriesImportacionesPais}
           selectorLabel="Origen"
-          formatearValor={(v) => formatNumero(v, unidad === "t" ? 1 : 0)}
-          formatearTotal={(v) => formatMasa(v, unidad)}
+          formato={{ tipo: "masa", unidad }}
         />
       </ChartCard>
 

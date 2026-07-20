@@ -6,6 +6,7 @@ import { DeltaBadge, deltaClasses } from "@/components/delta-badge";
 import { NoData } from "@/components/no-data";
 import { pillClass } from "@/components/mapa-controles";
 import { calcularVarPct } from "@/lib/agregaciones";
+import { formatMasa, formatNumero, type UnidadMasa } from "@/lib/format";
 
 const MESES_ABREV = ["Ene", "Feb", "Mar", "Abr", "May", "Jun", "Jul", "Ago", "Sep", "Oct", "Nov", "Dic"];
 
@@ -37,11 +38,22 @@ export interface HeatmapTableSerie {
   puntos: HeatmapTablePunto[];
 }
 
+/** Cómo formatear el valor de cada celda/total -- descriptor serializable en
+ * vez de una función. HeatmapTable es "use client" y las páginas que lo usan
+ * son Server Components -- pasar una función como prop directo a un Client
+ * Component revienta en runtime ("Functions cannot be passed directly to
+ * Client Components"), no en build/typecheck, así que no lo agarra tsc/lint
+ * (ver commit de este fix, mismo bug de categoría que Fase 6 con los charts
+ * -- ahí se resolvió igual, con datos serializables en vez de funciones). */
+export type FormatoHeatmap =
+  | { tipo: "masa"; unidad: UnidadMasa }
+  | { tipo: "numero"; decimales?: number }
+  | { tipo: "ars"; decimales?: number };
+
 interface HeatmapTableProps {
   /** Siempre array -- 1 elemento = sin selector de serie visible. */
   series: HeatmapTableSerie[];
-  formatearValor: (v: number) => string;
-  formatearTotal?: (v: number) => string;
+  formato: FormatoHeatmap;
   /** "Zona" | "Destino" | "Origen" | "Serie" -- solo se usa si series.length > 1. */
   selectorLabel?: string;
   defaultEscala?: "fila" | "global";
@@ -137,15 +149,18 @@ function CeldaSinDato({ motivo }: { motivo: string }) {
  * fila/global, y una franja de KPIs (total/promedio/máx/mín del período
  * mostrado). Ver docs de Fase 9/rediseño 2026-07-19 para el detalle de
  * diseño (rampa no monótona, honestidad de NULL en variación mes-a-mes). */
-export function HeatmapTable({
-  series,
-  formatearValor,
-  formatearTotal,
-  selectorLabel,
-  defaultEscala = "fila",
-  className = "",
-}: HeatmapTableProps) {
-  const formatearTot = formatearTotal ?? formatearValor;
+export function HeatmapTable({ series, formato, selectorLabel, defaultEscala = "fila", className = "" }: HeatmapTableProps) {
+  // Funciones creadas acá adentro (no pasadas como prop) -- nunca cruzan el
+  // límite server/client, así que no disparan el error de serialización.
+  const formatearValor = (v: number): string => {
+    if (formato.tipo === "masa") return formatNumero(v, formato.unidad === "t" ? 1 : 0);
+    if (formato.tipo === "ars") return `$${formatNumero(v, formato.decimales ?? 2)}/kg`;
+    return formatNumero(v, formato.decimales ?? 0);
+  };
+  const formatearTot = (v: number): string => {
+    if (formato.tipo === "masa") return formatMasa(v, formato.unidad);
+    return formatearValor(v);
+  };
   const [serieId, setSerieId] = useState<string | undefined>(series[0]?.id);
   const [escala, setEscala] = useState<"fila" | "global">(defaultEscala);
   const [vista, setVista] = useState<"valor" | "variacion">("valor");

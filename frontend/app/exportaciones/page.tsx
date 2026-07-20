@@ -246,8 +246,7 @@ export default async function ExportacionesPage({
             <HeatmapTable
               series={seriesExportacionesPais}
               selectorLabel="Destino"
-              formatearValor={(v) => formatNumero(v, unidad === "t" ? 1 : 0)}
-              formatearTotal={(v) => formatMasa(v, unidad)}
+              formato={{ tipo: "masa", unidad }}
             />
           </ChartCard>
 
