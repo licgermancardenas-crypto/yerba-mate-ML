@@ -7,6 +7,8 @@ import { ChartCard } from "@/components/chart-card";
 import { FilterBar } from "@/components/filter-bar";
 import { FooterFuentes } from "@/components/footer-fuentes";
 import { SerieChartConFiltro } from "@/components/charts/serie-chart-con-filtro";
+import { SerieMensualChart } from "@/components/charts/serie-mensual-chart";
+import { AnnualChartConFiltro } from "@/components/charts/annual-chart-con-filtro";
 import { HistoricalTable } from "@/components/historical-table";
 import { HeatmapTable } from "@/components/heatmap-table";
 import { ProduccionMapaLoader } from "@/components/produccion-mapa-loader";
@@ -14,10 +16,12 @@ import type { ColumnaTabla } from "@/components/data-table";
 import { formatMasa, formatMasaCompacta, formatNumero, formatPct, formatUsd, type UnidadMasa } from "@/lib/format";
 import { getProduccionAnualReal, getSuperficie, getHojaVerde, getGeoLayerAtributos } from "@/lib/api";
 import { tituloCase } from "@/lib/texto";
+import { ZONAS, ZONA_RAW_A_LIMPIA, etiquetaZona } from "@/lib/zonas";
 import {
   agregarHojaVerdeMensualNacional,
   agregarProduccionAnualNacional,
   agregarRendimientoAnual,
+  agregarSuperficieProductoresAnual,
   type ProduccionAnualRow,
 } from "@/lib/agregaciones";
 
@@ -63,14 +67,16 @@ export default async function ProduccionPage({
   paramsMapa.set("vista", "mapa");
   const hrefMapa = `/produccion?${paramsMapa.toString()}`;
 
-  const [anualRealCompleta, superficieCompletas, hojaVerdeCompleta, superficieDeptoAtributos] = await Promise.all([
-    getProduccionAnualReal(),
-    getSuperficie(),
-    getHojaVerde(),
-    getGeoLayerAtributos<{ pcia: string; depto: string; sup_ym: number; superficie: number }>(
-      "view_superficie_por_departamentos"
-    ),
-  ]);
+  const [anualRealCompleta, superficieCompletas, hojaVerdeCompleta, superficieDeptoAtributos, superficieZonaAtributos] =
+    await Promise.all([
+      getProduccionAnualReal(),
+      getSuperficie(),
+      getHojaVerde(),
+      getGeoLayerAtributos<{ pcia: string; depto: string; sup_ym: number; superficie: number }>(
+        "view_superficie_por_departamentos"
+      ),
+      getGeoLayerAtributos<{ zona: string; sup_ym: number }>("view_superficie_por_zonas"),
+    ]);
   // Superficie cultivada real por departamento (19 unidades geográficas
   // reales del INYM, no las 6-7 zonas de reporte de producción) -- NO hay
   // producción en kg a este nivel de detalle en ninguna fuente encontrada,
@@ -148,6 +154,55 @@ export default async function ProduccionPage({
     rendimientoUltimo && rendimientoPenultimo
       ? ((rendimientoUltimo.rendimiento_kg_ha - rendimientoPenultimo.rendimiento_kg_ha) / rendimientoPenultimo.rendimiento_kg_ha) * 100
       : undefined;
+
+  // Destino de la cosecha -- % exportado vs. % consumo interno, DEL TOTAL
+  // COLOCADO (exportado+consumo), no de produccion_kg. Verificado con datos
+  // reales antes de armar esto: produccion_kg de dataset_principal_anual es
+  // ~99,8% del ingreso real de hoja verde (ver Cosecha nacional mensual más
+  // abajo) -- es materia prima cruda, no el producto elaborado que miden
+  // consumo_interno_kg/exportaciones_kg (mismo punto ya documentado en
+  // Cadena Productiva: "miden puntos distintos de la cadena"). Comparar
+  // exportado/consumo contra produccion_kg daría un "remanente" de
+  // 55-65% todos los años que en realidad es la merma normal de secado/
+  // molienda, no stock ni nada sin explicar -- se descartó esa versión.
+  const destinoCosechaData = anualHistorico
+    .filter((f) => (f.exportaciones_kg ?? 0) + (f.consumo_interno_kg ?? 0) > 0)
+    .map((f) => {
+      const colocado = (f.exportaciones_kg ?? 0) + (f.consumo_interno_kg ?? 0);
+      return {
+        anio: String(f.anio),
+        Exportado: ((f.exportaciones_kg ?? 0) / colocado) * 100,
+        "Consumo interno": ((f.consumo_interno_kg ?? 0) / colocado) * 100,
+      };
+    });
+
+  // Rendimiento por zona -- hoja verde real mensual (agregada a anual) por
+  // cada una de las 6 zonas, dividido por la superficie ACTUAL de esa zona
+  // (view_superficie_por_zonas, capa GIS -- es un snapshot del INYM, no una
+  // serie histórica de superficie como sí lo es rendimientoAnual arriba, que
+  // usa ym.superficie_productores real por año). Los nombres de esta capa ya
+  // vienen limpios ("CENTRO", "CORRIENTES", ...), coinciden 1 a 1 con ZONAS.
+  const supPorZona = new Map(superficieZonaAtributos.map((z) => [z.zona, z.sup_ym]));
+  const rendimientoPorZona = ZONAS.map((zona) => {
+    const sup = supPorZona.get(zona);
+    const porAnio = new Map<number, number>();
+    for (const f of hojaVerdeCompleta) {
+      if ((ZONA_RAW_A_LIMPIA[f.zona] ?? f.zona) !== zona) continue;
+      porAnio.set(f.anio, (porAnio.get(f.anio) ?? 0) + f.hoja_verde_kg);
+    }
+    const puntos = Array.from(porAnio.entries())
+      .sort((a, b) => a[0] - b[0])
+      .map(([anio, kg]) => ({ etiqueta: String(anio), valor: sup ? kg / sup : 0 }));
+    return { zona, sup, puntos };
+  });
+
+  // Hectáreas por productor -- ver docs/auditoria_datos.md §2.6/§7.11 para
+  // por qué la cobertura real es acotada (hoy ~2017-2020 nacional), no un
+  // recorte arbitrario de esta página.
+  const superficieSoloAnio = superficieCompletas.filter(
+    (f) => (!anioDesde || f.anio >= anioDesde) && (!anioHasta || f.anio <= anioHasta)
+  );
+  const haPorProductorAnual = agregarSuperficieProductoresAnual(superficieSoloAnio);
 
   return (
     <main className="p-6 md:p-8">
@@ -273,6 +328,29 @@ export default async function ProduccionPage({
               </ChartCard>
             </div>
 
+            {destinoCosechaData.length > 0 && (
+              <ChartCard
+                title="Destino de la cosecha colocada"
+                className="mt-4"
+                description={
+                  <>
+                    Del volumen real que efectivamente se exportó o se consumió en el mercado interno cada año, qué % fue para cada
+                    lado -- no incluye &quot;Producción (kg)&quot; como base porque esa cifra es materia prima (hoja verde), no
+                    producto elaborado, y no es comparable en la misma unidad (ver Cadena Productiva).
+                  </>
+                }
+              >
+                <AnnualChartConFiltro
+                  tipo="cuotas"
+                  data={destinoCosechaData}
+                  series={[
+                    { key: "Exportado", color: "#1d4ed8" },
+                    { key: "Consumo interno", color: "#15803d" },
+                  ]}
+                />
+              </ChartCard>
+            )}
+
             {rendimientoAnual.length > 0 && (
               <>
                 <div className="mt-8 mb-4">
@@ -303,6 +381,51 @@ export default async function ProduccionPage({
                     color="var(--color-accent)"
                     numberFormat={{ maximumFractionDigits: 0 }}
                     suffix=" kg/ha"
+                  />
+                </ChartCard>
+              </>
+            )}
+
+            <div className="mt-8 mb-4">
+              <h2 className="text-lg font-semibold text-foreground">Rendimiento por zona</h2>
+              <p className="text-sm text-muted-foreground mt-0.5">
+                Hoja verde real por año (INYM) dividida por la superficie ACTUAL de cada zona (INYM GeoServer) -- a diferencia del
+                rendimiento nacional de arriba, acá la superficie es una foto de hoy, no una serie histórica -- el gráfico muestra
+                cómo cambia la cosecha con un denominador fijo, no un rendimiento año a año 100% real.
+              </p>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+              {rendimientoPorZona.map(({ zona, sup, puntos }) => (
+                <ChartCard
+                  key={zona}
+                  title={etiquetaZona(zona)}
+                  description={sup ? `Superficie actual: ${formatNumero(sup, 0)} ha` : "Sin superficie publicada para esta zona"}
+                >
+                  {puntos.length > 0 && sup ? (
+                    <SerieMensualChart data={puntos} color="var(--color-accent)" numberFormat={{ maximumFractionDigits: 0 }} suffix=" kg/ha" />
+                  ) : (
+                    <NoData variant="chart" motivo="Sin datos para calcular rendimiento en esta zona." />
+                  )}
+                </ChartCard>
+              ))}
+            </div>
+
+            {haPorProductorAnual.length > 0 && (
+              <>
+                <div className="mt-8 mb-4">
+                  <h2 className="text-lg font-semibold text-foreground">Hectáreas por productor</h2>
+                  <p className="text-sm text-muted-foreground mt-0.5">
+                    Tamaño promedio de chacra, nacional. Cobertura real limitada a los años con dato de superficie Y productores
+                    simultáneo -- fuera de este rango el dato fue anulado por fabricado/no reconciliable (ver docs/auditoria_datos.md).
+                  </p>
+                </div>
+                <ChartCard title="Hectáreas por productor" description="Superficie cultivada / cantidad de productores, nacional">
+                  <SerieMensualChart
+                    data={haPorProductorAnual.map((f) => ({ etiqueta: String(f.anio), valor: f.ha_por_productor }))}
+                    color="var(--color-primary)"
+                    numberFormat={{ maximumFractionDigits: 1 }}
+                    suffix=" ha"
                   />
                 </ChartCard>
               </>

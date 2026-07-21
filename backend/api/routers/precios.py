@@ -18,12 +18,15 @@ async def listar_precios(
         SELECT
             p.anio, p.mes, p.mes_nombre, p.precio_hoja_verde_ars, p.precio_canchada_ars,
             ipc_gral.valor AS ipc_nacional,
-            ipc_ym.valor AS ipc_yerba_mate
+            ipc_ym.valor AS ipc_yerba_mate,
+            ripte.valor AS ripte
         FROM ym.precios p
         LEFT JOIN ym.indec_series ipc_gral
           ON ipc_gral.serie_nombre = 'ipc_nacional_nivel_general' AND ipc_gral.anio = p.anio AND ipc_gral.mes = p.mes
         LEFT JOIN ym.indec_series ipc_ym
           ON ipc_ym.serie_nombre = 'ipc_gba_yerba_mate' AND ipc_ym.anio = p.anio AND ipc_ym.mes = p.mes
+        LEFT JOIN ym.indec_series ripte
+          ON ripte.serie_nombre = 'ripte' AND ripte.anio = p.anio AND ripte.mes = p.mes
         WHERE (CAST(:anio_desde AS INTEGER) IS NULL OR p.anio >= CAST(:anio_desde AS INTEGER))
           AND (CAST(:anio_hasta AS INTEGER) IS NULL OR p.anio <= CAST(:anio_hasta AS INTEGER))
         ORDER BY p.anio, p.mes

@@ -1,4 +1,4 @@
-import { Ship, Globe2, DollarSign, TrendingUp, PieChart, Package2, Boxes, HelpCircle } from "lucide-react";
+import { Ship, Globe2, DollarSign, TrendingUp, PieChart, Package2, Boxes, HelpCircle, Gauge } from "lucide-react";
 import { PageHeader } from "@/components/page-header";
 import { KpiCard } from "@/components/kpi-card";
 import { NoData } from "@/components/no-data";
@@ -7,6 +7,7 @@ import { ChartCard } from "@/components/chart-card";
 import { FilterBar } from "@/components/filter-bar";
 import { FooterFuentes } from "@/components/footer-fuentes";
 import { SerieChartConFiltro } from "@/components/charts/serie-chart-con-filtro";
+import { AnnualChartConFiltro } from "@/components/charts/annual-chart-con-filtro";
 import { HistoricalTable } from "@/components/historical-table";
 import { HeatmapTable, type HeatmapTableSerie } from "@/components/heatmap-table";
 import { ExportacionesFlowMapLoader } from "@/components/exportaciones-flow-map-loader";
@@ -22,6 +23,9 @@ import {
   type ExportacionAnualRow,
   type ComexIndecMensualNacionalRow,
 } from "@/lib/agregaciones";
+import { calcularConcentracion } from "@/lib/metricas-competencia";
+
+const COBERTURA_MINIMA_CHART_HHI = 50;
 
 const COLUMNAS_ANUAL: ColumnaTabla<ExportacionAnualRow>[] = [
   { key: "anio", label: "Año", align: "left" },
@@ -107,6 +111,20 @@ export default async function ExportacionesPage({
     valor_fob_usd: d.valor_fob_usd,
     porcentaje: d.porcentaje,
   }));
+
+  // Concentración de destinos (HHI) -- mismo cálculo que ya usa /competencia
+  // para empresas (calcularConcentracion), acá aplicado a países. porcentaje
+  // de agregarComexIndecPorPais ya está contra el total nacional (incluye
+  // 'ZZ' confidencial), así que coberturaPct < 100 es la parte sin país
+  // publicado -- mismo criterio de "cota inferior" que en Competencia.
+  const concentracionUltimoAnio = calcularConcentracion(destinosDelAnio.map((d) => d.porcentaje));
+  const dataHhiExportaciones = todosLosAnios
+    .map((anio) => {
+      const c = calcularConcentracion(agregarComexIndecPorPais(indecCompleta, anio).map((d) => d.porcentaje));
+      if (c.coberturaPct < COBERTURA_MINIMA_CHART_HHI) return null;
+      return { anio: String(anio), hhi: c.hhi, coberturaPct: c.coberturaPct };
+    })
+    .filter((f): f is { anio: string; hhi: number; coberturaPct: number } => f !== null);
 
   // Mapa de calor por país -- filtrado SOLO por año (deliberadamente sin
   // destinoFiltro: el selector de este widget es independiente del FilterBar
@@ -211,6 +229,29 @@ export default async function ExportacionesPage({
               )}
             </ChartCard>
           </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mt-4">
+            <KpiCard label={`HHI destinos ${ultimoAnio}`} value={String(Math.round(concentracionUltimoAnio.hhi))} icon={Gauge} />
+            <GaugeCard label="Top 4 destinos concentran" valorPct={concentracionUltimoAnio.cr4} icon={Globe2} color="var(--color-accent)" />
+          </div>
+
+          <ChartCard
+            title="HHI (Herfindahl-Hirschman) de destinos por año"
+            className="mt-4"
+            description={
+              <>
+                Suma de los % de cada país al cuadrado. Es una <strong>cota inferior</strong> del HHI real (el volumen sin país publicado
+                por secreto estadístico no está incluido). Umbrales de referencia: &lt;1500 no concentrado, 1500-2500 moderadamente
+                concentrado, &gt;2500 altamente concentrado.
+              </>
+            }
+          >
+            {dataHhiExportaciones.length > 0 ? (
+              <AnnualChartConFiltro tipo="hhi" data={dataHhiExportaciones} />
+            ) : (
+              <p className="text-sm text-muted-foreground py-12 text-center">Ningún año del rango seleccionado tiene cobertura suficiente para calcular HHI de forma confiable.</p>
+            )}
+          </ChartCard>
 
           {destinosMapa.length > 0 && (
             <ChartCard

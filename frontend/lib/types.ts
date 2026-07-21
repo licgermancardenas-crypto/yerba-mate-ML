@@ -109,6 +109,8 @@ export interface PrecioRow {
   ipc_nacional: number | null;
   /** IPC-GBA específico de yerba mate, misma base dic-2016=100 (INDEC). */
   ipc_yerba_mate: number | null;
+  /** RIPTE (remuneración imponible promedio trabajadores estables, INDEC/Trabajo), nominal ARS. */
+  ripte: number | null;
 }
 
 export interface PrecioGondolaRow {

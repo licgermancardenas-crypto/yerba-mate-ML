@@ -179,6 +179,43 @@ export function agregarRendimientoAnual(
   });
 }
 
+export interface SuperficieProductoresAnualRow {
+  anio: number;
+  superficie_ha: number;
+  productores: number;
+  ha_por_productor: number;
+}
+
+/** Hectáreas por productor, nacional -- solo años con AMBOS campos reales
+ * (superficie_ha Y productores) simultáneamente. Hoy eso da ~2017-2020: el
+ * resto está anulado por fabricado/no reconciliable (ver
+ * docs/auditoria_datos.md §2.6 y §7.11) -- no se hardcodea ese rango, si en
+ * el futuro se carga más dato real aparece solo. Mismo dedup por
+ * (año, ciudad) que agregarRendimientoAnual, para no sumar 12 veces el
+ * mismo valor publicado con cadencia anual. */
+export function agregarSuperficieProductoresAnual(filas: SuperficieRow[]): SuperficieProductoresAnualRow[] {
+  const porAnioCiudad = new Map<string, { superficie_ha: number | null; productores: number | null }>();
+  for (const f of filas) {
+    const clave = `${f.anio}|${f.provincia}|${f.ciudad}`;
+    if (!porAnioCiudad.has(clave)) porAnioCiudad.set(clave, { superficie_ha: f.superficie_ha, productores: f.productores });
+  }
+  const superficiePorAnio = new Map<number, number>();
+  const productoresPorAnio = new Map<number, number>();
+  for (const [clave, { superficie_ha, productores }] of porAnioCiudad) {
+    const anio = Number(clave.split("|")[0]);
+    if (superficie_ha != null) superficiePorAnio.set(anio, (superficiePorAnio.get(anio) ?? 0) + superficie_ha);
+    if (productores != null) productoresPorAnio.set(anio, (productoresPorAnio.get(anio) ?? 0) + productores);
+  }
+  const anios = Array.from(superficiePorAnio.keys())
+    .filter((anio) => productoresPorAnio.has(anio) && productoresPorAnio.get(anio)! > 0)
+    .sort((a, b) => a - b);
+  return anios.map((anio) => {
+    const superficie_ha = superficiePorAnio.get(anio)!;
+    const productores = productoresPorAnio.get(anio)!;
+    return { anio, superficie_ha, productores, ha_por_productor: superficie_ha / productores };
+  });
+}
+
 // ----------------------------------------------------------------------------
 // Exportaciones — histórico anual por destino, a partir de
 // ym.exportaciones_anual (real, preservado antes de anular el mensual

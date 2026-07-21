@@ -1,4 +1,4 @@
-import { DollarSign, Leaf, Factory, TrendingUp, Scale } from "lucide-react";
+import { DollarSign, Leaf, Factory, TrendingUp, Scale, Wallet, ArrowRightLeft } from "lucide-react";
 import { PageHeader } from "@/components/page-header";
 import { KpiCard } from "@/components/kpi-card";
 import { NoData } from "@/components/no-data";
@@ -137,6 +137,26 @@ export default async function PreciosPage({
   const serieIpcNacional = conAmbosIpc.map((f) => ({ anio: f.anio, etiqueta: etiqueta(f), valor: f.ipc_nacional as number }));
   const serieIpcYerbaMate = conAmbosIpc.map((f) => ({ anio: f.anio, etiqueta: etiqueta(f), valor: f.ipc_yerba_mate as number }));
 
+  // Poder de compra y margen -- ambos son "hoy", nunca una tendencia: el
+  // precio de góndola es una foto única (SEPA no permite backfill), no hay
+  // forma de armar una serie histórica real contra él.
+  const conRipte = ordenadas.filter((f) => f.ripte != null);
+  const ripteUltimo = conRipte[conRipte.length - 1];
+  // Ponderado por n_observaciones (no promedio simple) -- cada fila de
+  // góndola ya es el promedio de una marca/presentación distinta, pesarlo
+  // por cuántas observaciones tuvo cada una es más representativo del
+  // precio real que paga la mayoría de la gente.
+  const totalObservaciones = gondolaOrdenada.reduce((acc, f) => acc + f.n_observaciones, 0);
+  const precioGondolaPromedio =
+    totalObservaciones > 0
+      ? gondolaOrdenada.reduce((acc, f) => acc + f.precio_ars_kg_promedio * f.n_observaciones, 0) / totalObservaciones
+      : null;
+  const kgComprablesHoy = ripteUltimo && precioGondolaPromedio ? ripteUltimo.ripte! / precioGondolaPromedio : null;
+  const margenVsCanchada =
+    precioGondolaPromedio && ultima.precio_canchada_ars ? precioGondolaPromedio / ultima.precio_canchada_ars : null;
+  const margenVsHojaVerde =
+    precioGondolaPromedio && ultima.precio_hoja_verde_ars ? precioGondolaPromedio / ultima.precio_hoja_verde_ars : null;
+
   const seriesPrecios: HeatmapTableSerie[] = [
     { id: "hoja_verde", label: "Hoja verde", puntos: filas.map((f) => ({ anio: f.anio, mes: f.mes, valor: f.precio_hoja_verde_ars })) },
     { id: "canchada", label: "Canchada", puntos: filas.map((f) => ({ anio: f.anio, mes: f.mes, valor: f.precio_canchada_ars })) },
@@ -269,6 +289,32 @@ export default async function PreciosPage({
                 ))}
               </tbody>
             </table>
+          </div>
+
+          <div className="mt-6 mb-4">
+            <h2 className="text-lg font-semibold text-foreground">Poder de compra y margen (hoy)</h2>
+            <p className="text-sm text-muted-foreground mt-0.5">
+              Punto en el tiempo, no tendencia — depende de la foto de góndola de arriba, que no tiene serie histórica.
+            </p>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <KpiCard
+              label="Kg de yerba comprables con 1 RIPTE"
+              value={kgComprablesHoy != null ? `${formatNumero(kgComprablesHoy, 0)} kg` : <NoData variant="kpi" />}
+              icon={Wallet}
+              secundario={
+                ripteUltimo && fechaSnapshotGondola
+                  ? `RIPTE ${MESES[ripteUltimo.mes - 1]} ${ripteUltimo.anio} vs. góndola del ${fechaSnapshotGondola}`
+                  : undefined
+              }
+            />
+            <KpiCard
+              label="Margen góndola vs. productor (canchada)"
+              value={margenVsCanchada != null ? `${formatNumero(margenVsCanchada, 1)}x` : <NoData variant="kpi" />}
+              icon={ArrowRightLeft}
+              secundario={margenVsHojaVerde != null ? `${formatNumero(margenVsHojaVerde, 1)}x contra hoja verde (materia prima sin procesar)` : undefined}
+            />
           </div>
         </>
       )}
