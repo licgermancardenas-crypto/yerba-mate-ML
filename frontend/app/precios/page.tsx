@@ -1,4 +1,4 @@
-import { DollarSign, Leaf, Factory, TrendingUp, Scale, Wallet, ArrowRightLeft, Activity } from "lucide-react";
+import { DollarSign, Leaf, Factory, TrendingUp, Scale, Wallet, ArrowRightLeft, Activity, ArrowDown, ArrowUp } from "lucide-react";
 import { PageHeader } from "@/components/page-header";
 import { KpiCard } from "@/components/kpi-card";
 import { NoData } from "@/components/no-data";
@@ -9,6 +9,7 @@ import { SerieChartConFiltro } from "@/components/charts/serie-chart-con-filtro"
 import { CHART_BLUE, CHART_PURPLE } from "@/components/charts/chart-theme";
 import { HistoricalTable } from "@/components/historical-table";
 import { HeatmapTable, type HeatmapTableSerie } from "@/components/heatmap-table";
+import { EstacionalidadPrecioChart } from "@/components/charts/estacionalidad-precio-chart";
 import type { ColumnaTabla } from "@/components/data-table";
 import { formatNumero, formatPct } from "@/lib/format";
 import { getPrecios, getPreciosGondola } from "@/lib/api";
@@ -168,6 +169,33 @@ export default async function PreciosPage({
   const volatilidadPre = desviacionEstandar(variacionesPre);
   const volatilidadPost = desviacionEstandar(variacionesPost);
 
+  // Estacionalidad del precio real -- índice de cada mes calendario contra
+  // el promedio DE SU PROPIO año (nunca cruzar años sin normalizar así,
+  // porque la inflación intra-año arma un patrón falso). Verificado con
+  // datos reales antes de mostrarlo: con precio NOMINAL el swing daba
+  // 82%-134% (¡casi todo inflación!), con precio REAL el efecto genuino es
+  // mucho más chico, ~88,5%-107,1% -- se muestra ese, no el nominal.
+  const anioGroups = new Map<number, { mes: number; valor: number }[]>();
+  for (const f of serieRealConMes) {
+    const arr = anioGroups.get(f.anio) ?? [];
+    arr.push({ mes: f.mes, valor: f.valor });
+    anioGroups.set(f.anio, arr);
+  }
+  const indicesPorMes: number[][] = Array.from({ length: 12 }, () => []);
+  for (const filasAnio of anioGroups.values()) {
+    const promedioAnio = filasAnio.reduce((acc, f) => acc + f.valor, 0) / filasAnio.length;
+    if (promedioAnio === 0) continue;
+    for (const { mes, valor } of filasAnio) {
+      indicesPorMes[mes - 1].push((valor / promedioAnio) * 100);
+    }
+  }
+  const estacionalidadPrecio = indicesPorMes.map((valores, i) => ({
+    etiqueta: MESES[i].slice(0, 3),
+    valor: valores.length ? valores.reduce((a, b) => a + b, 0) / valores.length : 100,
+  }));
+  const mesMasBarato = estacionalidadPrecio.reduce((min, actual) => (actual.valor < min.valor ? actual : min), estacionalidadPrecio[0]);
+  const mesMasCaro = estacionalidadPrecio.reduce((max, actual) => (actual.valor > max.valor ? actual : max), estacionalidadPrecio[0]);
+
   const conAmbosIpc = ordenadas.filter((f) => f.ipc_nacional != null && f.ipc_yerba_mate != null);
   const ultimoConAmbosIpc = conAmbosIpc[conAmbosIpc.length - 1];
   const indiceRelativoYerba = ultimoConAmbosIpc
@@ -300,6 +328,31 @@ export default async function PreciosPage({
           deltaLabel="vs. pre-desregulación"
         />
       </div>
+
+      <div className="mt-8 mb-4">
+        <h2 className="text-lg font-semibold text-foreground">Estacionalidad del precio (real)</h2>
+        <p className="text-sm text-muted-foreground mt-0.5">
+          Índice de cada mes calendario contra el promedio de su propio año (100 = promedio anual) — precio de hoja verde
+          deflactado por IPC, para aislar el efecto estacional de la inflación.
+        </p>
+      </div>
+
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
+        <KpiCard
+          label={`Mes más barato: ${mesMasBarato.etiqueta}`}
+          value={`${formatNumero(mesMasBarato.valor, 1)} pts`}
+          icon={ArrowDown}
+        />
+        <KpiCard
+          label={`Mes más caro: ${mesMasCaro.etiqueta}`}
+          value={`${formatNumero(mesMasCaro.valor, 1)} pts`}
+          icon={ArrowUp}
+        />
+      </div>
+
+      <ChartCard title="Estacionalidad del precio real" description="Índice mensual promedio, 100 = promedio del año (línea punteada)" className="mb-4">
+        <EstacionalidadPrecioChart data={estacionalidadPrecio} />
+      </ChartCard>
 
       <div className="grid grid-cols-1 xl:grid-cols-2 gap-4 mt-4">
         <ChartCard title="IPC Nacional" description="Índice, base dic-2016=100 (INDEC)">

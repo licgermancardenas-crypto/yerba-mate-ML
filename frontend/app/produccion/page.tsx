@@ -24,6 +24,7 @@ import {
   agregarSuperficieProductoresAnual,
   type ProduccionAnualRow,
 } from "@/lib/agregaciones";
+import { calcularConcentracion } from "@/lib/metricas-competencia";
 
 // Coordenadas de las ciudades productoras — no hay geocodificación en el
 // dataset del INYM, así que se ubican a mano las cabeceras conocidas.
@@ -195,6 +196,17 @@ export default async function ProduccionPage({
       .map(([anio, kg]) => ({ etiqueta: String(anio), valor: sup ? kg / sup : 0 }));
     return { zona, sup, puntos };
   });
+
+  // Concentración geográfica del cultivo (HHI) -- mismo cálculo que ya usa
+  // /competencia (empresas), /exportaciones (destinos) e /importaciones
+  // (orígenes), acá aplicado a las 6 zonas. Como view_superficie_por_zonas
+  // es un snapshot (no una serie por año), esto es un solo valor "hoy", no
+  // una tendencia en el tiempo -- verificado con datos reales: HHI≈1947,
+  // moderadamente concentrado, CENTRO es la zona más grande (~28%).
+  const totalSupZonas = superficieZonaAtributos.reduce((acc, z) => acc + z.sup_ym, 0);
+  const zonasPorSuperficie = [...superficieZonaAtributos].sort((a, b) => b.sup_ym - a.sup_ym);
+  const concentracionGeografica =
+    totalSupZonas > 0 ? calcularConcentracion(superficieZonaAtributos.map((z) => (z.sup_ym / totalSupZonas) * 100)) : null;
 
   // Hectáreas por productor -- ver docs/auditoria_datos.md §2.6/§7.11 para
   // por qué la cobertura real es acotada (hoy ~2017-2020 nacional), no un
@@ -394,6 +406,17 @@ export default async function ProduccionPage({
                 cómo cambia la cosecha con un denominador fijo, no un rendimiento año a año 100% real.
               </p>
             </div>
+
+            {concentracionGeografica && (
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
+                <KpiCard label="HHI geográfico (superficie cultivada)" value={String(Math.round(concentracionGeografica.hhi))} icon={Gauge} />
+                <KpiCard
+                  label={`Zona con más superficie: ${etiquetaZona(zonasPorSuperficie[0].zona)}`}
+                  value={totalSupZonas > 0 ? formatPct((zonasPorSuperficie[0].sup_ym / totalSupZonas) * 100) : <NoData variant="kpi" />}
+                  icon={MapIcon}
+                />
+              </div>
+            )}
 
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
               {rendimientoPorZona.map(({ zona, sup, puntos }) => (
