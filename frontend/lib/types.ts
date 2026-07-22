@@ -169,6 +169,7 @@ export interface SalidaMolinoRow {
   mes: number;
   destino: "interno" | "externo";
   volumen_kg: number;
+  emae: number | null;
 }
 
 /** Salida de los 3 modelos de Fase 5 -- GET /predicciones (ym.ml_predicciones).

@@ -1,4 +1,4 @@
-import { Leaf, Factory, Globe2, Percent, CalendarRange } from "lucide-react";
+import { Leaf, Factory, Globe2, Percent, CalendarRange, Link2, Activity } from "lucide-react";
 import { PageHeader } from "@/components/page-header";
 import { KpiCard } from "@/components/kpi-card";
 import { NoData } from "@/components/no-data";
@@ -12,12 +12,14 @@ import { SerieMensualChart } from "@/components/charts/serie-mensual-chart";
 import { HistoricalTable } from "@/components/historical-table";
 import { HeatmapTable, type HeatmapTableSerie } from "@/components/heatmap-table";
 import { DataTable, type ColumnaTabla } from "@/components/data-table";
-import { esAnioCompleto, formatMasa, formatMasaCompacta, type UnidadMasa } from "@/lib/format";
+import { ElasticidadConsumoChart, type ElasticidadConsumoPunto } from "@/components/charts/elasticidad-consumo-chart";
+import { esAnioCompleto, formatMasa, formatMasaCompacta, formatNumero, type UnidadMasa } from "@/lib/format";
 import { getHojaVerde, getSalidaMolino } from "@/lib/api";
 import {
   agregarHojaVerdeAnual,
   agregarSalidaMolinoAnual,
   agregarSalidaMolinoMensual,
+  calcularVarPct,
   type HojaVerdeAnualRow,
   type SalidaMolinoAnualRow,
   type SalidaMolinoMensualRow,
@@ -136,6 +138,58 @@ export default async function CadenaProductivaPage({
     .slice()
     .reverse()
     .map((f) => ({ anio: String(f.anio), Interno: f.interno_kg * factorUnidad, Externo: f.externo_kg * factorUnidad }));
+
+  // Elasticidad-consumo vs. actividad económica -- EMAE (INDEC) cargado desde
+  // Fase 3a pero nunca antes cableado a ningún endpoint/página. Solo años
+  // calendario completos (esAnioCompleto), promedio de EMAE del año (se repite
+  // igual en las filas interno/externo de un mismo mes, no sesga el promedio).
+  const emaePorAnio = new Map<number, number[]>();
+  for (const f of filasMolino) {
+    if (f.emae == null) continue;
+    const arr = emaePorAnio.get(f.anio) ?? [];
+    arr.push(f.emae);
+    emaePorAnio.set(f.anio, arr);
+  }
+  const anosElasticidad = molinoAnual
+    .filter((f) => esAnioCompleto(f.anio) && emaePorAnio.has(f.anio))
+    .map((f) => ({
+      anio: f.anio,
+      interno_kg: f.interno_kg,
+      emae: emaePorAnio.get(f.anio)!.reduce((a, b) => a + b, 0) / emaePorAnio.get(f.anio)!.length,
+    }))
+    .sort((a, b) => a.anio - b.anio);
+
+  const elasticidadData: ElasticidadConsumoPunto[] = [];
+  const yoyEmae: number[] = [];
+  const yoyInterno: number[] = [];
+  for (let i = 1; i < anosElasticidad.length; i++) {
+    const anterior = anosElasticidad[i - 1];
+    const actual = anosElasticidad[i];
+    const vEmae = calcularVarPct(actual.emae, anterior.emae);
+    const vInterno = calcularVarPct(actual.interno_kg, anterior.interno_kg);
+    if (vEmae === null || vInterno === null) continue;
+    yoyEmae.push(vEmae);
+    yoyInterno.push(vInterno);
+    elasticidadData.push({ anio: String(actual.anio), "EMAE (actividad económica)": vEmae, "Consumo interno (molino)": vInterno });
+  }
+  function correlacionPearson(x: number[], y: number[]): number | null {
+    const n = x.length;
+    if (n < 2) return null;
+    const mediaX = x.reduce((a, b) => a + b, 0) / n;
+    const mediaY = y.reduce((a, b) => a + b, 0) / n;
+    const cov = x.reduce((acc, v, i) => acc + (v - mediaX) * (y[i] - mediaY), 0);
+    const desvX = Math.sqrt(x.reduce((acc, v) => acc + (v - mediaX) ** 2, 0));
+    const desvY = Math.sqrt(y.reduce((acc, v) => acc + (v - mediaY) ** 2, 0));
+    return desvX && desvY ? cov / (desvX * desvY) : null;
+  }
+  const correlacionEmaeConsumo = correlacionPearson(yoyEmae, yoyInterno);
+  const fuerzaCorrelacion = (r: number) => {
+    const abs = Math.abs(r);
+    if (abs < 0.2) return "muy débil";
+    if (abs < 0.4) return "débil";
+    if (abs < 0.6) return "moderada";
+    return "fuerte";
+  };
 
   const zonas = Array.from(new Set(filasHojaVerde.filter((f) => f.zona !== "TOTAL").map((f) => f.zona))).sort();
   const anios = Array.from(new Set(filasHojaVerde.map((f) => f.anio))).sort((a, b) => b - a);
@@ -274,6 +328,45 @@ export default async function CadenaProductivaPage({
         />
       </ChartCard>
 
+      <div className="mt-8 mb-4">
+        <h2 className="text-lg font-semibold text-foreground">Consumo interno vs. actividad económica</h2>
+        <p className="text-sm text-muted-foreground mt-0.5">
+          Variación año a año del consumo interno (salida de molino) contra el EMAE (INDEC, nivel de actividad económica) —
+          un bien de necesidad cotidiana debería moverse poco con los ciclos económicos.
+        </p>
+      </div>
+
+      {correlacionEmaeConsumo != null ? (
+        <>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
+            <KpiCard
+              label="Correlación EMAE ↔ consumo interno"
+              value={`${formatNumero(correlacionEmaeConsumo, 2)} (${fuerzaCorrelacion(correlacionEmaeConsumo)})`}
+              icon={Link2}
+              secundario={`${elasticidadData.length} años completos comparados`}
+            />
+            <KpiCard
+              label="Lectura"
+              value={
+                Math.abs(correlacionEmaeConsumo) < 0.4
+                  ? "Consumo desacoplado del ciclo económico"
+                  : "Consumo sigue el ciclo económico"
+              }
+              icon={Activity}
+            />
+          </div>
+          <ChartCard
+            title="EMAE vs. consumo interno — variación interanual"
+            description="Ambas series en % vs. el año anterior, no en unidades absolutas."
+            className="mb-4"
+          >
+            <ElasticidadConsumoChart data={elasticidadData} />
+          </ChartCard>
+        </>
+      ) : (
+        <NoData variant="chart" motivo="Sin años completos suficientes para calcular la correlación en el rango filtrado." className="mb-4" />
+      )}
+
       <div className="grid grid-cols-1 xl:grid-cols-2 gap-4 mb-4">
         <ChartCard
           title="Hoja verde — histórico nacional"
@@ -332,7 +425,7 @@ export default async function CadenaProductivaPage({
         />
       </ChartCard>
 
-      <FooterFuentes tablas={["ym.inym_hoja_verde_zona", "ym.inym_salida_molino"]} />
+      <FooterFuentes tablas={["ym.inym_hoja_verde_zona", "ym.inym_salida_molino", "ym.indec_series"]} />
     </main>
   );
 }

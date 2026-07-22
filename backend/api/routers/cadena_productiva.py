@@ -46,14 +46,22 @@ async def listar_salida_molino(
     OJO: no coincide con consumo_interno_kg/exportaciones_kg de
     ym.dataset_principal — miden puntos distintos de la cadena
     (declaración jurada a salida de molino vs producción/consumo estimado).
+
+    Incluye EMAE (nivel general, INDEC) por anio/mes -- primer uso real de
+    esta serie (cargada desde Fase 3a pero nunca antes cableada a ningún
+    endpoint). Se repite igual en las 2 filas (interno/externo) de un mismo
+    mes -- no es un dato fabricado, es el mismo valor real de EMAE aplicado
+    a ambas.
     """
     stmt = text(
         """
-        SELECT anio, mes, destino, volumen_kg
-        FROM ym.inym_salida_molino
-        WHERE (CAST(:anio_desde AS INTEGER) IS NULL OR anio >= CAST(:anio_desde AS INTEGER))
-          AND (CAST(:anio_hasta AS INTEGER) IS NULL OR anio <= CAST(:anio_hasta AS INTEGER))
-        ORDER BY anio, mes, destino
+        SELECT sm.anio, sm.mes, sm.destino, sm.volumen_kg, emae.valor AS emae
+        FROM ym.inym_salida_molino sm
+        LEFT JOIN ym.indec_series emae
+          ON emae.serie_nombre = 'emae_nivel_general' AND emae.anio = sm.anio AND emae.mes = sm.mes
+        WHERE (CAST(:anio_desde AS INTEGER) IS NULL OR sm.anio >= CAST(:anio_desde AS INTEGER))
+          AND (CAST(:anio_hasta AS INTEGER) IS NULL OR sm.anio <= CAST(:anio_hasta AS INTEGER))
+        ORDER BY sm.anio, sm.mes, sm.destino
         """
     )
     result = await session.execute(
