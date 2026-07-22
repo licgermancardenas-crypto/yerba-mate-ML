@@ -126,6 +126,15 @@ export default async function ExportacionesPage({
     })
     .filter((f): f is { anio: string; hhi: number; coberturaPct: number } => f !== null);
 
+  // Precio FOB por destino -- USD/kg de cada país, verificado contra datos
+  // reales antes de mostrarlo: mercados nicho (Australia, Suiza, Alemania)
+  // pagan 2x+ lo que pagan los mercados de mayor volumen (Siria, Brasil) --
+  // no es ruido, es un patrón real y consistente.
+  const precioFobPorDestino = destinosDelAnio
+    .filter((d) => d.volumen_kg > 0)
+    .map((d) => ({ pais_iso2: d.pais_iso2, pais_nombre: d.pais_nombre, precio_fob_usd_kg: d.valor_fob_usd / d.volumen_kg, volumen_kg: d.volumen_kg }))
+    .sort((a, b) => b.precio_fob_usd_kg - a.precio_fob_usd_kg);
+
   // Mapa de calor por país -- filtrado SOLO por año (deliberadamente sin
   // destinoFiltro: el selector de este widget es independiente del FilterBar
   // de la página, para poder comparar cualquier país sin perder el filtro
@@ -250,6 +259,37 @@ export default async function ExportacionesPage({
               <AnnualChartConFiltro tipo="hhi" data={dataHhiExportaciones} />
             ) : (
               <p className="text-sm text-muted-foreground py-12 text-center">Ningún año del rango seleccionado tiene cobertura suficiente para calcular HHI de forma confiable.</p>
+            )}
+          </ChartCard>
+
+          <ChartCard
+            title={`Precio FOB por destino (${ultimoAnio})`}
+            className="mt-4"
+            description="USD/kg -- quién paga más por el mismo producto, no solo quién compra más volumen. Países con volumen muy chico pueden tener un precio poco representativo (un solo embarque)."
+          >
+            {precioFobPorDestino.length === 0 ? (
+              <p className="text-sm text-muted-foreground py-4">Sin desglose por destino para {ultimoAnio} todavía.</p>
+            ) : (
+              <div className="max-h-[420px] overflow-y-auto">
+                <table className="w-full text-sm">
+                  <thead className="sticky top-0 bg-card">
+                    <tr className="text-left text-xs text-muted-foreground border-b border-border">
+                      <th className="font-medium py-2">Destino</th>
+                      <th className="font-medium py-2 text-right">USD/kg</th>
+                      <th className="font-medium py-2 text-right">Volumen</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {precioFobPorDestino.map((fila) => (
+                      <tr key={fila.pais_iso2} className="border-b border-border last:border-0">
+                        <td className="py-2 text-card-foreground">{fila.pais_nombre}</td>
+                        <td className="py-2 text-right tabular-nums font-medium text-card-foreground">${formatNumero(fila.precio_fob_usd_kg, 2)}</td>
+                        <td className="py-2 text-right tabular-nums text-muted-foreground">{formatMasaCompacta(fila.volumen_kg, unidad)}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
             )}
           </ChartCard>
 

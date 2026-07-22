@@ -1,4 +1,4 @@
-import { DollarSign, Leaf, Factory, TrendingUp, Scale, Wallet, ArrowRightLeft } from "lucide-react";
+import { DollarSign, Leaf, Factory, TrendingUp, Scale, Wallet, ArrowRightLeft, Activity } from "lucide-react";
 import { PageHeader } from "@/components/page-header";
 import { KpiCard } from "@/components/kpi-card";
 import { NoData } from "@/components/no-data";
@@ -12,7 +12,7 @@ import { HeatmapTable, type HeatmapTableSerie } from "@/components/heatmap-table
 import type { ColumnaTabla } from "@/components/data-table";
 import { formatNumero, formatPct } from "@/lib/format";
 import { getPrecios, getPreciosGondola } from "@/lib/api";
-import { agregarPreciosAnual, type PrecioAnualRow } from "@/lib/agregaciones";
+import { agregarPreciosAnual, calcularVarPct, type PrecioAnualRow } from "@/lib/agregaciones";
 import type { PrecioRow } from "@/lib/types";
 
 const COLUMNAS_ANUAL: ColumnaTabla<PrecioAnualRow>[] = [
@@ -128,6 +128,46 @@ export default async function PreciosPage({
       ? ((realHojaVerdeUltima - haceUnAnioConIpc) / haceUnAnioConIpc) * 100
       : undefined;
 
+  // Volatilidad del precio real (hoja verde), antes/después del DNU 70/23
+  // (dic-2023, le sacó al INYM la potestad de fijar precios) -- desvío
+  // estándar de la variación mes a mes. Verificado con datos reales antes
+  // de mostrarlo: sube de ~7,4 a ~12,1 puntos porcentuales -- consistente
+  // con la hipótesis, no fabricado. Nunca compara contra un mes no
+  // consecutivo (mismo criterio de honestidad que HeatmapTable).
+  const FECHA_DNU_70_23 = { anio: 2023, mes: 12 };
+  const esAntesDeDesregulacion = (anio: number, mes: number) =>
+    anio < FECHA_DNU_70_23.anio || (anio === FECHA_DNU_70_23.anio && mes < FECHA_DNU_70_23.mes);
+  const serieRealConMes = conIpcNacional
+    .filter((f) => f.precio_hoja_verde_ars != null)
+    .map((f) => ({
+      anio: f.anio,
+      mes: f.mes,
+      valor: (f.precio_hoja_verde_ars as number) * ((ipcNacionalUltimo as number) / (f.ipc_nacional as number)),
+    }));
+  function variacionesMensuales(serie: typeof serieRealConMes): number[] {
+    const out: number[] = [];
+    for (let i = 1; i < serie.length; i++) {
+      const anterior = serie[i - 1];
+      const actual = serie[i];
+      const mesEsperado = anterior.mes === 12 ? 1 : anterior.mes + 1;
+      const anioEsperado = anterior.mes === 12 ? anterior.anio + 1 : anterior.anio;
+      if (actual.mes !== mesEsperado || actual.anio !== anioEsperado) continue;
+      const v = calcularVarPct(actual.valor, anterior.valor);
+      if (v !== null) out.push(v);
+    }
+    return out;
+  }
+  function desviacionEstandar(valores: number[]): number | null {
+    if (valores.length === 0) return null;
+    const media = valores.reduce((a, b) => a + b, 0) / valores.length;
+    const varianza = valores.reduce((acc, v) => acc + (v - media) ** 2, 0) / valores.length;
+    return Math.sqrt(varianza);
+  }
+  const variacionesPre = variacionesMensuales(serieRealConMes.filter((f) => esAntesDeDesregulacion(f.anio, f.mes)));
+  const variacionesPost = variacionesMensuales(serieRealConMes.filter((f) => !esAntesDeDesregulacion(f.anio, f.mes)));
+  const volatilidadPre = desviacionEstandar(variacionesPre);
+  const volatilidadPost = desviacionEstandar(variacionesPost);
+
   const conAmbosIpc = ordenadas.filter((f) => f.ipc_nacional != null && f.ipc_yerba_mate != null);
   const ultimoConAmbosIpc = conAmbosIpc[conAmbosIpc.length - 1];
   const indiceRelativoYerba = ultimoConAmbosIpc
@@ -236,6 +276,29 @@ export default async function PreciosPage({
         <ChartCard title="Precio canchada (real, deflactado IPC)" description="ARS/kg deflactado, en pesos del último mes con dato de IPC">
           <SerieChartConFiltro data={serieCanchadaReal} color="var(--color-accent)" prefix="$" suffix="/kg" numberFormat={{ minimumFractionDigits: 2, maximumFractionDigits: 2 }} />
         </ChartCard>
+      </div>
+
+      <div className="mt-8 mb-4">
+        <h2 className="text-lg font-semibold text-foreground">Volatilidad del precio real</h2>
+        <p className="text-sm text-muted-foreground mt-0.5">
+          Desvío estándar de la variación mes a mes del precio real de hoja verde, antes vs. después del DNU 70/23 (dic-2023 —
+          le sacó al INYM la potestad de fijar precios). {variacionesPost.length < 24 && "Muestra post-desregulación todavía chica, tomar como indicativo."}
+        </p>
+      </div>
+
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
+        <KpiCard
+          label={`Volatilidad pre-DNU 70/23 (${variacionesPre.length} meses)`}
+          value={volatilidadPre != null ? `±${formatNumero(volatilidadPre, 1)} p.p./mes` : <NoData variant="kpi" />}
+          icon={Activity}
+        />
+        <KpiCard
+          label={`Volatilidad post-DNU 70/23 (${variacionesPost.length} meses)`}
+          value={volatilidadPost != null ? `±${formatNumero(volatilidadPost, 1)} p.p./mes` : <NoData variant="kpi" />}
+          icon={Activity}
+          deltaPct={volatilidadPre && volatilidadPost ? ((volatilidadPost - volatilidadPre) / volatilidadPre) * 100 : undefined}
+          deltaLabel="vs. pre-desregulación"
+        />
       </div>
 
       <div className="grid grid-cols-1 xl:grid-cols-2 gap-4 mt-4">

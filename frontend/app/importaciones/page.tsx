@@ -1,17 +1,19 @@
-import { Package, Ship, Globe2 } from "lucide-react";
+import { Package, Ship, Globe2, Gauge, ArrowRightLeft } from "lucide-react";
 import { PageHeader } from "@/components/page-header";
 import { KpiCard } from "@/components/kpi-card";
 import { NoData } from "@/components/no-data";
+import { GaugeCard } from "@/components/gauge-card";
 import { ChartCard } from "@/components/chart-card";
 import { FilterBar } from "@/components/filter-bar";
 import { FooterFuentes } from "@/components/footer-fuentes";
 import { SerieChartConFiltro } from "@/components/charts/serie-chart-con-filtro";
+import { AnnualChartConFiltro } from "@/components/charts/annual-chart-con-filtro";
 import { CHART_BLUE } from "@/components/charts/chart-theme";
 import { HistoricalTable } from "@/components/historical-table";
 import { HeatmapTable, type HeatmapTableSerie } from "@/components/heatmap-table";
 import type { ColumnaTabla } from "@/components/data-table";
-import { esAnioCompleto, formatMasa, formatMasaCompacta, formatPct, type UnidadMasa } from "@/lib/format";
-import { getExportacionesAnualReal, getImportacionesIndec } from "@/lib/api";
+import { esAnioCompleto, formatMasa, formatMasaCompacta, formatNumero, formatPct, type UnidadMasa } from "@/lib/format";
+import { getExportacionesAnualReal, getExportacionesIndec, getImportacionesIndec } from "@/lib/api";
 import {
   agregarComexIndecAnualNacional,
   agregarComexIndecMensualNacional,
@@ -20,6 +22,28 @@ import {
   type ComexAnualRow,
   type ComexIndecMensualNacionalRow,
 } from "@/lib/agregaciones";
+import { calcularConcentracion } from "@/lib/metricas-competencia";
+
+const COBERTURA_MINIMA_CHART_HHI = 50;
+
+/** Precio FOB promedio nacional por año, a partir de filas crudas INDEC
+ * (importación o exportación, misma forma). Reusado para el spread de
+ * abajo -- no se agrega a agregaciones.ts porque solo esta página lo usa. */
+function precioFobPorAnio(filas: { anio: number; peso_kg: number | null; monto_fob_usd: number | null }[]): Map<number, number> {
+  const porAnio = new Map<number, { kg: number; usd: number }>();
+  for (const f of filas) {
+    if (f.peso_kg == null) continue;
+    const acc = porAnio.get(f.anio) ?? { kg: 0, usd: 0 };
+    acc.kg += f.peso_kg;
+    acc.usd += f.monto_fob_usd ?? 0;
+    porAnio.set(f.anio, acc);
+  }
+  const resultado = new Map<number, number>();
+  for (const [anio, { kg, usd }] of porAnio) {
+    if (kg > 0) resultado.set(anio, usd / kg);
+  }
+  return resultado;
+}
 
 const COLUMNAS_ANUAL: ColumnaTabla<ComexAnualRow>[] = [
   { key: "anio", label: "Año", align: "left" },
@@ -45,7 +69,11 @@ export default async function ImportacionesPage({
   const sufijoUnidad = unidad === "t" ? " t" : " kg";
   const factorUnidad = unidad === "t" ? 1 / 1000 : 1;
 
-  const [indecCompleta, exportacionesAnualReal] = await Promise.all([getImportacionesIndec(), getExportacionesAnualReal()]);
+  const [indecCompleta, exportacionesAnualReal, exportacionesIndecCompleta] = await Promise.all([
+    getImportacionesIndec(),
+    getExportacionesAnualReal(),
+    getExportacionesIndec(),
+  ]);
   const todosLosAnios = Array.from(new Set(indecCompleta.map((f) => f.anio))).sort((a, b) => a - b);
   const todosLosOrigenes = Array.from(new Set(indecCompleta.map((f) => f.pais_nombre))).filter((n) => n !== "Confidencial").sort();
 
@@ -92,6 +120,36 @@ export default async function ImportacionesPage({
       .filter((f) => f.anio === ultimoAnio && f.destino !== "(nacional)")
       .reduce((acc, f) => acc + (f.volumen_kg ?? 0), 0);
   const balanzaUltimo = exportadoUltimo != null && importadoUltimo != null ? exportadoUltimo - importadoUltimo : null;
+
+  // Concentración de orígenes (HHI) -- mismo cálculo que ya usa /competencia
+  // (empresas) y /exportaciones (destinos), acá aplicado a orígenes de
+  // importación.
+  const concentracionUltimoAnio = calcularConcentracion(origenesDelAnio.map((d) => d.porcentaje));
+  const dataHhiImportaciones = todosLosAnios
+    .map((anio) => {
+      const c = calcularConcentracion(agregarComexIndecPorPais(indecCompleta, anio).map((d) => d.porcentaje));
+      if (c.coberturaPct < COBERTURA_MINIMA_CHART_HHI) return null;
+      return { anio: String(anio), hhi: c.hhi, coberturaPct: c.coberturaPct };
+    })
+    .filter((f): f is { anio: string; hhi: number; coberturaPct: number } => f !== null);
+
+  // Spread de precio FOB exportación vs. importación -- verificado con datos
+  // reales antes de armarlo: en la mayoría de los años exportar rinde más
+  // USD/kg que lo que se paga por importar (2020: +77%, 2022: +36%,
+  // 2024: +16%), pero no siempre (2023/2025 cerca de la paridad) -- se
+  // muestra la serie real, no se asume una tendencia fija.
+  const precioImportPorAnio = precioFobPorAnio(indecCompleta);
+  const precioExportPorAnio = precioFobPorAnio(exportacionesIndecCompleta);
+  const spreadData = todosLosAnios
+    .map((anio) => {
+      const pi = precioImportPorAnio.get(anio);
+      const pe = precioExportPorAnio.get(anio);
+      if (pi == null || pe == null || pi === 0) return null;
+      return { anio, etiqueta: String(anio), valor: ((pe - pi) / pi) * 100 };
+    })
+    .filter((f): f is { anio: number; etiqueta: string; valor: number } => f !== null);
+  const precioImportUltimo = ultimoAnio !== undefined ? precioImportPorAnio.get(ultimoAnio) ?? null : null;
+  const precioExportUltimo = ultimoAnio !== undefined ? precioExportPorAnio.get(ultimoAnio) ?? null : null;
 
   // Mapa de calor por país -- filtrado SOLO por año (independiente de
   // origenFiltro, mismo criterio que el heatmap de Exportaciones).
@@ -180,6 +238,57 @@ export default async function ImportacionesPage({
           )}
         </ChartCard>
       </div>
+
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mt-4">
+        <KpiCard label={`HHI orígenes ${ultimoAnio}`} value={String(Math.round(concentracionUltimoAnio.hhi))} icon={Gauge} />
+        <GaugeCard label="Top 4 orígenes concentran" valorPct={concentracionUltimoAnio.cr4} icon={Globe2} color="var(--color-accent)" />
+      </div>
+
+      <ChartCard
+        title="HHI (Herfindahl-Hirschman) de orígenes por año"
+        className="mt-4"
+        description={
+          <>
+            Suma de los % de cada país al cuadrado. Es una <strong>cota inferior</strong> del HHI real (el volumen sin país publicado
+            por secreto estadístico no está incluido). Umbrales de referencia: &lt;1500 no concentrado, 1500-2500 moderadamente
+            concentrado, &gt;2500 altamente concentrado.
+          </>
+        }
+      >
+        {dataHhiImportaciones.length > 0 ? (
+          <AnnualChartConFiltro tipo="hhi" data={dataHhiImportaciones} />
+        ) : (
+          <p className="text-sm text-muted-foreground py-12 text-center">Ningún año del rango seleccionado tiene cobertura suficiente para calcular HHI de forma confiable.</p>
+        )}
+      </ChartCard>
+
+      <div className="mt-8 mb-4">
+        <h2 className="text-lg font-semibold text-foreground">Precio FOB: exportación vs. importación</h2>
+        <p className="text-sm text-muted-foreground mt-0.5">
+          Cuánto más (o menos) rinde por kg exportar respecto a lo que se paga por importar, cada año -- no siempre es más rentable
+          exportar, se muestra la serie real.
+        </p>
+      </div>
+
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-4">
+        <KpiCard label={`Precio FOB importado ${ultimoAnio}`} value={precioImportUltimo != null ? `$${formatNumero(precioImportUltimo, 2)}/kg` : <NoData variant="kpi" />} icon={Package} />
+        <KpiCard label={`Precio FOB exportado ${ultimoAnio}`} value={precioExportUltimo != null ? `$${formatNumero(precioExportUltimo, 2)}/kg` : <NoData variant="kpi" />} icon={Ship} />
+        <KpiCard
+          label="Spread exportación vs. importación"
+          value={
+            precioImportUltimo != null && precioExportUltimo != null
+              ? `${precioExportUltimo >= precioImportUltimo ? "+" : ""}${formatNumero(((precioExportUltimo - precioImportUltimo) / precioImportUltimo) * 100, 1)}%`
+              : <NoData variant="kpi" />
+          }
+          icon={ArrowRightLeft}
+        />
+      </div>
+
+      {spreadData.length > 0 && (
+        <ChartCard title="Spread de precio FOB por año" className="mb-4" description="(precio exportación - precio importación) / precio importación, en %">
+          <SerieChartConFiltro data={spreadData} color="var(--color-accent)" numberFormat={{ maximumFractionDigits: 0 }} suffix="%" />
+        </ChartCard>
+      )}
 
       <ChartCard
         title="Mapa de calor por país"
