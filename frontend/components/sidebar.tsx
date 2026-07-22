@@ -17,11 +17,13 @@ import {
   X,
   Leaf,
   Factory,
+  Lightbulb,
 } from "lucide-react";
 import { ThemeToggle } from "@/components/theme-toggle";
 
 const NAV_ITEMS = [
   { href: "/", label: "Resumen", icon: LayoutDashboard },
+  { href: "/insights", label: "Hallazgos", icon: Lightbulb },
   { href: "/produccion", label: "Producción", icon: Sprout },
   { href: "/consumo", label: "Consumo", icon: Coffee },
   { href: "/exportaciones", label: "Exportaciones", icon: Ship },
