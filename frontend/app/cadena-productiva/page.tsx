@@ -12,7 +12,8 @@ import { SerieMensualChart } from "@/components/charts/serie-mensual-chart";
 import { HistoricalTable } from "@/components/historical-table";
 import { HeatmapTable, type HeatmapTableSerie } from "@/components/heatmap-table";
 import { DataTable, type ColumnaTabla } from "@/components/data-table";
-import { ElasticidadConsumoChart, type ElasticidadConsumoPunto } from "@/components/charts/elasticidad-consumo-chart";
+import { GroupedBarChart, type GroupedBarPunto } from "@/components/charts/grouped-bar-chart";
+import { CHART_BLUE } from "@/components/charts/chart-theme";
 import { esAnioCompleto, formatMasa, formatMasaCompacta, formatNumero, type UnidadMasa } from "@/lib/format";
 import { getHojaVerde, getSalidaMolino } from "@/lib/api";
 import {
@@ -159,7 +160,9 @@ export default async function CadenaProductivaPage({
     }))
     .sort((a, b) => a.anio - b.anio);
 
-  const elasticidadData: ElasticidadConsumoPunto[] = [];
+  const LABEL_EMAE = "EMAE (actividad económica)";
+  const LABEL_CONSUMO_INTERNO = "Consumo interno (molino)";
+  const elasticidadData: GroupedBarPunto[] = [];
   const yoyEmae: number[] = [];
   const yoyInterno: number[] = [];
   for (let i = 1; i < anosElasticidad.length; i++) {
@@ -170,7 +173,7 @@ export default async function CadenaProductivaPage({
     if (vEmae === null || vInterno === null) continue;
     yoyEmae.push(vEmae);
     yoyInterno.push(vInterno);
-    elasticidadData.push({ anio: String(actual.anio), "EMAE (actividad económica)": vEmae, "Consumo interno (molino)": vInterno });
+    elasticidadData.push({ etiqueta: String(actual.anio), [LABEL_EMAE]: vEmae, [LABEL_CONSUMO_INTERNO]: vInterno });
   }
   function correlacionPearson(x: number[], y: number[]): number | null {
     const n = x.length;
@@ -360,7 +363,11 @@ export default async function CadenaProductivaPage({
             description="Ambas series en % vs. el año anterior, no en unidades absolutas."
             className="mb-4"
           >
-            <ElasticidadConsumoChart data={elasticidadData} />
+            <GroupedBarChart
+              data={elasticidadData}
+              serieA={{ label: LABEL_EMAE, color: CHART_BLUE }}
+              serieB={{ label: LABEL_CONSUMO_INTERNO, color: "var(--color-primary)" }}
+            />
           </ChartCard>
         </>
       ) : (

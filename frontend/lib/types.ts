@@ -126,6 +126,15 @@ export interface PrecioGondolaRow {
   n_comercios: number;
 }
 
+/** Expectativa REM (BCRA) de inflación general a 1 mes vista, por período
+ * proyectado -- ver GET /precios/rem-inflacion. Solo 2025-04 a 2026-05. */
+export interface RemInflacionRow {
+  anio: number;
+  mes: number;
+  fecha_informe: string;
+  rem_ipc_general_pct: number;
+}
+
 export interface CompetenciaRow {
   anio: number;
   empresa: string;

@@ -1,4 +1,4 @@
-import { DollarSign, Leaf, Factory, TrendingUp, Scale, Wallet, ArrowRightLeft, Activity, ArrowDown, ArrowUp } from "lucide-react";
+import { DollarSign, Leaf, Factory, TrendingUp, TrendingDown, Scale, Wallet, ArrowRightLeft, Activity, ArrowDown, ArrowUp } from "lucide-react";
 import { PageHeader } from "@/components/page-header";
 import { KpiCard } from "@/components/kpi-card";
 import { NoData } from "@/components/no-data";
@@ -10,9 +10,10 @@ import { CHART_BLUE, CHART_PURPLE } from "@/components/charts/chart-theme";
 import { HistoricalTable } from "@/components/historical-table";
 import { HeatmapTable, type HeatmapTableSerie } from "@/components/heatmap-table";
 import { EstacionalidadPrecioChart } from "@/components/charts/estacionalidad-precio-chart";
+import { GroupedBarChart, type GroupedBarPunto } from "@/components/charts/grouped-bar-chart";
 import type { ColumnaTabla } from "@/components/data-table";
 import { formatNumero, formatPct } from "@/lib/format";
-import { getPrecios, getPreciosGondola } from "@/lib/api";
+import { getPrecios, getPreciosGondola, getRemInflacion } from "@/lib/api";
 import { agregarPreciosAnual, calcularVarPct, type PrecioAnualRow } from "@/lib/agregaciones";
 import type { PrecioRow } from "@/lib/types";
 
@@ -47,7 +48,7 @@ export default async function PreciosPage({
   const anioDesde = Number(sp.anio_desde) || undefined;
   const anioHasta = Number(sp.anio_hasta) || undefined;
 
-  const [filasCompletas, gondola] = await Promise.all([getPrecios(), getPreciosGondola()]);
+  const [filasCompletas, gondola, remInflacion] = await Promise.all([getPrecios(), getPreciosGondola(), getRemInflacion()]);
   const todosLosAnios = Array.from(new Set(filasCompletas.map((f) => f.anio))).sort((a, b) => a - b);
   const gondolaOrdenada = [...gondola].sort(
     (a, b) => (a.empresa_ym ?? a.marca_gondola).localeCompare(b.empresa_ym ?? b.marca_gondola) || a.presentacion_kg - b.presentacion_kg
@@ -195,6 +196,40 @@ export default async function PreciosPage({
   }));
   const mesMasBarato = estacionalidadPrecio.reduce((min, actual) => (actual.valor < min.valor ? actual : min), estacionalidadPrecio[0]);
   const mesMasCaro = estacionalidadPrecio.reduce((max, actual) => (actual.valor > max.valor ? actual : max), estacionalidadPrecio[0]);
+
+  // Sorpresa inflacionaria: IPC yerba mate real (mensual) vs. la expectativa
+  // de inflación GENERAL a 1 mes vista que publica el REM (BCRA) -- ver
+  // GET /precios/rem-inflacion. ym.bcra_rem/ym.indec_series cargados desde
+  // Fase 3, pero nunca antes cruzados entre sí ni contra el IPC yerba.
+  // Ventana corta (2025-04 a 2026-05) -- se muestra como lectura indicativa,
+  // no como serie robusta de largo plazo.
+  const ipcYerbaPorPeriodo = new Map<string, number>();
+  for (const f of ordenadas) {
+    if (f.ipc_yerba_mate != null) ipcYerbaPorPeriodo.set(`${f.anio}-${f.mes}`, f.ipc_yerba_mate);
+  }
+  const LABEL_REM = "REM: inflación general esperada";
+  const LABEL_YERBA = "IPC yerba mate real";
+  const sorpresaInflacionaria: { etiqueta: string; sorpresa: number; punto: GroupedBarPunto }[] = [];
+  for (const r of remInflacion) {
+    const clave = `${r.anio}-${r.mes}`;
+    const claveAnterior = r.mes === 1 ? `${r.anio - 1}-12` : `${r.anio}-${r.mes - 1}`;
+    const actual = ipcYerbaPorPeriodo.get(clave);
+    const anterior = ipcYerbaPorPeriodo.get(claveAnterior);
+    const varYerbaReal = calcularVarPct(actual, anterior);
+    if (varYerbaReal === null) continue;
+    const etiqueta = `${MESES[r.mes - 1].slice(0, 3)} ${String(r.anio).slice(2)}`;
+    sorpresaInflacionaria.push({
+      etiqueta,
+      sorpresa: varYerbaReal - r.rem_ipc_general_pct,
+      punto: { etiqueta, [LABEL_REM]: r.rem_ipc_general_pct, [LABEL_YERBA]: varYerbaReal },
+    });
+  }
+  const promedioSorpresa = sorpresaInflacionaria.length
+    ? sorpresaInflacionaria.reduce((acc, s) => acc + s.sorpresa, 0) / sorpresaInflacionaria.length
+    : null;
+  const mesesPorDebajo = sorpresaInflacionaria.filter((s) => s.sorpresa < 0).length;
+  const pctMesesPorDebajo = sorpresaInflacionaria.length ? (mesesPorDebajo / sorpresaInflacionaria.length) * 100 : null;
+  const sorpresaChartData: GroupedBarPunto[] = sorpresaInflacionaria.map((s) => s.punto);
 
   const conAmbosIpc = ordenadas.filter((f) => f.ipc_nacional != null && f.ipc_yerba_mate != null);
   const ultimoConAmbosIpc = conAmbosIpc[conAmbosIpc.length - 1];
@@ -363,6 +398,45 @@ export default async function PreciosPage({
         </ChartCard>
       </div>
 
+      <div className="mt-8 mb-4">
+        <h2 className="text-lg font-semibold text-foreground">Sorpresa inflacionaria: yerba mate vs. expectativas (REM)</h2>
+        <p className="text-sm text-muted-foreground mt-0.5">
+          IPC yerba mate real (mensual) contra la expectativa de inflación GENERAL a 1 mes vista del REM (BCRA) — ventana
+          corta ({sorpresaInflacionaria.length} meses, 2025-04 a 2026-05), lectura indicativa, no una serie de largo plazo.
+        </p>
+      </div>
+
+      {promedioSorpresa != null && pctMesesPorDebajo != null ? (
+        <>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
+            <KpiCard
+              label="Sorpresa promedio (yerba real − REM esperado)"
+              value={`${promedioSorpresa > 0 ? "+" : ""}${formatNumero(promedioSorpresa, 1)} p.p.`}
+              icon={promedioSorpresa < 0 ? TrendingDown : TrendingUp}
+            />
+            <KpiCard
+              label="Meses con yerba por debajo de lo esperado"
+              value={formatPct(pctMesesPorDebajo)}
+              secundario={`${mesesPorDebajo} de ${sorpresaInflacionaria.length} meses`}
+              icon={Activity}
+            />
+          </div>
+          <ChartCard
+            title="IPC yerba mate real vs. REM esperado (1 mes vista)"
+            description="Variación % mensual — REM: mediana del panel completo publicada el mes anterior."
+            className="mb-4"
+          >
+            <GroupedBarChart
+              data={sorpresaChartData}
+              serieA={{ label: LABEL_REM, color: CHART_BLUE }}
+              serieB={{ label: LABEL_YERBA, color: CHART_PURPLE }}
+            />
+          </ChartCard>
+        </>
+      ) : (
+        <NoData variant="chart" motivo="Sin meses con REM e IPC yerba mate real disponibles a la vez." className="mb-4" />
+      )}
+
       {gondolaOrdenada.length > 0 && (
         <>
           <div className="mt-8 mb-4">
@@ -463,7 +537,7 @@ export default async function PreciosPage({
         />
       </ChartCard>
 
-      <FooterFuentes tablas={["ym.precios", "ym.precios_gondola"]} />
+      <FooterFuentes tablas={["ym.precios", "ym.precios_gondola", "ym.indec_series", "ym.bcra_rem"]} />
     </main>
   );
 }

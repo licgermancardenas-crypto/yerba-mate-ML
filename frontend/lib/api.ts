@@ -12,6 +12,7 @@ import type {
   ImportacionRow,
   PrecioGondolaRow,
   PrecioRow,
+  RemInflacionRow,
   PrediccionRow,
   ProduccionAnualRealRow,
   ProduccionRow,
@@ -109,6 +110,10 @@ export function getPrecios(params?: { anioDesde?: number; anioHasta?: number }) 
 
 export function getPreciosGondola() {
   return apiFetch<PrecioGondolaRow[]>("/precios-gondola");
+}
+
+export function getRemInflacion() {
+  return apiFetch<RemInflacionRow[]>("/precios/rem-inflacion");
 }
 
 export function getCompetencia(params?: { anioDesde?: number; anioHasta?: number; empresa?: string }) {

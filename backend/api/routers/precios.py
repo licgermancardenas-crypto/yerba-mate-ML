@@ -36,3 +36,32 @@ async def listar_precios(
         stmt, {"anio_desde": anio_desde, "anio_hasta": anio_hasta}
     )
     return [dict(row._mapping) for row in result]
+
+
+@router.get("/rem-inflacion")
+async def listar_rem_inflacion(session: AsyncSession = Depends(get_session)):
+    """Expectativa REM (BCRA) de inflación general a 1 mes vista, por período
+    proyectado (no por fecha de la encuesta) -- para comparar contra el IPC
+    yerba mate real de ese mismo período.
+
+    Solo el pronóstico MÁS CORTO de cada encuesta (mes calendario siguiente al
+    informe), muestra 'todos' (panel completo, no solo top 10) -- ver
+    docs/bcra_rem.md, ym.bcra_rem solo cubre 2025-04 a 2026-05.
+    """
+    stmt = text(
+        """
+        SELECT
+            EXTRACT(YEAR FROM periodo_desde)::int AS anio,
+            EXTRACT(MONTH FROM periodo_desde)::int AS mes,
+            fecha AS fecha_informe,
+            mediana AS rem_ipc_general_pct
+        FROM ym.bcra_rem
+        WHERE indicador = 'Precios minoristas (IPC nivel general-Nacional; INDEC)'
+          AND muestra = 'todos'
+          AND periodo_tipo = 'mensual'
+          AND periodo_desde = (date_trunc('month', fecha) + interval '1 month')::date
+        ORDER BY periodo_desde
+        """
+    )
+    result = await session.execute(stmt)
+    return [dict(row._mapping) for row in result]
