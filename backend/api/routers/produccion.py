@@ -93,3 +93,26 @@ async def listar_ndvi_zona(session: AsyncSession = Depends(get_session)):
     )
     result = await session.execute(stmt)
     return [dict(row._mapping) for row in result]
+
+
+@router.get("/clima-zona")
+async def listar_clima_zona(session: AsyncSession = Depends(get_session)):
+    """Clima mensual real (NASA POWER) en el centroide ponderado por
+    superficie cultivada de cada zona -- ver backend/etl/etl_nasa_power_zona.py.
+
+    OJO: NORESTE y NOROESTE tienen coordenadas distintas pero valores
+    idénticos mes a mes en toda la serie -- confirmado que no es un bug del
+    ETL (consultó NASA POWER con lat/lon reales y distintos para cada una),
+    es que ambos centroides caen dentro de la misma celda de grilla nativa
+    de NASA POWER (~0.5°), que devuelve el mismo valor interpolado para las
+    dos consultas.
+    """
+    stmt = text(
+        """
+        SELECT zona, anio, mes, precipitacion_mm_dia, temperatura_media_c
+        FROM ym.clima_zona_mensual
+        ORDER BY zona, anio, mes
+        """
+    )
+    result = await session.execute(stmt)
+    return [dict(row._mapping) for row in result]

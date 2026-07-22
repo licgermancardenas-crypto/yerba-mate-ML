@@ -17,6 +17,7 @@ import type {
   ProduccionAnualRealRow,
   ProduccionRow,
   NdviZonaRow,
+  ClimaZonaRow,
   SalidaMolinoRow,
   SuperficieRow,
 } from "@/lib/types";
@@ -49,6 +50,10 @@ export function getProduccion(params?: { anioDesde?: number; anioHasta?: number;
 
 export function getNdviZona() {
   return apiFetch<NdviZonaRow[]>("/produccion/ndvi-zona");
+}
+
+export function getClimaZona() {
+  return apiFetch<ClimaZonaRow[]>("/produccion/clima-zona");
 }
 
 /** Totales anuales reales -- ver docs/auditoria_datos.md. Fuente correcta para vistas anuales/nacionales. */

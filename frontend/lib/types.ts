@@ -28,6 +28,17 @@ export interface NdviZonaRow {
   ndvi_promedio: number;
 }
 
+/** Clima mensual (NASA POWER) por zona -- ver GET /produccion/clima-zona.
+ * OJO: NORESTE y NOROESTE comparten valores idénticos (misma celda de
+ * grilla NASA POWER, no un bug) -- ver el router para el detalle. */
+export interface ClimaZonaRow {
+  zona: string;
+  anio: number;
+  mes: number;
+  precipitacion_mm_dia: number;
+  temperatura_media_c: number;
+}
+
 /** Totales anuales reales -- GET /produccion/anual-real (ym.dataset_principal_anual). */
 export interface ProduccionAnualRealRow {
   anio: number;

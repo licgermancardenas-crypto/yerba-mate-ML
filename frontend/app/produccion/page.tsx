@@ -14,7 +14,7 @@ import { HeatmapTable, type HeatmapTableSerie } from "@/components/heatmap-table
 import { ProduccionMapaLoader } from "@/components/produccion-mapa-loader";
 import type { ColumnaTabla } from "@/components/data-table";
 import { formatMasa, formatMasaCompacta, formatNumero, formatPct, formatUsd, type UnidadMasa } from "@/lib/format";
-import { getProduccionAnualReal, getSuperficie, getHojaVerde, getGeoLayerAtributos, getNdviZona } from "@/lib/api";
+import { getProduccionAnualReal, getSuperficie, getHojaVerde, getGeoLayerAtributos, getNdviZona, getClimaZona } from "@/lib/api";
 import { tituloCase } from "@/lib/texto";
 import { ZONAS, ZONA_RAW_A_LIMPIA, etiquetaZona } from "@/lib/zonas";
 import {
@@ -73,17 +73,25 @@ export default async function ProduccionPage({
   paramsMapa.set("vista", "mapa");
   const hrefMapa = `/produccion?${paramsMapa.toString()}`;
 
-  const [anualRealCompleta, superficieCompletas, hojaVerdeCompleta, superficieDeptoAtributos, superficieZonaAtributos, ndviCompleto] =
-    await Promise.all([
-      getProduccionAnualReal(),
-      getSuperficie(),
-      getHojaVerde(),
-      getGeoLayerAtributos<{ pcia: string; depto: string; sup_ym: number; superficie: number }>(
-        "view_superficie_por_departamentos"
-      ),
-      getGeoLayerAtributos<{ zona: string; sup_ym: number }>("view_superficie_por_zonas"),
-      getNdviZona(),
-    ]);
+  const [
+    anualRealCompleta,
+    superficieCompletas,
+    hojaVerdeCompleta,
+    superficieDeptoAtributos,
+    superficieZonaAtributos,
+    ndviCompleto,
+    climaCompleto,
+  ] = await Promise.all([
+    getProduccionAnualReal(),
+    getSuperficie(),
+    getHojaVerde(),
+    getGeoLayerAtributos<{ pcia: string; depto: string; sup_ym: number; superficie: number }>(
+      "view_superficie_por_departamentos"
+    ),
+    getGeoLayerAtributos<{ zona: string; sup_ym: number }>("view_superficie_por_zonas"),
+    getNdviZona(),
+    getClimaZona(),
+  ]);
   // Superficie cultivada real por departamento (19 unidades geográficas
   // reales del INYM, no las 6-7 zonas de reporte de producción) -- NO hay
   // producción en kg a este nivel de detalle en ninguna fuente encontrada,
@@ -240,6 +248,40 @@ export default async function ProduccionPage({
     id: zona,
     label: etiquetaZona(zona),
     puntos: (ndviPorZonaMes.get(zona) ?? []).map((p) => ({ anio: p.anio, mes: p.mes, valor: p.valor })),
+  }));
+
+  // Clima por zona (NASA POWER, misma fuente que clima_mensual, reconsultada
+  // en el centroide ponderado por superficie de cada zona) -- mismo criterio
+  // descriptivo que NDVI arriba: contexto de condición actual, no insumo de
+  // modelo (ya probado como exógena en Modelo 1 y no ayudó).
+  const climaPorZonaMes = new Map<string, { anio: number; mes: number; precip: number; temp: number }[]>();
+  for (const f of climaCompleto) {
+    const arr = climaPorZonaMes.get(f.zona) ?? [];
+    arr.push({ anio: f.anio, mes: f.mes, precip: f.precipitacion_mm_dia, temp: f.temperatura_media_c });
+    climaPorZonaMes.set(f.zona, arr);
+  }
+  const climaPorZona = ZONAS.map((zona) => {
+    const puntos = (climaPorZonaMes.get(zona) ?? []).sort((a, b) => a.anio * 100 + a.mes - (b.anio * 100 + b.mes));
+    const ultimo = puntos[puntos.length - 1];
+    if (!ultimo) return { zona, ultimo: null, anomaliaPrecipPct: null, anomaliaTemp: null, nAnios: 0 };
+    const mismoMes = puntos.filter((p) => p.mes === ultimo.mes);
+    const promedioPrecip = mismoMes.reduce((acc, p) => acc + p.precip, 0) / mismoMes.length;
+    const promedioTemp = mismoMes.reduce((acc, p) => acc + p.temp, 0) / mismoMes.length;
+    const anomaliaPrecipPct = promedioPrecip > 0 ? (ultimo.precip / promedioPrecip - 1) * 100 : null;
+    const anomaliaTemp = ultimo.temp - promedioTemp;
+    return { zona, ultimo, anomaliaPrecipPct, anomaliaTemp, nAnios: mismoMes.length };
+  });
+  // NORESTE y NOROESTE comparten valores idénticos en toda la serie -- misma
+  // celda de grilla NASA POWER (~0.5°), no un bug del ETL (ver el router).
+  const climaPrecipHeatmapSeries: HeatmapTableSerie[] = ZONAS.map((zona) => ({
+    id: zona,
+    label: etiquetaZona(zona),
+    puntos: (climaPorZonaMes.get(zona) ?? []).map((p) => ({ anio: p.anio, mes: p.mes, valor: p.precip })),
+  }));
+  const climaTempHeatmapSeries: HeatmapTableSerie[] = ZONAS.map((zona) => ({
+    id: zona,
+    label: etiquetaZona(zona),
+    puntos: (climaPorZonaMes.get(zona) ?? []).map((p) => ({ anio: p.anio, mes: p.mes, valor: p.temp })),
   }));
 
   // Hectáreas por productor -- ver docs/auditoria_datos.md §2.6/§7.11 para
@@ -506,6 +548,46 @@ export default async function ProduccionPage({
               </>
             )}
 
+            {climaPorZona.some((z) => z.ultimo) && (
+              <>
+                <div className="mt-8 mb-4">
+                  <h2 className="text-lg font-semibold text-foreground">Clima por zona (NASA POWER)</h2>
+                  <p className="text-sm text-muted-foreground mt-0.5">
+                    Precipitación y temperatura mensual real en el centroide ponderado por superficie de cada zona —
+                    contexto de condición actual, no insumo de modelo (mismo criterio que NDVI arriba). Noreste y Noroeste
+                    comparten valores idénticos: caen en la misma celda de grilla de NASA POWER (~0,5°), no es un error de carga.
+                  </p>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 mb-4">
+                  {climaPorZona.map(({ zona, ultimo, anomaliaPrecipPct, anomaliaTemp, nAnios }) =>
+                    ultimo ? (
+                      <KpiCard
+                        key={zona}
+                        label={`${etiquetaZona(zona)} — ${MESES[ultimo.mes - 1]} ${ultimo.anio}`}
+                        value={`${formatNumero(ultimo.precip, 1)} mm/día`}
+                        secundario={`${formatNumero(ultimo.temp, 1)}°C (${anomaliaTemp != null && anomaliaTemp > 0 ? "+" : ""}${anomaliaTemp != null ? formatNumero(anomaliaTemp, 1) : "s/d"}°C vs. prom.)`}
+                        icon={Sprout}
+                        deltaPct={anomaliaPrecipPct ?? undefined}
+                        deltaLabel={`precip. vs. prom. ${MESES[ultimo.mes - 1]} (${nAnios} años)`}
+                      />
+                    ) : (
+                      <KpiCard key={zona} label={etiquetaZona(zona)} value={<NoData variant="kpi" />} icon={Sprout} />
+                    )
+                  )}
+                </div>
+
+                <div className="grid grid-cols-1 xl:grid-cols-2 gap-4 mb-4">
+                  <ChartCard title="Mapa de calor — precipitación por zona" description="mm/día promedio mensual real (NASA POWER)">
+                    <HeatmapTable series={climaPrecipHeatmapSeries} selectorLabel="Zona" formato={{ tipo: "numero", decimales: 2 }} />
+                  </ChartCard>
+                  <ChartCard title="Mapa de calor — temperatura por zona" description="°C promedio mensual real (NASA POWER)">
+                    <HeatmapTable series={climaTempHeatmapSeries} selectorLabel="Zona" formato={{ tipo: "numero", decimales: 1 }} />
+                  </ChartCard>
+                </div>
+              </>
+            )}
+
             {haPorProductorAnual.length > 0 && (
               <>
                 <div className="mt-8 mb-4">
@@ -575,6 +657,7 @@ export default async function ProduccionPage({
           "ym.inym_hoja_verde_zona",
           "inym_gis.raw_features",
           "ym.ndvi_mensual",
+          "ym.clima_zona_mensual",
         ]}
       />
     </main>
