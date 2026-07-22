@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { Sprout, Wheat, TrendingUp, DollarSign, Gauge, Map as MapIcon, BarChart3 } from "lucide-react";
+import { Sprout, Wheat, TrendingUp, DollarSign, Gauge, Map as MapIcon, BarChart3, Satellite } from "lucide-react";
 import { PageHeader } from "@/components/page-header";
 import { KpiCard } from "@/components/kpi-card";
 import { NoData } from "@/components/no-data";
@@ -10,11 +10,11 @@ import { SerieChartConFiltro } from "@/components/charts/serie-chart-con-filtro"
 import { SerieMensualChart } from "@/components/charts/serie-mensual-chart";
 import { AnnualChartConFiltro } from "@/components/charts/annual-chart-con-filtro";
 import { HistoricalTable } from "@/components/historical-table";
-import { HeatmapTable } from "@/components/heatmap-table";
+import { HeatmapTable, type HeatmapTableSerie } from "@/components/heatmap-table";
 import { ProduccionMapaLoader } from "@/components/produccion-mapa-loader";
 import type { ColumnaTabla } from "@/components/data-table";
 import { formatMasa, formatMasaCompacta, formatNumero, formatPct, formatUsd, type UnidadMasa } from "@/lib/format";
-import { getProduccionAnualReal, getSuperficie, getHojaVerde, getGeoLayerAtributos } from "@/lib/api";
+import { getProduccionAnualReal, getSuperficie, getHojaVerde, getGeoLayerAtributos, getNdviZona } from "@/lib/api";
 import { tituloCase } from "@/lib/texto";
 import { ZONAS, ZONA_RAW_A_LIMPIA, etiquetaZona } from "@/lib/zonas";
 import {
@@ -36,6 +36,11 @@ const COORDENADAS_CIUDAD: Record<string, [number, number]> = {
   "Oberá": [-55.12, -27.49],
   "Santo Pipó": [-55.05, -27.2],
 };
+
+const MESES = [
+  "Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio",
+  "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre",
+];
 
 const COLUMNAS_ANUAL: ColumnaTabla<ProduccionAnualRow>[] = [
   { key: "anio", label: "Año", align: "left" },
@@ -68,7 +73,7 @@ export default async function ProduccionPage({
   paramsMapa.set("vista", "mapa");
   const hrefMapa = `/produccion?${paramsMapa.toString()}`;
 
-  const [anualRealCompleta, superficieCompletas, hojaVerdeCompleta, superficieDeptoAtributos, superficieZonaAtributos] =
+  const [anualRealCompleta, superficieCompletas, hojaVerdeCompleta, superficieDeptoAtributos, superficieZonaAtributos, ndviCompleto] =
     await Promise.all([
       getProduccionAnualReal(),
       getSuperficie(),
@@ -77,6 +82,7 @@ export default async function ProduccionPage({
         "view_superficie_por_departamentos"
       ),
       getGeoLayerAtributos<{ zona: string; sup_ym: number }>("view_superficie_por_zonas"),
+      getNdviZona(),
     ]);
   // Superficie cultivada real por departamento (19 unidades geográficas
   // reales del INYM, no las 6-7 zonas de reporte de producción) -- NO hay
@@ -207,6 +213,34 @@ export default async function ProduccionPage({
   const zonasPorSuperficie = [...superficieZonaAtributos].sort((a, b) => b.sup_ym - a.sup_ym);
   const concentracionGeografica =
     totalSupZonas > 0 ? calcularConcentracion(superficieZonaAtributos.map((z) => (z.sup_ym / totalSupZonas) * 100)) : null;
+
+  // Condición del cultivo (NDVI, MODIS) -- descriptivo, NO predictivo: ya se
+  // probó como exógena en Modelo 1 de Fase 5 (Producción por zona) y no
+  // ayudó a pronosticar producción (ver docs/modelo1_produccion_zona.md).
+  // Acá es solo lectura de vigor de vegetación actual por zona, primera vez
+  // que ym.ndvi_mensual se muestra fuera de un script de ML. Anomalía =
+  // último mes disponible vs. promedio histórico de ese mismo mes calendario
+  // (mismo criterio que la estacionalidad de precio en /precios).
+  const ndviPorZonaMes = new Map<string, { anio: number; mes: number; valor: number }[]>();
+  for (const f of ndviCompleto) {
+    const arr = ndviPorZonaMes.get(f.zona) ?? [];
+    arr.push({ anio: f.anio, mes: f.mes, valor: f.ndvi_promedio });
+    ndviPorZonaMes.set(f.zona, arr);
+  }
+  const ndviPorZona = ZONAS.map((zona) => {
+    const puntos = (ndviPorZonaMes.get(zona) ?? []).sort((a, b) => a.anio * 100 + a.mes - (b.anio * 100 + b.mes));
+    const ultimo = puntos[puntos.length - 1];
+    if (!ultimo) return { zona, ultimo: null, anomaliaPct: null, nAnios: 0 };
+    const mismoMes = puntos.filter((p) => p.mes === ultimo.mes);
+    const promedioMes = mismoMes.reduce((acc, p) => acc + p.valor, 0) / mismoMes.length;
+    const anomaliaPct = promedioMes > 0 ? (ultimo.valor / promedioMes - 1) * 100 : null;
+    return { zona, ultimo, anomaliaPct, nAnios: mismoMes.length };
+  });
+  const ndviHeatmapSeries: HeatmapTableSerie[] = ZONAS.map((zona) => ({
+    id: zona,
+    label: etiquetaZona(zona),
+    puntos: (ndviPorZonaMes.get(zona) ?? []).map((p) => ({ anio: p.anio, mes: p.mes, valor: p.valor })),
+  }));
 
   // Hectáreas por productor -- ver docs/auditoria_datos.md §2.6/§7.11 para
   // por qué la cobertura real es acotada (hoy ~2017-2020 nacional), no un
@@ -434,6 +468,44 @@ export default async function ProduccionPage({
               ))}
             </div>
 
+            {ndviPorZona.some((z) => z.ultimo) && (
+              <>
+                <div className="mt-8 mb-4">
+                  <h2 className="text-lg font-semibold text-foreground">Condición del cultivo (NDVI satelital)</h2>
+                  <p className="text-sm text-muted-foreground mt-0.5">
+                    Índice de vegetación (MODIS, satelital) por zona, agregado real de 19 departamentos — vigor de la
+                    planta hoy, no un pronóstico de cosecha (ya probado como variable de Fase 5 y no ayudó a predecir
+                    producción, ver docs/modelo1_produccion_zona.md). Anomalía vs. el promedio histórico del mismo mes calendario.
+                  </p>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 mb-4">
+                  {ndviPorZona.map(({ zona, ultimo, anomaliaPct, nAnios }) =>
+                    ultimo ? (
+                      <KpiCard
+                        key={zona}
+                        label={`${etiquetaZona(zona)} — ${MESES[ultimo.mes - 1]} ${ultimo.anio}`}
+                        value={formatNumero(ultimo.valor, 3)}
+                        icon={Satellite}
+                        deltaPct={anomaliaPct ?? undefined}
+                        deltaLabel={`vs. prom. ${MESES[ultimo.mes - 1]} (${nAnios} años)`}
+                      />
+                    ) : (
+                      <KpiCard key={zona} label={etiquetaZona(zona)} value={<NoData variant="kpi" />} icon={Satellite} />
+                    )
+                  )}
+                </div>
+
+                <ChartCard
+                  title="Mapa de calor — NDVI por zona"
+                  className="mb-4"
+                  description="Índice de vegetación mensual real (MODIS/061/MOD13Q1), 0 a 1 — elegí la zona en el selector."
+                >
+                  <HeatmapTable series={ndviHeatmapSeries} selectorLabel="Zona" formato={{ tipo: "numero", decimales: 3 }} />
+                </ChartCard>
+              </>
+            )}
+
             {haPorProductorAnual.length > 0 && (
               <>
                 <div className="mt-8 mb-4">
@@ -497,7 +569,13 @@ export default async function ProduccionPage({
       )}
 
       <FooterFuentes
-        tablas={["ym.dataset_principal_anual", "ym.superficie_productores", "ym.inym_hoja_verde_zona", "inym_gis.raw_features"]}
+        tablas={[
+          "ym.dataset_principal_anual",
+          "ym.superficie_productores",
+          "ym.inym_hoja_verde_zona",
+          "inym_gis.raw_features",
+          "ym.ndvi_mensual",
+        ]}
       />
     </main>
   );

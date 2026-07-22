@@ -16,6 +16,7 @@ import type {
   PrediccionRow,
   ProduccionAnualRealRow,
   ProduccionRow,
+  NdviZonaRow,
   SalidaMolinoRow,
   SuperficieRow,
 } from "@/lib/types";
@@ -44,6 +45,10 @@ export function getProduccion(params?: { anioDesde?: number; anioHasta?: number;
   if (params?.provincia) qs.set("provincia", params.provincia);
   const query = qs.toString();
   return apiFetch<ProduccionRow[]>(`/produccion${query ? `?${query}` : ""}`);
+}
+
+export function getNdviZona() {
+  return apiFetch<NdviZonaRow[]>("/produccion/ndvi-zona");
 }
 
 /** Totales anuales reales -- ver docs/auditoria_datos.md. Fuente correcta para vistas anuales/nacionales. */

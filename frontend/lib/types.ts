@@ -18,6 +18,16 @@ export interface ProduccionRow {
   valor_fob_usd: number | null;
 }
 
+/** NDVI (MODIS) agregado a zona -- ver GET /produccion/ndvi-zona. Descriptivo
+ * (condición actual del cultivo), no entrada de modelo -- ya probado como
+ * exógena en Modelo 1 de Fase 5 y no ayudó a predecir producción. */
+export interface NdviZonaRow {
+  zona: string;
+  anio: number;
+  mes: number;
+  ndvi_promedio: number;
+}
+
 /** Totales anuales reales -- GET /produccion/anual-real (ym.dataset_principal_anual). */
 export interface ProduccionAnualRealRow {
   anio: number;
