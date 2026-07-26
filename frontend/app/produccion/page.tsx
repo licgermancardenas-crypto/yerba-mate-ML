@@ -293,7 +293,7 @@ export default async function ProduccionPage({
   const haPorProductorAnual = agregarSuperficieProductoresAnual(superficieSoloAnio);
 
   return (
-    <main className={vista === "mapa" ? "flex flex-col h-[calc(100dvh_-_3.5rem)] md:h-dvh p-6 md:p-8 overflow-hidden" : "p-6 md:p-8"}>
+    <main className="p-6 md:p-8">
       <PageHeader
         title="Producción"
         description="Serie mensual y distribución geográfica de la producción de yerba mate elaborada."
@@ -327,18 +327,16 @@ export default async function ProduccionPage({
       </div>
 
       {vista === "mapa" ? (
-        <div className="flex-1 min-h-0 mt-4 flex flex-col gap-2">
-          <div className="flex-1 min-h-0">
-            <ProduccionMapaLoader produccionPorCiudadAnio={produccionPorCiudadAnio} />
-          </div>
+        <>
+          <ProduccionMapaLoader produccionPorCiudadAnio={produccionPorCiudadAnio} />
           {otrosUltimoAnio?.produccion_kg != null && (
-            <p className="text-xs text-muted-foreground shrink-0">
+            <p className="text-xs text-muted-foreground mt-2">
               El mapa no incluye &ldquo;Otros&rdquo; ({formatMasa(otrosUltimoAnio.produccion_kg, unidad)} en{" "}
               {otrosUltimoAnio.anio}) — es un bucket de reporte del INYM sin una ubicación puntual real, no una
               ciudad geolocalizable.
             </p>
           )}
-        </div>
+        </>
       ) : (
         <>
         <FilterBar

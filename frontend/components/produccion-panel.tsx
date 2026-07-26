@@ -66,7 +66,7 @@ export function ProduccionPanel({
     // el panel muestra un 0% falso mientras el pedido está en vuelo.
     if (departamentosDatos === null) {
       return (
-        <div className="flex flex-col gap-4">
+        <div className="flex flex-col gap-4 lg:w-[340px] lg:shrink-0">
           <PanelCard titulo="Resumen coroplético" subtitulo="Departamentos con dato de superficie del INYM">
             <p className="text-xs text-muted-foreground py-2">Cargando departamentos…</p>
           </PanelCard>
@@ -93,7 +93,7 @@ export function ProduccionPanel({
     }
 
     return (
-      <div className="flex flex-col gap-4">
+      <div className="flex flex-col gap-4 lg:w-[340px] lg:shrink-0">
         <PanelCard titulo="Resumen coroplético" subtitulo="Departamentos con dato de superficie del INYM">
           <KpiRow label="Departamentos con dato" valor={nf0(feats.length)} />
           <KpiRow label="Superficie con yerba mate" valor={`${nf0(totalSupYm)} ha`} />
@@ -141,7 +141,7 @@ export function ProduccionPanel({
     }
 
     return (
-      <div className="flex flex-col gap-4">
+      <div className="flex flex-col gap-4 lg:w-[340px] lg:shrink-0">
         <PanelCard titulo="Resumen de producción" subtitulo={`Ciudades productoras, año ${anio}`}>
           <KpiRow label="Ciudades con producción" valor={nf0(burbujas.length)} />
           <KpiRow label="Producción total" valor={`${nf0(total)} kg`} />
@@ -189,7 +189,7 @@ export function ProduccionPanel({
     }
 
     return (
-      <div className="flex flex-col gap-4">
+      <div className="flex flex-col gap-4 lg:w-[340px] lg:shrink-0">
         <PanelCard titulo="Resumen de flujo" subtitulo={`Ciudad → secadero más cercano, año ${anio}`}>
           <KpiRow label="Rutas calculadas" valor={nf0(flujo.length)} />
           <KpiRow label="Distancia promedio" valor={`${formatNumero(distProm, 1)} km`} />
@@ -231,7 +231,7 @@ export function ProduccionPanel({
   // para una aclaración) -- ahora es una nota chica dentro del mismo card,
   // mismo tratamiento que otras aclaraciones del panel (ver vista "flujo").
   return (
-    <div className="flex flex-col gap-4">
+    <div className="flex flex-col gap-4 lg:w-[340px] lg:shrink-0">
       <PanelCard titulo={vista === "heatmap" ? "Densidad de secaderos" : "Secaderos"} subtitulo="Plantas de secado del INYM">
         <KpiRow label="Secaderos totales" valor={nf0(nSecaderos)} />
         <p className="text-[10px] text-muted-foreground italic mt-2 pt-2 border-t border-border">

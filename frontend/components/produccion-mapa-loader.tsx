@@ -15,7 +15,7 @@ const ProduccionMapaClientDinamico = dynamic(
   {
     ssr: false,
     loading: () => (
-      <div className="flex h-full w-full items-center justify-center rounded-2xl border border-border bg-card">
+      <div className="flex h-[640px] w-full items-center justify-center rounded-2xl border border-border bg-card">
         <div className="flex flex-col items-center gap-3 text-muted-foreground">
           <div className="h-8 w-8 animate-spin rounded-full border-2 border-primary border-t-transparent" />
           <span className="text-sm">Cargando mapa…</span>

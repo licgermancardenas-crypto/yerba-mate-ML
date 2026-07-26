@@ -6,7 +6,6 @@ import { Info, Loader2 } from "lucide-react";
 import { GisMap, type CapasTransporte, type TransporteActivo } from "@/components/gis-map";
 import { GisPanel } from "@/components/gis-panel";
 import { MapErrorBoundary } from "@/components/map-error-boundary";
-import { MapPageLayout } from "@/components/map-page-layout";
 import { GrupoControl, BasemapToggle, SELECT_CLASS, LEYENDA_CLASS, pillClass } from "@/components/mapa-controles";
 import { campoChoropleto } from "@/lib/gis-resumen";
 import { formatNumero } from "@/lib/format";
@@ -151,9 +150,9 @@ export function MapaGisClient({
   const esClusterizada = capaActual.geom_type === "Point";
 
   return (
-    <MapPageLayout
-      filtros={
-        <>
+    <div className="flex flex-col gap-3">
+      <div className="flex flex-col gap-4 rounded-2xl border border-border bg-card p-4 shadow-sm">
+        <div className="flex flex-wrap items-start gap-x-6 gap-y-4">
           <GrupoControl titulo="Capa">
             <select
               id="capa-select"
@@ -214,19 +213,21 @@ export function MapaGisClient({
           <div className="hidden sm:block w-px self-stretch bg-border" aria-hidden="true" />
 
           <BasemapToggle basemap={basemap} onChange={setBasemap} />
-        </>
-      }
-      nota={
-        <>
+        </div>
+
+        <div className="flex items-start gap-2 rounded-2xl border border-border bg-muted px-3.5 py-2.5">
           <Info size={14} className="text-foreground/70 mt-0.5 shrink-0" aria-hidden="true" />
           <span className="text-xs text-foreground/90 leading-snug">
             {capaActual.descripcion}
             {cargando && " — Cargando…"}
           </span>
-        </>
-      }
-      panel={<GisPanel capa={capaActual} datos={datos} featureSeleccionada={featureSeleccionada} />}
-    >
+        </div>
+      </div>
+
+      <div className="flex flex-col lg:flex-row gap-4 items-start">
+        <GisPanel capa={capaActual} datos={datos} featureSeleccionada={featureSeleccionada} />
+
+        <div className="rounded-2xl border border-border bg-card overflow-hidden shadow-sm h-[720px] w-full flex-1 relative">
           {cargando && (
             <div className="absolute inset-0 z-20 flex flex-col items-center justify-center gap-2 bg-card/80 backdrop-blur-sm">
               <Loader2 size={24} className="animate-spin text-primary" aria-hidden="true" />
@@ -288,6 +289,8 @@ export function MapaGisClient({
               </div>
             </div>
           )}
-    </MapPageLayout>
+        </div>
+      </div>
+    </div>
   );
 }
