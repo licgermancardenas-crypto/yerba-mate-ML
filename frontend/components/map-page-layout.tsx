@@ -34,10 +34,51 @@ export function MapPageLayout({ filtros, nota, panel, children }: MapPageLayoutP
     <div className="relative w-full h-full rounded-2xl border border-border bg-card overflow-hidden shadow-sm">
       <div className="absolute inset-0">{children}</div>
 
-      {/* Barra de filtros flotante -- desktop */}
-      <div className="hidden md:flex md:flex-col md:gap-3 absolute top-3 left-3 right-3 z-30 rounded-2xl border border-border bg-card/90 backdrop-blur px-4 py-3 shadow-lg">
-        <div className="flex flex-wrap items-start gap-x-6 gap-y-3">{filtros}</div>
-        {nota && <div className="flex items-start gap-2 rounded-xl border border-border bg-muted px-3 py-2">{nota}</div>}
+      {/* Overlay flotante -- desktop: barra de filtros + panel apilados en
+          flujo vertical real (el panel arranca justo debajo de la barra sin
+          adivinar un offset en píxeles fijo -- si la barra crece a 2
+          líneas, el panel se acomoda solo). `pointer-events-none` en el
+          wrapper deja pasar los clicks al mapa en el espacio vacío;
+          `pointer-events-auto` en cada pieza visible reactiva la
+          interacción ahí. */}
+      <div className="hidden md:flex absolute inset-3 z-30 flex-col items-start gap-3 pointer-events-none">
+        <div className="pointer-events-auto w-full flex flex-col gap-3 rounded-2xl border border-border bg-card/90 backdrop-blur px-4 py-3 shadow-lg shrink-0">
+          <div className="flex flex-wrap items-start gap-x-6 gap-y-3">{filtros}</div>
+          {nota && <div className="flex items-start gap-2 rounded-xl border border-border bg-muted px-3 py-2">{nota}</div>}
+        </div>
+
+        {panel && (
+          <div className="hidden lg:flex flex-1 min-h-0 pointer-events-none">
+            <div className="pointer-events-auto max-h-full">
+              {panelAbierto ? (
+                <div className="w-[300px] max-h-full overflow-y-auto rounded-2xl border border-border bg-card/95 backdrop-blur shadow-lg">
+                  <div className="flex justify-end px-2 pt-2">
+                    <button
+                      type="button"
+                      onClick={() => setPanelAbierto(false)}
+                      aria-label="Colapsar panel"
+                      aria-expanded={true}
+                      className="rounded-full p-1 text-foreground/60 hover:text-foreground hover:bg-muted transition-colors"
+                    >
+                      <PanelLeftClose size={16} aria-hidden="true" />
+                    </button>
+                  </div>
+                  <div className="px-3 pb-3 flex flex-col gap-4">{panel}</div>
+                </div>
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => setPanelAbierto(true)}
+                  aria-label="Expandir panel de info"
+                  aria-expanded={false}
+                  className="rounded-full border border-border bg-card/95 backdrop-blur p-2 shadow-lg text-foreground/70 hover:text-foreground transition-colors"
+                >
+                  <PanelLeftOpen size={16} aria-hidden="true" />
+                </button>
+              )}
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Filtros -- mobile: botón que abre un overlay a pantalla completa
@@ -73,40 +114,6 @@ export function MapPageLayout({ filtros, nota, panel, children }: MapPageLayoutP
             {filtros}
             {nota && <div className="flex items-start gap-2 rounded-xl border border-border bg-muted px-3 py-2">{nota}</div>}
           </div>
-        </div>
-      )}
-
-      {/* Panel de info flotante y colapsable -- nunca una columna que
-          reserva espacio fijo, se encoge a su contenido real (los
-          PanelCard internos ya son flex-col sin altura fija). */}
-      {panel && (
-        <div className="hidden lg:block absolute top-[88px] left-3 z-20 max-h-[calc(100%-104px)]">
-          {panelAbierto ? (
-            <div className="w-[300px] max-h-[calc(100vh-200px)] overflow-y-auto rounded-2xl border border-border bg-card/95 backdrop-blur shadow-lg">
-              <div className="flex justify-end px-2 pt-2">
-                <button
-                  type="button"
-                  onClick={() => setPanelAbierto(false)}
-                  aria-label="Colapsar panel"
-                  aria-expanded={true}
-                  className="rounded-full p-1 text-foreground/60 hover:text-foreground hover:bg-muted transition-colors"
-                >
-                  <PanelLeftClose size={16} aria-hidden="true" />
-                </button>
-              </div>
-              <div className="px-3 pb-3 flex flex-col gap-4">{panel}</div>
-            </div>
-          ) : (
-            <button
-              type="button"
-              onClick={() => setPanelAbierto(true)}
-              aria-label="Expandir panel de info"
-              aria-expanded={false}
-              className="rounded-full border border-border bg-card/95 backdrop-blur p-2 shadow-lg text-foreground/70 hover:text-foreground transition-colors"
-            >
-              <PanelLeftOpen size={16} aria-hidden="true" />
-            </button>
-          )}
         </div>
       )}
     </div>

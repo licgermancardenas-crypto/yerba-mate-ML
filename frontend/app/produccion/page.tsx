@@ -293,7 +293,7 @@ export default async function ProduccionPage({
   const haPorProductorAnual = agregarSuperficieProductoresAnual(superficieSoloAnio);
 
   return (
-    <main className={vista === "mapa" ? "flex flex-col h-[calc(100dvh-3.5rem)] md:h-dvh p-6 md:p-8 overflow-hidden" : "p-6 md:p-8"}>
+    <main className={vista === "mapa" ? "flex flex-col h-[calc(100dvh_-_3.5rem)] md:h-dvh p-6 md:p-8 overflow-hidden" : "p-6 md:p-8"}>
       <PageHeader
         title="Producción"
         description="Serie mensual y distribución geográfica de la producción de yerba mate elaborada."

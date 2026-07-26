@@ -25,7 +25,7 @@ export default async function MapaGisPage({
   const datosIniciales = await getGeoLayer(capaInicial.layer_name);
 
   return (
-    <main className="flex flex-col h-[calc(100dvh-3.5rem)] md:h-dvh p-6 md:p-8 overflow-hidden">
+    <main className="flex flex-col h-[calc(100dvh_-_3.5rem)] md:h-dvh p-6 md:p-8 overflow-hidden">
       <PageHeader
         title="Mapa GIS"
         description="Capas del INYM: superficie cultivada, edad de plantación, densidad, cultivo consociado y secaderos."
