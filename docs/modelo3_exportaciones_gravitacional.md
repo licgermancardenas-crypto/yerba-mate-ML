@@ -123,6 +123,27 @@ visible de los 3, es el modelo menos confiable para volumen exacto), 5
 `ChartCard` de ajustado-vs-real (top 5 destinos) y la tabla completa de 20
 países con la proyección + `ReliabilityBadge tipo="supuesto"` por fila.
 
+### 8.1 Contraste con la expectativa REM (agregado 2026-07-26)
+
+El tipo de cambio congelado (`ultimo_tc`, §8) es el último valor real
+conocido -- para la proyección 2026 es el promedio 2025 (**$1.241,52**).
+`ym.bcra_rem` (indicador "Tipo de cambio nominal", `periodo_tipo='anual'`,
+`muestra='todos'`) tiene la expectativa del mercado para el promedio 2026,
+encuesta a encuesta desde abr-2025: **nunca bajó de $1.481**, llegó a
+$1.812 (sep-2025) y cerró en $1.658 (may-2026, última encuesta
+disponible) -- el mercado esperó, desde el principio, un tipo de cambio
+20-45% más alto que el supuesto congelado del modelo. El real 2026
+parcial (`ym.tipo_cambio_anual`, promedio de los meses ya transcurridos)
+es **$1.416,58** -- confirma la dirección (bien por encima del supuesto
+congelado) aunque por debajo de casi todas las encuestas REM.
+
+Endpoint `GET /predicciones/rem-tipo-cambio` (deriva el año de proyección
+de `ym.ml_predicciones`, no lo hardcodea), chart `RemTipoCambioChart` en
+`/predicciones` (tab Exportaciones), debajo de la tabla de proyección.
+Solo 14 encuestas (`ym.bcra_rem` cubre 2025-04 a 2026-05) -- lectura
+indicativa, declarado en el `ReliabilityBadge` del chart, no cambia el
+supuesto que usa el modelo (`scoring_modelo3.py` no se tocó).
+
 ## Con esto, los 3 modelos de Fase 5 tienen v1 completa, documentada e
 integrada a `/predicciones` (`docs/modelo1_produccion_zona.md`,
 `docs/modelo2_consumo_interno.md`, este documento).

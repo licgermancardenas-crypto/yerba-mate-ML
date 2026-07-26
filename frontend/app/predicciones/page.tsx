@@ -4,9 +4,10 @@ import { PageHeader } from "@/components/page-header";
 import { ChartCard } from "@/components/chart-card";
 import { ReliabilityBadge } from "@/components/reliability-badge";
 import { ForecastBandChart, type PuntoForecast } from "@/components/charts/forecast-band-chart";
+import { RemTipoCambioChart, type PuntoRemTipoCambio } from "@/components/charts/rem-tipo-cambio-chart";
 import { FooterFuentes } from "@/components/footer-fuentes";
 import { formatNumero } from "@/lib/format";
-import { getHojaVerde, getSalidaMolino, getPredicciones } from "@/lib/api";
+import { getHojaVerde, getSalidaMolino, getPredicciones, getRemTipoCambio } from "@/lib/api";
 import { MESES, agregarSalidaMolinoMensual } from "@/lib/agregaciones";
 import { PAISES_DESTINO } from "@/lib/paises-destino";
 import { ZONA_RAW_A_LIMPIA, ZONAS, etiquetaZona } from "@/lib/zonas";
@@ -169,10 +170,17 @@ async function TabConsumo() {
 }
 
 async function TabExportaciones() {
-  const [ajustado, proyeccion] = await Promise.all([
+  const [ajustado, proyeccion, remTipoCambio] = await Promise.all([
     getPredicciones({ modelo: "modelo3_exportaciones", esPronostico: false }),
     getPredicciones({ modelo: "modelo3_exportaciones", esPronostico: true }),
+    getRemTipoCambio(),
   ]);
+
+  const datosRemTipoCambio: PuntoRemTipoCambio[] = remTipoCambio.map((r) => {
+    const [anio, mes] = r.fecha_encuesta.split("-").map(Number);
+    return { etiqueta: `${MESES[mes - 1].slice(0, 3)} ${String(anio).slice(2)}`, valor: r.rem_tc_esperado };
+  });
+  const remPrimero = remTipoCambio[0];
 
   return (
     <>
@@ -238,7 +246,28 @@ async function TabExportaciones() {
           </tbody>
         </table>
       </div>
-      <FooterFuentes tablas={["ym.exportaciones_indec", "ym.pbi_pais_anual", "ym.tipo_cambio_anual", "ym.ml_predicciones"]} />
+
+      {remPrimero && (
+        <ChartCard
+          title="Tipo de cambio: expectativa del mercado (REM) vs. supuesto del modelo"
+          description={`El modelo congela el tipo de cambio en el último dato real conocido para proyectar ${remPrimero.anio_proyeccion} -- el REM, encuesta a encuesta desde ${MESES[Number(remPrimero.fecha_encuesta.split("-")[1]) - 1]?.slice(0, 3) ?? ""} ${String(remPrimero.fecha_encuesta.split("-")[0]).slice(2)}, siempre esperó un valor bien más alto.`}
+          className="mb-8"
+        >
+          <RemTipoCambioChart
+            data={datosRemTipoCambio}
+            tcCongeladoModelo={remPrimero.tc_congelado_modelo}
+            tcRealParcial={remPrimero.tc_real_parcial}
+            anioProyeccion={remPrimero.anio_proyeccion}
+          />
+          <ReliabilityBadge
+            tipo="supuesto"
+            texto={`ym.bcra_rem solo cubre 2025-04 a 2026-05 (14 encuestas) -- lectura indicativa, no serie larga. El real ${remPrimero.anio_proyeccion} es un promedio parcial (meses ya transcurridos), no el cierre del año.`}
+            className="mt-3"
+          />
+        </ChartCard>
+      )}
+
+      <FooterFuentes tablas={["ym.exportaciones_indec", "ym.pbi_pais_anual", "ym.tipo_cambio_anual", "ym.ml_predicciones", "ym.bcra_rem"]} />
     </>
   );
 }

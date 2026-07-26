@@ -156,6 +156,20 @@ export interface RemInflacionRow {
   rem_ipc_general_pct: number;
 }
 
+/** Expectativa REM del tipo de cambio anual del año que proyecta el Modelo
+ * 3, encuesta a encuesta -- ver GET /predicciones/rem-tipo-cambio. Cada fila
+ * repite `anio_proyeccion`/`tc_congelado_modelo`/`tc_real_parcial` (mismos
+ * 3 valores en toda la respuesta, solo cambia `fecha_encuesta`/`rem_tc_esperado`). */
+export interface RemTipoCambioRow {
+  anio_proyeccion: number;
+  /** Tipo de cambio oficial real del año anterior -- el supuesto congelado del Modelo 3. */
+  tc_congelado_modelo: number;
+  /** Tipo de cambio oficial real del propio año proyectado, si ya hay meses transcurridos -- null si el año todavía no empezó a reportarse. */
+  tc_real_parcial: number | null;
+  fecha_encuesta: string;
+  rem_tc_esperado: number;
+}
+
 export interface CompetenciaRow {
   anio: number;
   empresa: string;

@@ -13,6 +13,7 @@ import type {
   PrecioGondolaRow,
   PrecioRow,
   RemInflacionRow,
+  RemTipoCambioRow,
   PrediccionRow,
   ProduccionAnualRealRow,
   ProduccionRow,
@@ -194,4 +195,11 @@ export function getPredicciones(params: { modelo: string; dimension?: string; es
   if (params.dimension) qs.set("dimension", params.dimension);
   if (params.esPronostico !== undefined) qs.set("es_pronostico", String(params.esPronostico));
   return apiFetch<PrediccionRow[]>(`/predicciones?${qs.toString()}`);
+}
+
+/** Expectativa REM del tipo de cambio anual para el año proyectado del
+ * Modelo 3, vs. el supuesto congelado que usa ese modelo -- ver GET
+ * /predicciones/rem-tipo-cambio. */
+export function getRemTipoCambio() {
+  return apiFetch<RemTipoCambioRow[]>("/predicciones/rem-tipo-cambio");
 }
