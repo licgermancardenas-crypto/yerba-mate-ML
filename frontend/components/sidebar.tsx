@@ -94,7 +94,7 @@ export function Sidebar() {
           razonable sin necesidad de scroll. El toggle de tema, al ir después
           de todos los links, es el primer elemento que sí puede quedar fuera
           de vista sin este fix. */}
-      <aside className={`hidden md:flex md:flex-col md:w-56 md:shrink-0 md:sticky md:top-0 md:h-screen text-white ${SIDEBAR_BG}`}>
+      <aside className={`hidden md:flex md:flex-col md:w-52 md:shrink-0 md:sticky md:top-0 md:h-screen text-white ${SIDEBAR_BG}`}>
         <div className="flex items-center gap-2.5 h-16 px-5 border-b border-white/10">
           <span className="flex items-center justify-center size-9 rounded-xl bg-white/15 shrink-0">
             <Leaf size={20} aria-hidden="true" />
