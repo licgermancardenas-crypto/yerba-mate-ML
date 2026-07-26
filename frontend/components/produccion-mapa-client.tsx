@@ -5,6 +5,7 @@ import { Map as MapIcon, Factory, Flame, Circle, Route, Info, Loader2 } from "lu
 import { ProduccionMapa, type VistaMapa, type Basemap, type BurbujaProduccion } from "@/components/produccion-mapa";
 import { ProduccionPanel, type BurbujaSeleccionada, type RutaFlujo } from "@/components/produccion-panel";
 import { MapErrorBoundary } from "@/components/map-error-boundary";
+import { MapPageLayout } from "@/components/map-page-layout";
 import { GrupoControl, BasemapToggle, pillClass, SELECT_CLASS, LEYENDA_CLASS } from "@/components/mapa-controles";
 import { normalizar } from "@/lib/texto";
 import { formatNumero } from "@/lib/format";
@@ -286,9 +287,9 @@ export function ProduccionMapaClient({ produccionPorCiudadAnio }: { produccionPo
       : "Ciudad productora → secadero más cercano. Es una aproximación por proximidad geográfica, no una ruta logística verificada.";
 
   return (
-    <div className="flex flex-col gap-3">
-      <div className="flex flex-col gap-4 rounded-2xl border border-border bg-card p-4 shadow-sm">
-        <div className="flex flex-wrap items-start gap-x-6 gap-y-4">
+    <MapPageLayout
+      filtros={
+        <>
           <GrupoControl titulo="Filtros">
             <select
               id="mapa-provincia"
@@ -369,15 +370,15 @@ export function ProduccionMapaClient({ produccionPorCiudadAnio }: { produccionPo
           <div className="hidden sm:block w-px self-stretch bg-border" aria-hidden="true" />
 
           <BasemapToggle basemap={basemap} onChange={setBasemap} />
-        </div>
-
-        <div className="flex items-start gap-2 rounded-2xl border border-border bg-muted px-3.5 py-2.5">
+        </>
+      }
+      nota={
+        <>
           <Info size={14} className="text-foreground/70 mt-0.5 shrink-0" aria-hidden="true" />
           <span className="text-xs text-foreground/90 leading-snug">{leyendaTexto}</span>
-        </div>
-      </div>
-
-      <div className="flex flex-col lg:flex-row gap-4 items-start">
+        </>
+      }
+      panel={
         <ProduccionPanel
           vista={vista}
           anio={anio}
@@ -392,8 +393,8 @@ export function ProduccionMapaClient({ produccionPorCiudadAnio }: { produccionPo
           rutaEsHover={rutaHover !== null}
           nSecaderos={nSecaderos}
         />
-
-        <div className="rounded-2xl border border-border bg-card overflow-hidden shadow-sm h-[720px] w-full flex-1 relative">
+      }
+    >
         {cargandoCapa && (
           <div className="absolute inset-0 z-20 flex flex-col items-center justify-center gap-2 bg-card/80 backdrop-blur-sm">
             <Loader2 size={24} className="animate-spin text-primary" aria-hidden="true" />
@@ -500,8 +501,6 @@ export function ProduccionMapaClient({ produccionPorCiudadAnio }: { produccionPo
             <div className="text-muted-foreground italic leading-snug">Proximidad geográfica, no ruta logística verificada.</div>
           </div>
         )}
-        </div>
-      </div>
-    </div>
+    </MapPageLayout>
   );
 }

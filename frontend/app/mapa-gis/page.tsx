@@ -25,12 +25,14 @@ export default async function MapaGisPage({
   const datosIniciales = await getGeoLayer(capaInicial.layer_name);
 
   return (
-    <main className="p-6 md:p-8">
+    <main className="flex flex-col h-[calc(100dvh-3.5rem)] md:h-dvh p-6 md:p-8 overflow-hidden">
       <PageHeader
         title="Mapa GIS"
         description="Capas del INYM: superficie cultivada, edad de plantación, densidad, cultivo consociado y secaderos."
       />
-      <MapaGisClient catalogo={catalogo} capaInicial={capaInicial} datosIniciales={datosIniciales} />
+      <div className="flex-1 min-h-0 mt-4">
+        <MapaGisClient catalogo={catalogo} capaInicial={capaInicial} datosIniciales={datosIniciales} />
+      </div>
     </main>
   );
 }

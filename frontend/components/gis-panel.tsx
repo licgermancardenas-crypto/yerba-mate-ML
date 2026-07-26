@@ -17,7 +17,7 @@ export function GisPanel({
   const detalle = featureSeleccionada ? detalleFeature(capa, featureSeleccionada) : null;
 
   return (
-    <div className="flex flex-col gap-4 lg:w-[340px] lg:shrink-0">
+    <div className="flex flex-col gap-4">
       <PanelCard titulo="Resumen de la capa" subtitulo={capa.descripcion}>
         {resumen.kpis.map((k) => (
           <KpiRow key={k.label} {...k} />
