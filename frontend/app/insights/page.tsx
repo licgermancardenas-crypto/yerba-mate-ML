@@ -1,5 +1,13 @@
 import Link from "next/link";
 import { PageHeader } from "@/components/page-header";
+
+// Única página que fetcheaba en build-time (prerender estático) -- las
+// otras 9 ya renderizan en request-time. Un hiccup transitorio del backend
+// (Render free tier bajo carga concurrente, ver /insights: 13 requests en
+// paralelo) tumbaba el build ENTERO en vez de afectar solo esta página.
+// `force-dynamic` mueve el fetch a request-time, mismo criterio que el
+// resto del sitio.
+export const dynamic = "force-dynamic";
 import { KpiCard } from "@/components/kpi-card";
 import { ReliabilityBadge } from "@/components/reliability-badge";
 import { FooterFuentes } from "@/components/footer-fuentes";
