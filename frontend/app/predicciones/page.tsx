@@ -38,6 +38,19 @@ function etiquetaMes(anio: number, mes: number): string {
   return `${MESES[mes - 1].slice(0, 3)} ${String(anio).slice(2)}`;
 }
 
+/** Rango real del pronóstico (ej. "junio 2026 a mayo 2027") -- el heatmap
+ * muestra los meses proyectados repartidos en 2 filas de año porque el
+ * horizonte no arranca en enero, así que sin esta nota cada fila por sí
+ * sola parece tener "pocos meses" en vez de un pronóstico completo de 12. */
+function rangoProyeccion(puntos: { anio: number; mes: number | null }[]): string | null {
+  const conMes = puntos.filter((p): p is { anio: number; mes: number } => p.mes != null);
+  if (conMes.length === 0) return null;
+  const ordenados = [...conMes].sort((a, b) => a.anio * 100 + a.mes - (b.anio * 100 + b.mes));
+  const primero = ordenados[0];
+  const ultimo = ordenados[ordenados.length - 1];
+  return `${MESES[primero.mes - 1]} ${primero.anio} a ${MESES[ultimo.mes - 1]} ${ultimo.anio}`;
+}
+
 /** Une histórico real (mensual) + pronóstico (ym.ml_predicciones) en una
  * sola serie cronológica para <ForecastBandChart>. Los dos rangos no se
  * superponen (el pronóstico arranca donde termina el histórico real), así
@@ -117,6 +130,7 @@ async function TabProduccion() {
 
   const proyeccionesModelo1 = prediccionesCompletas.filter((p) => p.es_pronostico && p.mes != null);
   const anioProyeccionModelo1 = proyeccionesModelo1.length ? Math.min(...proyeccionesModelo1.map((p) => p.anio)) : undefined;
+  const rangoModelo1 = rangoProyeccion(proyeccionesModelo1);
   const seriesHeatmapProduccion: HeatmapTableSerie[] = ZONAS.map((zona) => ({
     id: zona,
     label: etiquetaZona(zona),
@@ -161,7 +175,13 @@ async function TabProduccion() {
 
       <ChartCard
         title="Mapa de calor — producción mensual por zona"
-        description="Histórico real (INYM) + los 12 meses de pronóstico del modelo, marcados con una fila divisoria y '(proy.)' -- nunca mezclados sin distinción."
+        description={
+          <>
+            Histórico real (INYM) + pronóstico del modelo (12 meses{rangoModelo1 ? `, ${rangoModelo1}` : ""}), marcados
+            con una fila divisoria y &quot;(proy.)&quot; -- nunca mezclados sin distinción. Al no arrancar en enero, el
+            horizonte queda repartido en 2 filas de año -- cada fila por sí sola no representa el pronóstico completo.
+          </>
+        }
         className="mt-4"
       >
         <HeatmapTable
@@ -190,6 +210,7 @@ async function TabConsumo() {
 
   const proyeccionModelo2 = predicciones.filter((p) => p.es_pronostico && p.mes != null);
   const anioProyeccionModelo2 = proyeccionModelo2.length ? Math.min(...proyeccionModelo2.map((p) => p.anio)) : undefined;
+  const rangoModelo2 = rangoProyeccion(proyeccionModelo2);
   const seriesHeatmapConsumo: HeatmapTableSerie[] = [
     {
       id: "interno",
@@ -207,7 +228,13 @@ async function TabConsumo() {
 
       <ChartCard
         title="Mapa de calor — consumo interno mensual"
-        description="Histórico real (INYM) + los 12 meses de pronóstico del modelo, marcados con una fila divisoria y '(proy.)' -- nunca mezclados sin distinción."
+        description={
+          <>
+            Histórico real (INYM) + pronóstico del modelo (12 meses{rangoModelo2 ? `, ${rangoModelo2}` : ""}), marcados
+            con una fila divisoria y &quot;(proy.)&quot; -- nunca mezclados sin distinción. Al no arrancar en enero, el
+            horizonte queda repartido en 2 filas de año -- cada fila por sí sola no representa el pronóstico completo.
+          </>
+        }
         className="mt-4"
       >
         <HeatmapTable series={seriesHeatmapConsumo} formato={{ tipo: "masa", unidad: "kg" }} anioProyeccionDesde={anioProyeccionModelo2} />
