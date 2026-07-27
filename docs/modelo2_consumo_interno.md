@@ -58,6 +58,26 @@ El baseline solo ya es bastante bueno (6,3% MAPE) -- mucho mejor que el
 20-25% del Modelo 1, esperable dado que el consumo de un bien cotidiano es
 más estable que una cosecha sujeta al clima.
 
+### 4.1 ¿Ayuda estacionalidad más fina por mes calendario? — NO (2026-07-27)
+
+A pedido del usuario, se probaron 11 dummies de mes calendario (Ene..Nov,
+Dic como referencia) como exógena, sobre el rango completo de 60 meses de
+test (`backend/ml/modelo2_exog_mes_calendario.py`, sin el recorte por NaN
+que sí hace falta con precio relativo/salario real).
+
+| | MAPE | MAE |
+|---|---|---|
+| Baseline (sin exógena) | 6,3% | 1.385.513 kg |
+| Con 11 dummies de mes calendario | 6,3% | 1.385.426 kg |
+
+Diferencia de MAE: 87 kg sobre 1,4M -- ruido, no señal. Esperable a
+priori: `seasonal_order` ya usa diferenciación estacional (`D=1`,
+período 12), que absorbe cualquier efecto fijo por mes calendario
+estable año a año -- los dummies terminan siendo casi redundantes con lo
+que el SARIMA estacional ya captura. 4to resultado negativo consecutivo
+de exógenas en Fase 5 (NDVI/clima Modelo 1, precio relativo/salario real
+Modelo 2 arriba, tipo de cambio Modelo 3, ahora esto).
+
 ## 5. Dónde falla el baseline
 
 Los peores errores del walk-forward se concentran en **marzo-junio 2024**
