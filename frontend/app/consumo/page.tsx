@@ -1,4 +1,4 @@
-import { Coffee, Package, ScrollText } from "lucide-react";
+import { Coffee, Package, ScrollText, Factory } from "lucide-react";
 import { PageHeader } from "@/components/page-header";
 import { KpiCard } from "@/components/kpi-card";
 import { NoData } from "@/components/no-data";
@@ -10,12 +10,13 @@ import { SerieChartConFiltro } from "@/components/charts/serie-chart-con-filtro"
 import { AnnualChartConFiltro } from "@/components/charts/annual-chart-con-filtro";
 import type { EnvasesPunto } from "@/components/charts/annual-chart-con-filtro";
 import { HistoricalTable } from "@/components/historical-table";
+import { HeatmapTable, type HeatmapTableSerie } from "@/components/heatmap-table";
 import { Sparkline } from "@/components/charts/sparkline";
 import { DeltaBadge } from "@/components/delta-badge";
 import type { ColumnaTabla } from "@/components/data-table";
-import { formatNumero } from "@/lib/format";
-import { getConsumo } from "@/lib/api";
-import { agregarConsumoAnual, type ConsumoAnualRow } from "@/lib/agregaciones";
+import { formatMasaCompacta, formatNumero } from "@/lib/format";
+import { getConsumo, getSalidaMolino } from "@/lib/api";
+import { agregarConsumoAnual, agregarSalidaMolinoAnual, type ConsumoAnualRow } from "@/lib/agregaciones";
 import type { ConsumoRow } from "@/lib/types";
 
 const COLUMNAS_ANUAL: ColumnaTabla<ConsumoAnualRow>[] = [
@@ -50,12 +51,38 @@ export default async function ConsumoPage({
   const anioDesde = Number(sp.anio_desde) || undefined;
   const anioHasta = Number(sp.anio_hasta) || undefined;
 
-  const filasCompletas = await getConsumo();
+  const [filasCompletas, salidaMolinoCompleta] = await Promise.all([getConsumo(), getSalidaMolino()]);
   const todosLosAnios = Array.from(new Set(filasCompletas.map((f) => f.anio))).sort((a, b) => a - b);
 
   const filas = filasCompletas.filter(
     (f) => (!anioDesde || f.anio >= anioDesde) && (!anioHasta || f.anio <= anioHasta)
   );
+
+  // Consumo interno REAL mensual (INYM, salida de molino destino='interno')
+  // -- a diferencia de consumo_per_capita_kg (cadencia anual, ver nota más
+  // abajo), esto es volumen real con desglose mensual real. Ya se usaba en
+  // Cadena Productiva, nunca se había mostrado acá en Consumo.
+  const molinoInterno = salidaMolinoCompleta.filter(
+    (f) =>
+      f.destino === "interno" &&
+      (!anioDesde || f.anio >= anioDesde) &&
+      (!anioHasta || f.anio <= anioHasta)
+  );
+  const molinoInternoAnual = agregarSalidaMolinoAnual(salidaMolinoCompleta.filter((f) => f.destino === "interno"));
+  const ultimoAnioMolino = molinoInternoAnual[0]?.anio;
+  const consumoInternoUltimo = molinoInternoAnual[0]?.interno_kg;
+  const consumoInternoPenultimo = molinoInternoAnual[1]?.interno_kg;
+  const deltaConsumoInterno =
+    consumoInternoUltimo != null && consumoInternoPenultimo
+      ? ((consumoInternoUltimo - consumoInternoPenultimo) / consumoInternoPenultimo) * 100
+      : undefined;
+  const seriesConsumoInterno: HeatmapTableSerie[] = [
+    {
+      id: "interno",
+      label: "Consumo interno",
+      puntos: molinoInterno.map((f) => ({ anio: f.anio, mes: f.mes, valor: f.volumen_kg })),
+    },
+  ];
 
   const porAnio = new Map<number, (typeof filas)[number]>();
   for (const fila of filas) {
@@ -131,7 +158,7 @@ export default async function ConsumoPage({
         <NoData variant="chart" motivo="Sin datos para los filtros seleccionados." />
       ) : (
         <>
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
             <KpiCard
               label={`Consumo per cápita ${ultimoAnio}`}
               value={`${formatNumero(consumoUltimo!, 2)} kg/persona`}
@@ -139,6 +166,13 @@ export default async function ConsumoPage({
               deltaPct={deltaConsumo}
               deltaLabel={`vs. ${penultimoAnio}`}
               destacado
+            />
+            <KpiCard
+              label={`Consumo interno real ${ultimoAnioMolino ?? ""}`}
+              value={consumoInternoUltimo != null ? formatMasaCompacta(consumoInternoUltimo, "kg") : <NoData variant="kpi" />}
+              icon={Factory}
+              deltaPct={deltaConsumoInterno}
+              deltaLabel={ultimoAnioMolino && molinoInternoAnual[1] ? `vs. ${molinoInternoAnual[1].anio}` : undefined}
             />
             <KpiCard
               label="Formato preferido"
@@ -168,6 +202,14 @@ export default async function ConsumoPage({
               <AnnualChartConFiltro tipo="envases" data={envasesPorAnio} />
             </ChartCard>
           </div>
+
+          <ChartCard
+            title="Mapa de calor — consumo interno mensual real"
+            description="Salida de molino con destino al mercado interno (INYM), mensual real desde 2008 -- a diferencia del consumo per cápita (arriba), que la fuente publica con cadencia anual, esto es volumen real (kg) con desglose mensual real."
+            className="mt-4"
+          >
+            <HeatmapTable series={seriesConsumoInterno} formato={{ tipo: "masa", unidad: "kg" }} />
+          </ChartCard>
 
           <ChartCard
             title="Histórico completo"
@@ -204,7 +246,7 @@ export default async function ConsumoPage({
         </>
       )}
 
-      <FooterFuentes tablas={["ym.consumo_interno"]} />
+      <FooterFuentes tablas={["ym.consumo_interno", "ym.inym_salida_molino"]} />
     </main>
   );
 }
