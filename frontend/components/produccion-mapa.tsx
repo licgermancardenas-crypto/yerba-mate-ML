@@ -35,6 +35,7 @@ interface Props {
   basemap: Basemap;
   provinciaFiltro: string | null; // 'MISIONES' | 'CORRIENTES' | null (todas)
   departamentoFiltro: string | null; // nombre normalizado (sin acentos, mayúsculas) o null (todos)
+  municipioFiltro: string | null; // nombre crudo INYM (mayúsculas, sin tilde) o null (todos)
   bboxFoco: GeoJSON.FeatureCollection | null; // feature(s) a los que hacer fitBounds cuando cambia el filtro
   // Se dispara cuando el usuario clickea un departamento directamente en el
   // mapa (contexto o coroplético) — permite sincronizar los selectores de la
@@ -89,6 +90,7 @@ export function ProduccionMapa({
   basemap,
   provinciaFiltro,
   departamentoFiltro,
+  municipioFiltro,
   bboxFoco,
   onSeleccionarDepartamento,
   onSeleccionarBurbuja,
@@ -440,13 +442,17 @@ export function ProduccionMapa({
     else map.once("load", render);
   }, [departamentosDatos]);
 
-  // Municipios — solo contorno fino + nombre, aparece al acercar el zoom
+  // Municipios — contorno fino + nombre (aparece al acercar el zoom) + fill
+  // resaltado cuando hay un municipio elegido en el filtro (mismo criterio
+  // de "el filtro también se ve en el mapa" que provincia/departamento,
+  // adaptado: acá no hay un coroplético debajo, así que un fill translúcido
+  // + contorno más grueso alcanza como feedback visual).
   useEffect(() => {
     const map = mapRef.current;
     if (!map) return;
     function render() {
       if (!map) return;
-      for (const id of ["municipios-outline", "municipios-label"]) {
+      for (const id of ["municipios-fill", "municipios-outline", "municipios-label"]) {
         if (map.getLayer(id)) map.removeLayer(id);
       }
       if (map.getSource("municipios")) map.removeSource("municipios");
@@ -454,13 +460,27 @@ export function ProduccionMapa({
 
       map.addSource("municipios", { type: "geojson", data: municipios });
       const antesDe = map.getLayer("jurisdicciones-outline") ? "jurisdicciones-outline" : undefined;
+      const esElegido: maplibregl.ExpressionSpecification = ["==", ["get", "municipio"], municipioFiltro ?? ""];
+      map.addLayer(
+        {
+          id: "municipios-fill",
+          type: "fill",
+          source: "municipios",
+          minzoom: 9,
+          paint: { "fill-color": "#16a34a", "fill-opacity": municipioFiltro ? ["case", esElegido, 0.3, 0] : 0 },
+        },
+        antesDe
+      );
       map.addLayer(
         {
           id: "municipios-outline",
           type: "line",
           source: "municipios",
           minzoom: 9,
-          paint: { "line-color": "#065f46", "line-width": 0.6, "line-dasharray": [2, 1.5] },
+          paint: {
+            "line-color": municipioFiltro ? ["case", esElegido, "#16a34a", "#065f46"] : "#065f46",
+            "line-width": municipioFiltro ? ["case", esElegido, 2.5, 0.6] : 0.6,
+          },
         },
         antesDe
       );
@@ -479,7 +499,7 @@ export function ProduccionMapa({
     }
     if (map.isStyleLoaded()) render();
     else map.once("load", render);
-  }, [municipios]);
+  }, [municipios, municipioFiltro]);
 
   // Clústeres de secaderos (dinámico: MapLibre reagrupa/desglosa solo con el zoom)
   useEffect(() => {

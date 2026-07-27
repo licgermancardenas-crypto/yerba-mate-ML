@@ -6,7 +6,7 @@ import { ProduccionMapa, type VistaMapa, type Basemap, type BurbujaProduccion } 
 import { ProduccionPanel, type BurbujaSeleccionada, type RutaFlujo } from "@/components/produccion-panel";
 import { MapErrorBoundary } from "@/components/map-error-boundary";
 import { GrupoControl, BasemapToggle, pillClass, SELECT_CLASS, LEYENDA_CLASS } from "@/components/mapa-controles";
-import { normalizar } from "@/lib/texto";
+import { normalizar, tituloCase } from "@/lib/texto";
 import { formatNumero } from "@/lib/format";
 
 interface DeptoContextoFeature {
@@ -19,6 +19,23 @@ interface DeptoDatoFeature {
   type: "Feature";
   geometry: GeoJSON.Geometry;
   properties: { pcia: string; depto: string; sup_ym: number; superficie: number; depto_norm?: string };
+}
+
+// view_superficie_por_municipios (INYM) -- nombres crudos en MAYÚSCULAS sin
+// tilde, distinto del origen INDEC (departamentosContexto: "nam"/"jur", con
+// tilde) que usa el resto de los selectores. depto_norm/municipio_norm se
+// agregan del lado del cliente para poder cruzar ambas fuentes.
+interface MunicipioFeature {
+  type: "Feature";
+  geometry: GeoJSON.Geometry;
+  properties: {
+    pcia: string;
+    depto: string;
+    municipio: string;
+    sup_ym: number;
+    superficie: number;
+    depto_norm?: string;
+  };
 }
 
 interface ProduccionPorCiudadAnio {
@@ -70,6 +87,7 @@ export function ProduccionMapaClient({ produccionPorCiudadAnio }: { produccionPo
   const [basemap, setBasemap] = useState<Basemap>("calles");
   const [provincia, setProvincia] = useState<string>(""); // "" = todas
   const [departamento, setDepartamento] = useState<string>(""); // "" = todos
+  const [municipio, setMunicipio] = useState<string>(""); // "" = todos -- guarda el nombre crudo (MAYÚSCULAS) de la fuente INYM
 
   const [jurisdicciones, setJurisdicciones] = useState<GeoJSON.FeatureCollection | null>(null);
   const [departamentosContexto, setDepartamentosContexto] = useState<GeoJSON.FeatureCollection | null>(null);
@@ -113,7 +131,14 @@ export function ProduccionMapaClient({ produccionPorCiudadAnio }: { produccionPo
       }));
       setDepartamentosContexto({ ...data, features } as GeoJSON.FeatureCollection);
     });
-    fetchGeo("view_superficie_por_municipios").then(setMunicipios);
+    fetchGeo<GeoJSON.FeatureCollection>("view_superficie_por_municipios").then((data) => {
+      if (!data) return;
+      const features = data.features.map((f) => ({
+        ...f,
+        properties: { ...(f.properties as object), depto_norm: normalizar((f.properties as { depto: string }).depto) },
+      }));
+      setMunicipios({ ...data, features } as GeoJSON.FeatureCollection);
+    });
     fetchGeo("view_mat_gis_marketing_puntos_secaderos").then(setSecaderos);
     fetchGeo<{ features: DeptoDatoFeature[] } & GeoJSON.FeatureCollection>("view_superficie_por_departamentos").then(
       (data) => {
@@ -175,6 +200,51 @@ export function ProduccionMapaClient({ produccionPorCiudadAnio }: { produccionPo
     if (departamento && !departamentos.some((d) => d.nam === departamento)) setDepartamento("");
   }
 
+  // Municipios (INYM, fuente cruda MAYÚSCULAS/sin tilde) -- cascada por
+  // departamento si está elegido, si no por provincia, si no todos. Mismo
+  // patrón que `departamentos` (value compuesto único, label aclara el
+  // departamento solo si el nombre se repite en la lista mostrada).
+  const municipiosLista = useMemo(() => {
+    if (!municipios) return [];
+    const feats = municipios.features as unknown as MunicipioFeature[];
+    const filtrados = feats.filter((f) => {
+      if (departamento) return f.properties.depto_norm === normalizar(departamento);
+      if (provincia) return normalizar(f.properties.pcia) === normalizar(provincia);
+      return true;
+    });
+    const porNombre = new Map<string, number>();
+    for (const f of filtrados) porNombre.set(f.properties.municipio, (porNombre.get(f.properties.municipio) ?? 0) + 1);
+    const vistos = new Set<string>();
+    return filtrados
+      .filter((f) => {
+        const clave = `${f.properties.municipio}|${f.properties.depto}`;
+        if (vistos.has(clave)) return false;
+        vistos.add(clave);
+        return true;
+      })
+      .map((f) => ({
+        value: `${f.properties.municipio}|${f.properties.depto}`,
+        nombreCrudo: f.properties.municipio,
+        depto: f.properties.depto,
+        pcia: f.properties.pcia,
+        label:
+          (porNombre.get(f.properties.municipio) ?? 0) > 1
+            ? `${tituloCase(f.properties.municipio)} (${tituloCase(f.properties.depto)})`
+            : tituloCase(f.properties.municipio),
+      }))
+      .sort((a, b) => a.label.localeCompare(b.label));
+  }, [municipios, departamento, provincia]);
+
+  // Reset de municipio si deja de pertenecer al departamento/provincia
+  // elegidos -- misma clave compuesta para detectar cualquiera de los 2
+  // cambios en un solo guard, mismo patrón "ajuste durante el render".
+  const [filtroPrevioMunicipio, setFiltroPrevioMunicipio] = useState(`${provincia}|${departamento}`);
+  const claveFiltroMunicipio = `${provincia}|${departamento}`;
+  if (filtroPrevioMunicipio !== claveFiltroMunicipio) {
+    setFiltroPrevioMunicipio(claveFiltroMunicipio);
+    if (municipio && !municipiosLista.some((m) => m.nombreCrudo === municipio)) setMunicipio("");
+  }
+
   // Sincronización mapa -> UI: al clickear un departamento directamente sobre
   // el mapa (capa de contexto o coroplético), se resuelve su nombre exacto
   // (con tilde) y su provincia, y se reflejan en los selectores de arriba.
@@ -192,6 +262,12 @@ export function ProduccionMapaClient({ produccionPorCiudadAnio }: { produccionPo
   );
 
   const bboxFoco = useMemo((): GeoJSON.FeatureCollection | null => {
+    if (municipio && municipios) {
+      const feats = (municipios.features as unknown as MunicipioFeature[]).filter(
+        (f) => f.properties.municipio === municipio && (!departamento || f.properties.depto_norm === normalizar(departamento))
+      );
+      if (feats.length) return { type: "FeatureCollection", features: feats } as GeoJSON.FeatureCollection;
+    }
     if (departamento && departamentosContexto) {
       // Filtra también por provincia cuando está disponible -- el nombre solo
       // ("Capital", "Concepción") no es único entre provincias.
@@ -207,7 +283,7 @@ export function ProduccionMapaClient({ produccionPorCiudadAnio }: { produccionPo
       if (feats.length) return { type: "FeatureCollection", features: feats } as unknown as GeoJSON.FeatureCollection;
     }
     return null;
-  }, [provincia, departamento, jurisdicciones, departamentosContexto]);
+  }, [provincia, departamento, municipio, jurisdicciones, departamentosContexto, municipios]);
 
   // Memoizado: sin esto, cada render de este componente (p. ej. tildar otro
   // basemap) generaba un array nuevo y disparaba de nuevo el efecto que
@@ -330,6 +406,42 @@ export function ProduccionMapaClient({ produccionPorCiudadAnio }: { produccionPo
               ))}
             </select>
 
+            <select
+              id="mapa-municipio"
+              aria-label="Municipio"
+              value={municipio ? municipiosLista.find((m) => m.nombreCrudo === municipio)?.value ?? "" : ""}
+              onChange={(e) => {
+                const elegido = municipiosLista.find((m) => m.value === e.target.value);
+                if (!elegido) {
+                  setMunicipio("");
+                  return;
+                }
+                setMunicipio(elegido.nombreCrudo);
+                // Resuelve el departamento/provincia "oficiales" (INDEC, con
+                // tilde) a partir del depto/pcia crudos del INYM -- mismo
+                // criterio de normalización que el click sobre el mapa.
+                if (!departamento && departamentosContexto) {
+                  const feats = departamentosContexto.features as unknown as DeptoContextoFeature[];
+                  const match = feats.find((f) => f.properties.nam_norm === normalizar(elegido.depto));
+                  if (match) {
+                    setDepartamento(match.properties.nam);
+                    if (!provincia) {
+                      const provMatch = provincias.find((p) => normalizar(p) === normalizar(match.properties.jur));
+                      if (provMatch) setProvincia(provMatch);
+                    }
+                  }
+                }
+              }}
+              className={SELECT_CLASS}
+            >
+              <option value="">Municipio: todos</option>
+              {municipiosLista.map((m) => (
+                <option key={m.value} value={m.value}>
+                  {m.label}
+                </option>
+              ))}
+            </select>
+
             {(vista === "burbujas" || vista === "flujo") && (
               <select
                 id="mapa-anio"
@@ -413,6 +525,7 @@ export function ProduccionMapaClient({ produccionPorCiudadAnio }: { produccionPo
             basemap={basemap}
             provinciaFiltro={provincia ? provincia.toUpperCase() : null}
             departamentoFiltro={departamento ? normalizar(departamento) : null}
+            municipioFiltro={municipio || null}
             bboxFoco={bboxFoco}
             onSeleccionarDepartamento={manejarClickDepartamentoEnMapa}
             onSeleccionarBurbuja={setCiudadSeleccionada}

@@ -9,8 +9,19 @@ import { MapErrorBoundary } from "@/components/map-error-boundary";
 import { GrupoControl, BasemapToggle, SELECT_CLASS, LEYENDA_CLASS, pillClass } from "@/components/mapa-controles";
 import { campoChoropleto } from "@/lib/gis-resumen";
 import { formatNumero } from "@/lib/format";
+import { tituloCase } from "@/lib/texto";
 import type { Basemap } from "@/lib/basemap";
 import type { CapaCatalogo, GeoFeatureCollection } from "@/lib/types";
+
+// view_superficie_por_municipios (INYM) -- nombres crudos en MAYÚSCULAS sin
+// tilde, distinto de "jurisdicciones" (INDEC, con tilde) que usa el
+// selector de Provincia -- se cruzan con .toUpperCase(), mismo criterio que
+// ya usa provinciaFiltro en <GisMap>.
+interface MunicipioFeature {
+  type: "Feature";
+  geometry: GeoJSON.Geometry;
+  properties: { pcia: string; depto: string; municipio: string; sup_ym: number; superficie: number };
+}
 
 const CATEGORIA_LABELS: Record<string, string> = {
   limites: "Superficie cultivada",
@@ -79,7 +90,9 @@ export function MapaGisClient({
   // (ver Fase 9, C1). Topográfico queda disponible como opción manual.
   const [basemap, setBasemap] = useState<Basemap>("calles");
   const [provincia, setProvincia] = useState<string>(""); // "" = todas
+  const [municipio, setMunicipio] = useState<string>(""); // "" = todos -- nombre crudo (MAYÚSCULAS) de la fuente INYM
   const [jurisdicciones, setJurisdicciones] = useState<GeoJSON.FeatureCollection | null>(null);
+  const [municipios, setMunicipios] = useState<GeoJSON.FeatureCollection | null>(null);
   const [radiosContexto, setRadiosContexto] = useState<GeoJSON.FeatureCollection | null>(null);
   const [transporte, setTransporte] = useState<CapasTransporte>({ vialNacional: null, vialProvincial: null, ferrocarril: null });
   const [transporteActivo, setTransporteActivo] = useState<TransporteActivo>({
@@ -90,6 +103,7 @@ export function MapaGisClient({
 
   useEffect(() => {
     fetchGeo("indec_jurisdicciones").then(setJurisdicciones);
+    fetchGeo("view_superficie_por_municipios").then(setMunicipios);
     fetchGeo("censo2010_radios").then(setRadiosContexto);
     fetchGeo("ign_vial_nacional").then((d) => setTransporte((t) => ({ ...t, vialNacional: d })));
     fetchGeo("ign_vial_provincial").then((d) => setTransporte((t) => ({ ...t, vialProvincial: d })));
@@ -133,13 +147,57 @@ export function MapaGisClient({
     return (jurisdicciones.features as unknown as { properties: { nam: string } }[]).map((f) => f.properties.nam).sort();
   }, [jurisdicciones]);
 
+  // Municipios (INYM) -- cascada por provincia elegida, si no todos. No hay
+  // filtro de departamento en esta vista (Mapa GIS no lo tenía antes),
+  // Provincia -> Municipio directo.
+  const municipiosLista = useMemo(() => {
+    if (!municipios) return [];
+    const feats = municipios.features as unknown as MunicipioFeature[];
+    const filtrados = feats.filter((f) => !provincia || f.properties.pcia.toUpperCase() === provincia.toUpperCase());
+    const porNombre = new Map<string, number>();
+    for (const f of filtrados) porNombre.set(f.properties.municipio, (porNombre.get(f.properties.municipio) ?? 0) + 1);
+    const vistos = new Set<string>();
+    return filtrados
+      .filter((f) => {
+        const clave = `${f.properties.municipio}|${f.properties.depto}`;
+        if (vistos.has(clave)) return false;
+        vistos.add(clave);
+        return true;
+      })
+      .map((f) => ({
+        value: `${f.properties.municipio}|${f.properties.depto}`,
+        nombreCrudo: f.properties.municipio,
+        pcia: f.properties.pcia,
+        label:
+          (porNombre.get(f.properties.municipio) ?? 0) > 1
+            ? `${tituloCase(f.properties.municipio)} (${tituloCase(f.properties.depto)})`
+            : tituloCase(f.properties.municipio),
+      }))
+      .sort((a, b) => a.label.localeCompare(b.label));
+  }, [municipios, provincia]);
+
+  // Reset de municipio si deja de pertenecer a la provincia elegida --
+  // ajuste durante el render, mismo patrón que el resto de los filtros
+  // cascada de este proyecto.
+  const [provinciaPreviaMunicipio, setProvinciaPreviaMunicipio] = useState(provincia);
+  if (provinciaPreviaMunicipio !== provincia) {
+    setProvinciaPreviaMunicipio(provincia);
+    if (municipio && !municipiosLista.some((m) => m.nombreCrudo === municipio)) setMunicipio("");
+  }
+
   const bboxFoco = useMemo((): GeoJSON.FeatureCollection | null => {
+    if (municipio && municipios) {
+      const feats = (municipios.features as unknown as MunicipioFeature[]).filter(
+        (f) => f.properties.municipio === municipio && (!provincia || f.properties.pcia.toUpperCase() === provincia.toUpperCase())
+      );
+      if (feats.length) return { type: "FeatureCollection", features: feats } as GeoJSON.FeatureCollection;
+    }
     if (!provincia || !jurisdicciones) return null;
     const feats = (jurisdicciones.features as unknown as { properties: { nam: string } }[]).filter(
       (f) => f.properties.nam.toUpperCase() === provincia.toUpperCase()
     );
     return feats.length ? ({ type: "FeatureCollection", features: feats } as unknown as GeoJSON.FeatureCollection) : null;
-  }, [provincia, jurisdicciones]);
+  }, [provincia, municipio, jurisdicciones, municipios]);
 
   const campoValor = campoChoropleto(capaActual.categoria, capaActual.geom_type);
   const maxValor = useMemo(() => {
@@ -187,6 +245,36 @@ export function MapaGisClient({
               {provincias.map((p) => (
                 <option key={p} value={p}>
                   {p}
+                </option>
+              ))}
+            </select>
+          </GrupoControl>
+
+          <div className="hidden sm:block w-px self-stretch bg-border" aria-hidden="true" />
+
+          <GrupoControl titulo="Municipio">
+            <select
+              id="mapa-gis-municipio"
+              aria-label="Municipio"
+              value={municipio ? municipiosLista.find((m) => m.nombreCrudo === municipio)?.value ?? "" : ""}
+              onChange={(e) => {
+                const elegido = municipiosLista.find((m) => m.value === e.target.value);
+                if (!elegido) {
+                  setMunicipio("");
+                  return;
+                }
+                setMunicipio(elegido.nombreCrudo);
+                if (!provincia) {
+                  const provMatch = provincias.find((p) => p.toUpperCase() === elegido.pcia.toUpperCase());
+                  if (provMatch) setProvincia(provMatch);
+                }
+              }}
+              className={SELECT_CLASS}
+            >
+              <option value="">Municipio: todos</option>
+              {municipiosLista.map((m) => (
+                <option key={m.value} value={m.value}>
+                  {m.label}
                 </option>
               ))}
             </select>
