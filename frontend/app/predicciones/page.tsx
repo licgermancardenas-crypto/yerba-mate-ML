@@ -5,6 +5,7 @@ import { ChartCard } from "@/components/chart-card";
 import { ReliabilityBadge } from "@/components/reliability-badge";
 import { ForecastBandChart, type PuntoForecast } from "@/components/charts/forecast-band-chart";
 import { RemTipoCambioChart, type PuntoRemTipoCambio } from "@/components/charts/rem-tipo-cambio-chart";
+import { HeatmapTable, type HeatmapTableSerie } from "@/components/heatmap-table";
 import { FooterFuentes } from "@/components/footer-fuentes";
 import { formatNumero } from "@/lib/format";
 import { getHojaVerde, getSalidaMolino, getPredicciones, getRemTipoCambio } from "@/lib/api";
@@ -114,6 +115,21 @@ async function TabProduccion() {
     getPredicciones({ modelo: "modelo1_produccion_zona" }),
   ]);
 
+  const proyeccionesModelo1 = prediccionesCompletas.filter((p) => p.es_pronostico && p.mes != null);
+  const anioProyeccionModelo1 = proyeccionesModelo1.length ? Math.min(...proyeccionesModelo1.map((p) => p.anio)) : undefined;
+  const seriesHeatmapProduccion: HeatmapTableSerie[] = ZONAS.map((zona) => ({
+    id: zona,
+    label: etiquetaZona(zona),
+    puntos: [
+      ...hojaVerdeCompleta
+        .filter((f) => (ZONA_RAW_A_LIMPIA[f.zona] ?? f.zona) === zona)
+        .map((f) => ({ anio: f.anio, mes: f.mes, valor: f.hoja_verde_kg })),
+      ...proyeccionesModelo1
+        .filter((p) => p.dimension === zona)
+        .map((p) => ({ anio: p.anio, mes: p.mes!, valor: p.valor_predicho })),
+    ],
+  }));
+
   return (
     <>
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
@@ -142,6 +158,20 @@ async function TabProduccion() {
           );
         })}
       </div>
+
+      <ChartCard
+        title="Mapa de calor — producción mensual por zona"
+        description="Histórico real (INYM) + los 12 meses de pronóstico del modelo, marcados con una fila divisoria y '(proy.)' -- nunca mezclados sin distinción."
+        className="mt-4"
+      >
+        <HeatmapTable
+          series={seriesHeatmapProduccion}
+          selectorLabel="Zona"
+          formato={{ tipo: "masa", unidad: "kg" }}
+          anioProyeccionDesde={anioProyeccionModelo1}
+        />
+      </ChartCard>
+
       <FooterFuentes tablas={["ym.inym_hoja_verde_zona", "ym.ml_predicciones"]} />
     </>
   );
@@ -158,12 +188,31 @@ async function TabConsumo() {
     .map((f) => ({ anio: f.anio, mes: f.mes, valor: f.interno_kg }));
   const datos = armarSerieMensual(historico, predicciones);
 
+  const proyeccionModelo2 = predicciones.filter((p) => p.es_pronostico && p.mes != null);
+  const anioProyeccionModelo2 = proyeccionModelo2.length ? Math.min(...proyeccionModelo2.map((p) => p.anio)) : undefined;
+  const seriesHeatmapConsumo: HeatmapTableSerie[] = [
+    {
+      id: "interno",
+      label: "Consumo interno",
+      puntos: [...historico, ...proyeccionModelo2.map((p) => ({ anio: p.anio, mes: p.mes!, valor: p.valor_predicho }))],
+    },
+  ];
+
   return (
     <>
       <ChartCard title="Consumo interno (salida de molino al mercado interno)" description="Histórico real + pronóstico 12 meses (SARIMA)">
         <ForecastBandChart data={datos} numberFormat={{ notation: "compact" }} suffix=" kg" />
         <ReliabilityBadge tipo="backtest" texto="MAPE 6,3% (backtest walk-forward, 60 meses) -- el más preciso de los 3 modelos." className="mt-3" />
       </ChartCard>
+
+      <ChartCard
+        title="Mapa de calor — consumo interno mensual"
+        description="Histórico real (INYM) + los 12 meses de pronóstico del modelo, marcados con una fila divisoria y '(proy.)' -- nunca mezclados sin distinción."
+        className="mt-4"
+      >
+        <HeatmapTable series={seriesHeatmapConsumo} formato={{ tipo: "masa", unidad: "kg" }} anioProyeccionDesde={anioProyeccionModelo2} />
+      </ChartCard>
+
       <FooterFuentes tablas={["ym.inym_salida_molino", "ym.ml_predicciones"]} />
     </>
   );

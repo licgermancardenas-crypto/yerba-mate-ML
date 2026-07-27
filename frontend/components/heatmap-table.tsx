@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { Fragment, useState } from "react";
 import { Download } from "lucide-react";
 import { DeltaBadge, deltaClasses } from "@/components/delta-badge";
 import { NoData } from "@/components/no-data";
@@ -57,6 +57,11 @@ interface HeatmapTableProps {
   /** "Zona" | "Destino" | "Origen" | "Serie" -- solo se usa si series.length > 1. */
   selectorLabel?: string;
   defaultEscala?: "fila" | "global";
+  /** Primer año que es pronóstico de modelo (no dato real) -- ese año y los
+   * siguientes se marcan con una fila divisoria + "(proy.)" en el año, para
+   * no mezclar real y estimado sin distinción visual (regla del proyecto,
+   * ver CLAUDE.md). Opcional -- sin esto la tabla es 100% real, como antes. */
+  anioProyeccionDesde?: number;
   className?: string;
 }
 
@@ -149,7 +154,14 @@ function CeldaSinDato({ motivo }: { motivo: string }) {
  * fila/global, y una franja de KPIs (total/promedio/máx/mín del período
  * mostrado). Ver docs de Fase 9/rediseño 2026-07-19 para el detalle de
  * diseño (rampa no monótona, honestidad de NULL en variación mes-a-mes). */
-export function HeatmapTable({ series, formato, selectorLabel, defaultEscala = "fila", className = "" }: HeatmapTableProps) {
+export function HeatmapTable({
+  series,
+  formato,
+  selectorLabel,
+  defaultEscala = "fila",
+  anioProyeccionDesde,
+  className = "",
+}: HeatmapTableProps) {
   // Funciones creadas acá adentro (no pasadas como prop) -- nunca cruzan el
   // límite server/client, así que no disparan el error de serialización.
   const formatearValor = (v: number): string => {
@@ -379,67 +391,78 @@ export function HeatmapTable({ series, formato, selectorLabel, defaultEscala = "
               const filaMax = valoresFila.length ? Math.max(...valoresFila) : 0;
               const total = totalPorAnio.get(anio) ?? null;
               const varPctAnual = varPctPorAnio.get(anio) ?? null;
+              const esProyeccion = anioProyeccionDesde != null && anio >= anioProyeccionDesde;
 
               return (
-                <tr key={anio} className="border-b border-border/60 last:border-0">
-                  <td className="sticky left-0 z-10 bg-card px-3 py-1.5 font-semibold text-card-foreground whitespace-nowrap border-r border-border">
-                    {anio}
-                  </td>
-                  {valoresMes.map((valor, mIdx) => {
-                    const mes = mIdx + 1;
+                <Fragment key={anio}>
+                  {anioProyeccionDesde === anio && (
+                    <tr className="bg-warning/10">
+                      <td colSpan={15} className="px-3 py-1 text-[11px] font-semibold uppercase tracking-wider text-warning">
+                        Proyección — modelo ML, no dato real (ver confiabilidad más abajo)
+                      </td>
+                    </tr>
+                  )}
+                  <tr className={`border-b border-border/60 last:border-0 ${esProyeccion ? "opacity-80" : ""}`}>
+                    <td className="sticky left-0 z-10 bg-card px-3 py-1.5 font-semibold text-card-foreground whitespace-nowrap border-r border-border">
+                      {anio}
+                      {esProyeccion && <span className="ml-1 font-normal text-warning">(proy.)</span>}
+                    </td>
+                    {valoresMes.map((valor, mIdx) => {
+                      const mes = mIdx + 1;
 
-                    if (vista === "variacion") {
-                      const varMom = momPorAnioMes.get(`${anio}-${mes}`) ?? null;
-                      if (valor === null || varMom === null) {
+                      if (vista === "variacion") {
+                        const varMom = momPorAnioMes.get(`${anio}-${mes}`) ?? null;
+                        if (valor === null || varMom === null) {
+                          return (
+                            <CeldaSinDato
+                              key={mIdx}
+                              motivo="Sin dato, o sin mes calendario inmediatamente anterior para comparar"
+                            />
+                          );
+                        }
+                        const redondeado = Math.round(varMom * 10) / 10;
                         return (
-                          <CeldaSinDato
+                          <td
                             key={mIdx}
-                            motivo="Sin dato, o sin mes calendario inmediatamente anterior para comparar"
-                          />
+                            title={`${MESES_ABREV[mIdx]} ${anio} vs. mes anterior`}
+                            className={`px-2 py-1.5 text-center tabular-nums font-medium ${deltaClasses(varMom)}`}
+                          >
+                            {redondeado > 0 ? "+" : ""}
+                            {redondeado.toFixed(1)}%
+                          </td>
                         );
                       }
-                      const redondeado = Math.round(varMom * 10) / 10;
+
+                      if (valor === null) {
+                        return <CeldaSinDato key={mIdx} motivo="Sin dato publicado por la fuente para este período" />;
+                      }
+                      const min = escala === "fila" ? filaMin : globalMin;
+                      const max = escala === "fila" ? filaMax : globalMax;
+                      const paso = pasoColor(valor, min, max);
+                      const { bg, texto } = HEATMAP_VARS[paso];
                       return (
                         <td
                           key={mIdx}
-                          title={`${MESES_ABREV[mIdx]} ${anio} vs. mes anterior`}
-                          className={`px-2 py-1.5 text-center tabular-nums font-medium ${deltaClasses(varMom)}`}
+                          title={`${MESES_ABREV[mIdx]} ${anio}: ${formatearValor(valor)}${esProyeccion ? " (proyección de modelo)" : ""}`}
+                          className="px-2 py-1.5 text-center tabular-nums font-medium"
+                          style={{ backgroundColor: bg, color: texto }}
                         >
-                          {redondeado > 0 ? "+" : ""}
-                          {redondeado.toFixed(1)}%
+                          {formatearValor(valor)}
                         </td>
                       );
-                    }
-
-                    if (valor === null) {
-                      return <CeldaSinDato key={mIdx} motivo="Sin dato publicado por la fuente para este período" />;
-                    }
-                    const min = escala === "fila" ? filaMin : globalMin;
-                    const max = escala === "fila" ? filaMax : globalMax;
-                    const paso = pasoColor(valor, min, max);
-                    const { bg, texto } = HEATMAP_VARS[paso];
-                    return (
-                      <td
-                        key={mIdx}
-                        title={`${MESES_ABREV[mIdx]} ${anio}: ${formatearValor(valor)}`}
-                        className="px-2 py-1.5 text-center tabular-nums font-medium"
-                        style={{ backgroundColor: bg, color: texto }}
-                      >
-                        {formatearValor(valor)}
-                      </td>
-                    );
-                  })}
-                  <td className="px-3 py-1.5 text-right font-semibold tabular-nums text-card-foreground whitespace-nowrap border-l border-border">
-                    {total !== null ? formatearTot(total) : "s/d"}
-                  </td>
-                  <td className="px-3 py-1.5 text-right whitespace-nowrap">
-                    {varPctAnual !== null ? (
-                      <DeltaBadge valor={varPctAnual} base={`vs. ${anios[i - 1]}`} className="text-[11px]" />
-                    ) : (
-                      <span className="text-muted-foreground">—</span>
-                    )}
-                  </td>
-                </tr>
+                    })}
+                    <td className="px-3 py-1.5 text-right font-semibold tabular-nums text-card-foreground whitespace-nowrap border-l border-border">
+                      {total !== null ? formatearTot(total) : "s/d"}
+                    </td>
+                    <td className="px-3 py-1.5 text-right whitespace-nowrap">
+                      {varPctAnual !== null ? (
+                        <DeltaBadge valor={varPctAnual} base={`vs. ${anios[i - 1]}`} className="text-[11px]" />
+                      ) : (
+                        <span className="text-muted-foreground">—</span>
+                      )}
+                    </td>
+                  </tr>
+                </Fragment>
               );
             })}
           </tbody>
