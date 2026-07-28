@@ -255,7 +255,8 @@ export interface CapaCatalogo {
     | "indec_radios_censales"
     | "indec_localidades"
     | "censo_poblacion"
-    | "transporte";
+    | "transporte"
+    | "clusters";
   nivel_espacial:
     | "municipio"
     | "departamento"

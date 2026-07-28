@@ -75,6 +75,24 @@ function expresionColor(campo: string, max: number): maplibregl.ExpressionSpecif
   ];
 }
 
+// Paleta cualitativa (4 hues distintos, sin relación de orden/magnitud
+// entre sí) -- a diferencia de expresionColor (rampa secuencial de un
+// magnitud), acá cluster_id es una categoría, no una cantidad, así que
+// interpolar entre 2 colores sería semánticamente incorrecto (implicaría
+// un orden que no existe). Gris para municipios sin clasificar
+// (cluster_id null, dato incompleto -- nunca se les inventa un cluster).
+export const PALETA_CLUSTERS = ["#2563eb", "#16a34a", "#d97706", "#dc2626"];
+function expresionColorCategorico(campo: string): maplibregl.ExpressionSpecification {
+  return [
+    "match", ["get", campo],
+    0, PALETA_CLUSTERS[0],
+    1, PALETA_CLUSTERS[1],
+    2, PALETA_CLUSTERS[2],
+    3, PALETA_CLUSTERS[3],
+    "#94a3b8",
+  ];
+}
+
 const TRANSPORTE_PAINT: Record<keyof CapasTransporte, { "line-color": string; "line-width": number; "line-dasharray"?: number[] }> = {
   // Rojo carretero clásico -- máximo contraste contra el coroplético verde.
   vialNacional: { "line-color": "#dc2626", "line-width": 1.8 },
@@ -436,7 +454,12 @@ export function GisMap({
             type: "fill",
             source: "capa",
             paint: {
-              "fill-color": campoValor ? expresionColor(campoValor, max) : "#22c55e",
+              "fill-color":
+                campoValor === "cluster_id"
+                  ? expresionColorCategorico(campoValor)
+                  : campoValor
+                    ? expresionColor(campoValor, max)
+                    : "#22c55e",
               "fill-opacity": 0.82,
             },
           },

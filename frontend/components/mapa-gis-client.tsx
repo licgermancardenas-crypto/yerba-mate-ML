@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { Info, Loader2 } from "lucide-react";
-import { GisMap, type CapasTransporte, type TransporteActivo } from "@/components/gis-map";
+import { GisMap, PALETA_CLUSTERS, type CapasTransporte, type TransporteActivo } from "@/components/gis-map";
 import { GisPanel } from "@/components/gis-panel";
 import { MapErrorBoundary } from "@/components/map-error-boundary";
 import { GrupoControl, BasemapToggle, SELECT_CLASS, LEYENDA_CLASS, pillClass } from "@/components/mapa-controles";
@@ -29,6 +29,7 @@ const CATEGORIA_LABELS: Record<string, string> = {
   densidad: "Densidad de plantación",
   consociado: "Cultivo consociado",
   secaderos: "Secaderos",
+  clusters: "Tipología productiva (clusters)",
   indec_jurisdicciones: "INDEC — Provincias",
   indec_departamentos: "INDEC — Departamentos",
   indec_fracciones: "INDEC — Fracciones censales",
@@ -207,6 +208,21 @@ export function MapaGisClient({
 
   const esClusterizada = capaActual.geom_type === "Point";
 
+  // Leyenda de clusters: cluster_id -> cluster_label real de los datos
+  // cargados (el orden/las etiquetas las decide K-means en cada corrida
+  // del script, no son fijas -- se derivan de lo que llegó, no se
+  // hardcodean acá).
+  const clustersLegend = useMemo(() => {
+    if (capaActual.categoria !== "clusters") return [];
+    const porId = new Map<number, string>();
+    for (const f of datos.features) {
+      const id = f.properties.cluster_id;
+      const label = f.properties.cluster_label;
+      if (typeof id === "number" && typeof label === "string" && !porId.has(id)) porId.set(id, label);
+    }
+    return Array.from(porId.entries()).sort((a, b) => a[0] - b[0]);
+  }, [datos, capaActual.categoria]);
+
   return (
     <div className="flex flex-col gap-3">
       <div className="flex flex-col gap-4 rounded-2xl border border-border bg-card p-4 shadow-sm">
@@ -342,7 +358,7 @@ export function MapaGisClient({
             </MapErrorBoundary>
           )}
 
-          {!error && campoValor && (
+          {!error && campoValor && campoValor !== "cluster_id" && (
             <div className={LEYENDA_CLASS}>
               <div className="font-medium text-card-foreground mb-1">
                 {campoValor === "cant" ? "Secaderos por zona" : "Superficie (ha)"}
@@ -357,6 +373,22 @@ export function MapaGisClient({
               <div className="flex justify-between text-muted-foreground mt-0.5">
                 <span>0</span>
                 <span>{formatNumero(maxValor, 0)}</span>
+              </div>
+            </div>
+          )}
+
+          {!error && capaActual.categoria === "clusters" && (
+            <div className={LEYENDA_CLASS}>
+              <div className="font-medium text-card-foreground mb-1.5">Tipología productiva</div>
+              {clustersLegend.map(([id, label]) => (
+                <div key={id} className="flex items-center gap-2 mb-1">
+                  <span className="inline-block w-3 h-3 rounded-sm shrink-0" style={{ backgroundColor: PALETA_CLUSTERS[id] }} />
+                  <span className="text-muted-foreground">{label}</span>
+                </div>
+              ))}
+              <div className="flex items-center gap-2 pt-1 border-t border-border mt-1">
+                <span className="inline-block w-3 h-3 rounded-sm shrink-0" style={{ backgroundColor: "#94a3b8" }} />
+                <span className="text-muted-foreground">Sin clasificar (dato incompleto)</span>
               </div>
             </div>
           )}

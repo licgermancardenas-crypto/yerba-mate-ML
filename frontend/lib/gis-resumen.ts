@@ -110,6 +110,8 @@ export function campoChoropleto(categoria: CapaCatalogo["categoria"], geomType: 
       return "sup_cons";
     case "secaderos":
       return geomType === "MultiPolygon" ? "cant" : null;
+    case "clusters":
+      return "cluster_id";
     default:
       return null;
   }
@@ -154,6 +156,27 @@ export function resumirCapa(capa: CapaCatalogo, datos: GeoFeatureCollection): Re
         .sort((a, b) => b.valor - a.valor)
         .slice(0, 8),
       rankingLabel: "Superficie con cultivo consociado (ha)",
+    };
+  }
+
+  if (capa.categoria === "clusters") {
+    const clasificados = feats.filter((f) => f.properties.cluster_id != null);
+    const porCluster = new Map<string, number>();
+    for (const f of feats) {
+      const label = texto(f.properties.cluster_label) ?? "Sin clasificar";
+      porCluster.set(label, (porCluster.get(label) ?? 0) + 1);
+    }
+    return {
+      totalFeatures,
+      kpis: [
+        { label: "Municipios cargados", valor: nf0(totalFeatures) },
+        { label: "Clasificados", valor: nf0(clasificados.length) },
+        { label: "Grupos (K-means)", valor: nf0(porCluster.size - (porCluster.has("Sin clasificar (dato incompleto)") ? 1 : 0)) },
+      ],
+      ranking: Array.from(porCluster.entries())
+        .map(([nombre, valor]) => ({ nombre, valor }))
+        .sort((a, b) => b.valor - a.valor),
+      rankingLabel: "Municipios por tipología productiva",
     };
   }
 
@@ -237,6 +260,25 @@ export function detalleFeature(capa: CapaCatalogo, props: Record<string, unknown
       ],
       breakdown: parsePares(props.consociado),
       breakdownLabel: "Superficie por tipo de cobertura (ha)",
+    };
+  }
+
+  if (capa.categoria === "clusters") {
+    const clusterLabel = texto(props.cluster_label);
+    return {
+      titulo,
+      subtitulo: clusterLabel,
+      kpis: [
+        ...(props.pct_cultivado != null ? [{ label: "% superficie cultivada", valor: formatPct(numero(props.pct_cultivado)) }] : []),
+        ...(props.pct_alta_densidad != null
+          ? [{ label: "% superficie en alta densidad", valor: formatPct(numero(props.pct_alta_densidad)) }]
+          : []),
+        ...(props.pct_consociado != null
+          ? [{ label: "% superficie con cultivo consociado", valor: formatPct(numero(props.pct_consociado)) }]
+          : []),
+      ],
+      breakdown: [],
+      breakdownLabel: "",
     };
   }
 
