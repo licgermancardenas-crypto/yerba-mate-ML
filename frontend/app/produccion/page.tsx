@@ -107,28 +107,41 @@ export default async function ProduccionPage({
     new Set(anualRealCompleta.filter((f) => f.ciudad !== "(nacional)").map((f) => f.provincia))
   ).sort();
 
-  const produccionPorCiudadAnio = anualRealCompleta
-    .filter((f) => COORDENADAS_CIUDAD[f.ciudad] && f.produccion_kg != null)
-    .map((f) => ({
-      anio: f.anio,
-      ciudad: f.ciudad,
-      provincia: f.provincia,
-      produccion_kg: f.produccion_kg!,
-      lng: COORDENADAS_CIUDAD[f.ciudad][0],
-      lat: COORDENADAS_CIUDAD[f.ciudad][1],
-    }));
+  // AUDITORÍA 2026-07-28: produccion_kg por ciudad en anualRealCompleta era
+  // un prorrateo con % fijo del total nacional (idéntico los 14 años reales,
+  // imposible como medición independiente) -- anulado en la DB (migración
+  // 014). El mapa pasa a usar superficie cultivada real por ciudad
+  // (ym.superficie_productores, real 2010-2020, sin desglose por ciudad más
+  // allá de eso -- ver docs/auditoria_datos.md §7.11) en vez de producción.
+  const superficiePorCiudadDedup = new Map<string, { anio: number; ciudad: string; provincia: string; superficie_ha: number }>();
+  for (const f of superficieCompletas) {
+    if (!COORDENADAS_CIUDAD[f.ciudad] || f.superficie_ha == null) continue;
+    const clave = `${f.anio}|${f.ciudad}`;
+    if (!superficiePorCiudadDedup.has(clave)) {
+      superficiePorCiudadDedup.set(clave, { anio: f.anio, ciudad: f.ciudad, provincia: f.provincia, superficie_ha: f.superficie_ha });
+    }
+  }
+  const superficiePorCiudadAnio = Array.from(superficiePorCiudadDedup.values()).map((f) => ({
+    anio: f.anio,
+    ciudad: f.ciudad,
+    provincia: f.provincia,
+    superficie_ha: f.superficie_ha,
+    lng: COORDENADAS_CIUDAD[f.ciudad][0],
+    lat: COORDENADAS_CIUDAD[f.ciudad][1],
+  }));
   // "Otros" es un bucket de reporte del INYM sin ubicación puntual real (no
   // es una ciudad) -- no puede tener un pin en el mapa. Se calcula cuánto
   // representa, para el último año CON desglose por ciudad (el mapa no
-  // tiene nada que mostrar para años sin desglose, como 2025), para no
-  // dejar la diferencia entre mapa y KPI sin explicar (ver caso E / bug de
-  // mapa vs KPI, docs/auditoria_datos.md §5).
-  const ultimoAnioConCiudades = Math.max(
-    ...anualRealCompleta.filter((f) => f.ciudad !== "(nacional)").map((f) => f.anio)
-  );
-  const otrosUltimoAnio = anualRealCompleta.find(
-    (f) => f.ciudad === "Otros" && f.anio === ultimoAnioConCiudades
-  );
+  // tiene nada que mostrar para años sin desglose), para no dejar la
+  // diferencia entre mapa y KPI sin explicar (ver caso E / bug de mapa vs
+  // KPI, docs/auditoria_datos.md §5).
+  const aniosConSuperficieCiudad = Array.from(superficiePorCiudadDedup.values())
+    .filter((f) => f.ciudad !== "Otros")
+    .map((f) => f.anio);
+  const ultimoAnioConCiudades = aniosConSuperficieCiudad.length ? Math.max(...aniosConSuperficieCiudad) : undefined;
+  const otrosUltimoAnio = ultimoAnioConCiudades
+    ? superficiePorCiudadDedup.get(`${ultimoAnioConCiudades}|Otros`)
+    : undefined;
 
   const filas = anualRealCompleta.filter(
     (f) =>
@@ -328,10 +341,10 @@ export default async function ProduccionPage({
 
       {vista === "mapa" ? (
         <>
-          <ProduccionMapaLoader produccionPorCiudadAnio={produccionPorCiudadAnio} />
-          {otrosUltimoAnio?.produccion_kg != null && (
+          <ProduccionMapaLoader superficiePorCiudadAnio={superficiePorCiudadAnio} />
+          {otrosUltimoAnio?.superficie_ha != null && (
             <p className="text-xs text-muted-foreground mt-2">
-              El mapa no incluye &ldquo;Otros&rdquo; ({formatMasa(otrosUltimoAnio.produccion_kg, unidad)} en{" "}
+              El mapa no incluye &ldquo;Otros&rdquo; ({formatNumero(otrosUltimoAnio.superficie_ha, 0)} ha en{" "}
               {otrosUltimoAnio.anio}) — es un bucket de reporte del INYM sin una ubicación puntual real, no una
               ciudad geolocalizable.
             </p>

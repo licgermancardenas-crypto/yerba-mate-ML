@@ -18,12 +18,12 @@ interface DeptoDatoProps {
 export interface BurbujaSeleccionada {
   ciudad: string;
   provincia: string;
-  produccion_kg: number;
+  superficie_ha: number;
 }
 
 export interface RutaFlujo {
   ciudad: string;
-  produccion_kg: number;
+  superficie_ha: number;
   distancia_km: number;
 }
 
@@ -52,7 +52,7 @@ export function ProduccionPanel({
   departamentosDatos: GeoJSON.FeatureCollection | null;
   deptoNormActivo: string | null;
   deptoEsHover: boolean;
-  burbujas: { ciudad: string; provincia: string; produccion_kg: number }[];
+  burbujas: { ciudad: string; provincia: string; superficie_ha: number }[];
   ciudadActiva: BurbujaSeleccionada | null;
   ciudadEsHover: boolean;
   flujo: RutaFlujo[];
@@ -126,30 +126,30 @@ export function ProduccionPanel({
   }
 
   if (vista === "burbujas") {
-    const total = burbujas.reduce((acc, b) => acc + b.produccion_kg, 0);
-    const lider = [...burbujas].sort((a, b) => b.produccion_kg - a.produccion_kg)[0];
+    const total = burbujas.reduce((acc, b) => acc + b.superficie_ha, 0);
+    const lider = [...burbujas].sort((a, b) => b.superficie_ha - a.superficie_ha)[0];
     const ranking = burbujas
-      .map((b) => ({ nombre: b.ciudad, valor: b.produccion_kg }))
+      .map((b) => ({ nombre: b.ciudad, valor: b.superficie_ha }))
       .sort((a, b) => b.valor - a.valor)
       .slice(0, 8);
 
     let insight: string | null = null;
     if (ciudadActiva) {
-      const participacion = total ? (ciudadActiva.produccion_kg / total) * 100 : 0;
-      const posicion = [...burbujas].sort((a, b) => b.produccion_kg - a.produccion_kg).findIndex((b) => b.ciudad === ciudadActiva.ciudad) + 1;
-      insight = `Representa el ${formatPct(participacion)} de la producción nacional de ${anio}, siendo la ${ordinal(posicion)} ciudad productora de ${burbujas.length}.`;
+      const participacion = total ? (ciudadActiva.superficie_ha / total) * 100 : 0;
+      const posicion = [...burbujas].sort((a, b) => b.superficie_ha - a.superficie_ha).findIndex((b) => b.ciudad === ciudadActiva.ciudad) + 1;
+      insight = `Representa el ${formatPct(participacion)} de la superficie cultivada total de ${anio}, siendo la ${ordinal(posicion)} ciudad por superficie de ${burbujas.length}.`;
     }
 
     return (
       <div className="flex flex-col gap-4 lg:w-[340px] lg:shrink-0">
-        <PanelCard titulo="Resumen de producción" subtitulo={`Ciudades productoras, año ${anio}`}>
-          <KpiRow label="Ciudades con producción" valor={nf0(burbujas.length)} />
-          <KpiRow label="Producción total" valor={`${nf0(total)} kg`} />
-          {lider && <KpiRow label="Ciudad líder" valor={lider.ciudad} />}
+        <PanelCard titulo="Resumen de superficie cultivada" subtitulo={`Ciudades productoras, año ${anio}`}>
+          <KpiRow label="Ciudades con dato" valor={nf0(burbujas.length)} />
+          <KpiRow label="Superficie cultivada total" valor={`${nf0(total)} ha`} />
+          {lider && <KpiRow label="Ciudad con más superficie" valor={lider.ciudad} />}
         </PanelCard>
 
         {ranking.length > 0 && (
-          <PanelCard titulo="Ranking" subtitulo="Producción por ciudad (kg)">
+          <PanelCard titulo="Ranking" subtitulo="Superficie cultivada por ciudad (ha)">
             <RankingChart data={ranking} color={CHART_ORANGE} />
           </PanelCard>
         )}
@@ -161,7 +161,7 @@ export function ProduccionPanel({
             <>
               <div className="text-sm font-semibold text-card-foreground">{ciudadActiva.ciudad}</div>
               <div className="text-xs text-muted-foreground mb-2">{ciudadActiva.provincia}</div>
-              <KpiRow label="Producción" valor={`${nf0(ciudadActiva.produccion_kg)} kg`} />
+              <KpiRow label="Superficie cultivada" valor={`${nf0(ciudadActiva.superficie_ha)} ha`} />
               {insight && (
                 <p className="text-xs text-foreground/80 leading-snug mt-2 pt-2 border-t border-border">{insight}</p>
               )}
@@ -173,7 +173,7 @@ export function ProduccionPanel({
   }
 
   if (vista === "flujo") {
-    const totalProd = flujo.reduce((acc, f) => acc + f.produccion_kg, 0);
+    const totalProd = flujo.reduce((acc, f) => acc + f.superficie_ha, 0);
     const distProm = flujo.length ? flujo.reduce((acc, f) => acc + f.distancia_km, 0) / flujo.length : 0;
     const masLejos = [...flujo].sort((a, b) => b.distancia_km - a.distancia_km)[0];
     const ranking = flujo
@@ -194,7 +194,7 @@ export function ProduccionPanel({
           <KpiRow label="Rutas calculadas" valor={nf0(flujo.length)} />
           <KpiRow label="Distancia promedio" valor={`${formatNumero(distProm, 1)} km`} />
           {masLejos && <KpiRow label="Ciudad más alejada de un secadero" valor={masLejos.ciudad} />}
-          <KpiRow label="Producción total de origen" valor={`${nf0(totalProd)} kg`} />
+          <KpiRow label="Superficie cultivada total de origen" valor={`${nf0(totalProd)} ha`} />
         </PanelCard>
 
         {ranking.length > 0 && (
@@ -210,7 +210,7 @@ export function ProduccionPanel({
             <>
               <div className="text-sm font-semibold text-card-foreground mb-2">{rutaActiva.ciudad}</div>
               <KpiRow label="Distancia en línea recta" valor={`${formatNumero(rutaActiva.distancia_km, 1)} km`} />
-              <KpiRow label="Producción de origen" valor={`${nf0(rutaActiva.produccion_kg)} kg`} />
+              <KpiRow label="Superficie cultivada de origen" valor={`${nf0(rutaActiva.superficie_ha)} ha`} />
               {insight && (
                 <p className="text-xs text-foreground/80 leading-snug mt-2 pt-2 border-t border-border">{insight}</p>
               )}

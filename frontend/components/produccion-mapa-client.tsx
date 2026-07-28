@@ -38,11 +38,15 @@ interface MunicipioFeature {
   };
 }
 
-interface ProduccionPorCiudadAnio {
+// AUDITORÍA 2026-07-28: produccion_kg por ciudad era un prorrateo fijo del
+// total nacional (ver docs/auditoria_datos.md), anulado -- las burbujas
+// usan superficie cultivada real por ciudad (ym.superficie_productores,
+// real 2010-2020) en su lugar.
+interface SuperficiePorCiudadAnio {
   anio: number;
   ciudad: string;
   provincia: string;
-  produccion_kg: number;
+  superficie_ha: number;
   lng: number;
   lat: number;
 }
@@ -76,10 +80,10 @@ const VISTAS: { id: VistaMapa; label: string; icon: typeof MapIcon }[] = [
   { id: "flujo", label: "Flujo", icon: Route },
 ];
 
-export function ProduccionMapaClient({ produccionPorCiudadAnio }: { produccionPorCiudadAnio: ProduccionPorCiudadAnio[] }) {
+export function ProduccionMapaClient({ superficiePorCiudadAnio }: { superficiePorCiudadAnio: SuperficiePorCiudadAnio[] }) {
   const anios = useMemo(
-    () => Array.from(new Set(produccionPorCiudadAnio.map((f) => f.anio))).sort((a, b) => a - b),
-    [produccionPorCiudadAnio]
+    () => Array.from(new Set(superficiePorCiudadAnio.map((f) => f.anio))).sort((a, b) => a - b),
+    [superficiePorCiudadAnio]
   );
   const [anio, setAnio] = useState(anios[anios.length - 1]);
   const [vista, setVista] = useState<VistaMapa>("coropletico");
@@ -290,10 +294,10 @@ export function ProduccionMapaClient({ produccionPorCiudadAnio }: { produccionPo
   // reconstruye la capa de burbujas en produccion-mapa.tsx sin necesidad.
   const burbujas: BurbujaProduccion[] = useMemo(
     () =>
-      produccionPorCiudadAnio
+      superficiePorCiudadAnio
         .filter((f) => f.anio === anio)
-        .map((f) => ({ ciudad: f.ciudad, provincia: f.provincia, produccion_kg: f.produccion_kg, lng: f.lng, lat: f.lat })),
-    [produccionPorCiudadAnio, anio]
+        .map((f) => ({ ciudad: f.ciudad, provincia: f.provincia, superficie_ha: f.superficie_ha, lng: f.lng, lat: f.lat })),
+    [superficiePorCiudadAnio, anio]
   );
 
   // Flow map: cada ciudad productora -> su secadero más cercano en línea recta.
@@ -325,7 +329,7 @@ export function ProduccionMapaClient({ produccionPorCiudadAnio }: { produccionPo
             [mejor.geometry.coordinates[0], mejor.geometry.coordinates[1]],
           ],
         },
-        properties: { ciudad: b.ciudad, produccion_kg: b.produccion_kg, distancia_km: mejorDist },
+        properties: { ciudad: b.ciudad, superficie_ha: b.superficie_ha, distancia_km: mejorDist },
       };
     });
     return { type: "FeatureCollection", features };
@@ -354,7 +358,7 @@ export function ProduccionMapaClient({ produccionPorCiudadAnio }: { produccionPo
     vista === "coropletico"
       ? "Color = % de superficie departamental cultivada con yerba mate (gris = sin dato en el INYM). Click en un departamento para seleccionarlo."
       : vista === "burbujas"
-      ? `Producción por ciudad, año ${anio} — el tamaño del círculo es proporcional a los kg producidos.`
+      ? `Superficie cultivada por ciudad, año ${anio} — el tamaño del círculo es proporcional a las hectáreas cultivadas (produccion_kg por ciudad resultó ser un prorrateo, no dato real -- ver docs/auditoria_datos.md).`
       : vista === "heatmap"
       ? `Densidad de ${nSecaderos} secaderos/plantas de secado del INYM — degradé de concentración, no puntos individuales.`
       : vista === "secaderos"
@@ -593,13 +597,13 @@ export function ProduccionMapaClient({ produccionPorCiudadAnio }: { produccionPo
 
         {vista === "burbujas" && (
           <div className={LEYENDA_CLASS}>
-            <div className="font-medium text-card-foreground mb-1.5">Producción por ciudad</div>
+            <div className="font-medium text-card-foreground mb-1.5">Superficie cultivada por ciudad</div>
             <div className="flex items-end gap-2">
               <span className="rounded-full" style={{ width: 8, height: 8, backgroundColor: "#ea580c" }} />
               <span className="rounded-full" style={{ width: 16, height: 16, backgroundColor: "#ea580c" }} />
               <span className="rounded-full" style={{ width: 26, height: 26, backgroundColor: "#ea580c" }} />
             </div>
-            <div className="text-muted-foreground mt-1">Menor → mayor volumen (kg)</div>
+            <div className="text-muted-foreground mt-1">Menor → mayor superficie (ha)</div>
           </div>
         )}
 
@@ -608,7 +612,7 @@ export function ProduccionMapaClient({ produccionPorCiudadAnio }: { produccionPo
             <div className="font-medium text-card-foreground mb-1.5">Flujo ciudad → secadero</div>
             <div className="flex items-center gap-2 mb-1">
               <span className="inline-block w-6 h-0.5" style={{ backgroundColor: "#1d4ed8" }} />
-              <span className="text-muted-foreground">Grosor ∝ producción de origen</span>
+              <span className="text-muted-foreground">Grosor ∝ superficie cultivada de origen</span>
             </div>
             <div className="text-muted-foreground italic leading-snug">Proximidad geográfica, no ruta logística verificada.</div>
           </div>

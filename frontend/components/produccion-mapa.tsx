@@ -10,10 +10,14 @@ import { fitBoundsA, popupHTML } from "@/lib/mapa-geo-utils";
 export type { Basemap };
 export type VistaMapa = "coropletico" | "secaderos" | "heatmap" | "burbujas" | "flujo";
 
+// AUDITORÍA 2026-07-28: superficie_ha por ciudad era un prorrateo fijo del
+// total nacional (docs/auditoria_datos.md), anulado -- las burbujas usan
+// superficie cultivada real por ciudad (ym.superficie_productores) en
+// lugar de producción.
 export interface BurbujaProduccion {
   ciudad: string;
   provincia: string;
-  produccion_kg: number;
+  superficie_ha: number;
   lng: number;
   lat: number;
 }
@@ -43,15 +47,15 @@ interface Props {
   onSeleccionarDepartamento?: (deptoNorm: string) => void;
   // Alimentan el panel lateral de KPIs/gráficos (ProduccionPanel) cuando el
   // usuario clickea una burbuja o una línea de flujo.
-  onSeleccionarBurbuja?: (b: { ciudad: string; provincia: string; produccion_kg: number }) => void;
-  onSeleccionarFlujo?: (r: { ciudad: string; produccion_kg: number; distancia_km: number }) => void;
+  onSeleccionarBurbuja?: (b: { ciudad: string; provincia: string; superficie_ha: number }) => void;
+  onSeleccionarFlujo?: (r: { ciudad: string; superficie_ha: number; distancia_km: number }) => void;
   // Scrubbing en vivo: se disparan con cada feature nueva que el mouse
   // sobrevuela (no con cada pixel -- se dedupea por id) y con `null` al
   // salir de la capa, para que el panel lateral reaccione mientras el
   // usuario mueve el mouse, no solo al hacer click.
   onHoverDepartamento?: (deptoNorm: string | null) => void;
-  onHoverBurbuja?: (b: { ciudad: string; provincia: string; produccion_kg: number } | null) => void;
-  onHoverFlujo?: (r: { ciudad: string; produccion_kg: number; distancia_km: number } | null) => void;
+  onHoverBurbuja?: (b: { ciudad: string; provincia: string; superficie_ha: number } | null) => void;
+  onHoverFlujo?: (r: { ciudad: string; superficie_ha: number; distancia_km: number } | null) => void;
 }
 
 const CENTRO_INICIAL = CENTRO_ZONA_YERBATERA;
@@ -72,7 +76,7 @@ function crearPuntosBurbujas(burbujas: BurbujaProduccion[]): GeoJSON.FeatureColl
       (b): GeoJSON.Feature<GeoJSON.Point> => ({
         type: "Feature",
         geometry: { type: "Point", coordinates: [b.lng, b.lat] },
-        properties: { ciudad: b.ciudad, provincia: b.provincia, produccion_kg: b.produccion_kg },
+        properties: { ciudad: b.ciudad, provincia: b.provincia, superficie_ha: b.superficie_ha },
       })
     ),
   };
@@ -212,10 +216,10 @@ export function ProduccionMapa({
     map.on("click", "burbujas-puntos", (e) => {
       const f = e.features?.[0];
       if (!f) return;
-      const p = f.properties as { ciudad: string; provincia: string; produccion_kg: number };
+      const p = f.properties as { ciudad: string; provincia: string; superficie_ha: number };
       popupRef.current
         ?.setLngLat(e.lngLat)
-        .setHTML(popupHTML(p.ciudad, p.provincia, [{ label: "Producción", valor: `${nf0.format(p.produccion_kg)} kg` }]))
+        .setHTML(popupHTML(p.ciudad, p.provincia, [{ label: "Superficie cultivada", valor: `${nf0.format(p.superficie_ha)} ha` }]))
         .addTo(map);
       onSeleccionarBurbujaRef.current?.(p);
     });
@@ -224,7 +228,7 @@ export function ProduccionMapa({
       const f = e.features?.[0];
       if (!f || f.id === hoverBurbujaIdRef.current) return;
       hoverBurbujaIdRef.current = f.id ?? null;
-      onHoverBurbujaRef.current?.(f.properties as { ciudad: string; provincia: string; produccion_kg: number });
+      onHoverBurbujaRef.current?.(f.properties as { ciudad: string; provincia: string; superficie_ha: number });
     });
     map.on("mouseleave", "burbujas-puntos", () => {
       hoverBurbujaIdRef.current = null;
@@ -234,7 +238,7 @@ export function ProduccionMapa({
     map.on("click", "flujo-lineas", (e) => {
       const f = e.features?.[0];
       if (!f) return;
-      const p = f.properties as { ciudad: string; distancia_km: number; produccion_kg: number };
+      const p = f.properties as { ciudad: string; distancia_km: number; superficie_ha: number };
       popupRef.current
         ?.setLngLat(e.lngLat)
         .setHTML(
@@ -243,7 +247,7 @@ export function ProduccionMapa({
             "Secadero más cercano",
             [
               { label: "Distancia en línea recta", valor: `${nf1.format(p.distancia_km)} km` },
-              { label: "Producción de origen", valor: `${nf0.format(p.produccion_kg)} kg` },
+              { label: "Superficie cultivada de origen", valor: `${nf0.format(p.superficie_ha)} ha` },
             ],
             "Proximidad geográfica calculada, no es una ruta logística verificada."
           )
@@ -256,7 +260,7 @@ export function ProduccionMapa({
       const f = e.features?.[0];
       if (!f || f.id === hoverFlujoIdRef.current) return;
       hoverFlujoIdRef.current = f.id ?? null;
-      onHoverFlujoRef.current?.(f.properties as { ciudad: string; produccion_kg: number; distancia_km: number });
+      onHoverFlujoRef.current?.(f.properties as { ciudad: string; superficie_ha: number; distancia_km: number });
     });
     map.on("mouseleave", "flujo-lineas", () => {
       hoverFlujoIdRef.current = null;
@@ -599,7 +603,7 @@ export function ProduccionMapa({
       if (map.getSource("burbujas")) map.removeSource("burbujas");
       if (!burbujas || burbujas.length === 0) return;
 
-      const maxProd = Math.max(1, ...burbujas.map((b) => b.produccion_kg));
+      const maxProd = Math.max(1, ...burbujas.map((b) => b.superficie_ha));
       map.addSource("burbujas", { type: "geojson", data: crearPuntosBurbujas(burbujas) });
 
       map.addLayer({
@@ -607,7 +611,7 @@ export function ProduccionMapa({
         type: "circle",
         source: "burbujas",
         paint: {
-          "circle-radius": ["interpolate", ["linear"], ["get", "produccion_kg"], 0, 12, maxProd, 60],
+          "circle-radius": ["interpolate", ["linear"], ["get", "superficie_ha"], 0, 12, maxProd, 60],
           "circle-color": "#f59e0b",
           "circle-opacity": 0.15,
         },
@@ -617,7 +621,7 @@ export function ProduccionMapa({
         type: "circle",
         source: "burbujas",
         paint: {
-          "circle-radius": ["interpolate", ["linear"], ["get", "produccion_kg"], 0, 6, maxProd, 32],
+          "circle-radius": ["interpolate", ["linear"], ["get", "superficie_ha"], 0, 6, maxProd, 32],
           "circle-color": "#ea580c",
           "circle-opacity": 0.85,
           "circle-stroke-width": 1.5,
@@ -654,7 +658,7 @@ export function ProduccionMapa({
       if (map.getSource("flujo")) map.removeSource("flujo");
       if (!flujo || flujo.features.length === 0) return;
 
-      const volumenes = flujo.features.map((f) => (f.properties?.produccion_kg as number) ?? 0);
+      const volumenes = flujo.features.map((f) => (f.properties?.superficie_ha as number) ?? 0);
       const max = Math.max(1, ...volumenes);
 
       map.addSource("flujo", { type: "geojson", data: flujo });
@@ -665,7 +669,7 @@ export function ProduccionMapa({
         layout: { "line-cap": "round" },
         paint: {
           "line-color": "#1d4ed8",
-          "line-width": ["interpolate", ["linear"], ["get", "produccion_kg"], 0, 1.5, max, 9],
+          "line-width": ["interpolate", ["linear"], ["get", "superficie_ha"], 0, 1.5, max, 9],
           "line-opacity": 0.65,
         },
       });

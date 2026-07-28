@@ -480,6 +480,39 @@ de prensa del total nacional actual (2024: 9.709 productores, Misiones 9.112 + C
 Nuestra suma de las 7 "ciudades" en 2024 da 9.334 (Δ 3,9%), orden de magnitud razonable pero sin
 fuente citable por partida. Se deja como está (categoría B débil, sin cambios en la DB).
 
+### 7.12 — `dataset_principal_anual.produccion_kg` por ciudad: prorrateo fijo, no medición real (2026-07-28)
+
+Encontrado investigando un pedido de gráfico de "rendimiento por ciudad" (producción/superficie).
+El comentario de la tabla ya advertía desde julio que el desglose por ciudad "NO tiene validación
+independiente propia a nivel ciudad" (caso E de esta auditoría) — pero nunca se había confirmado
+si además era directamente **fabricado**, más allá de "sin validar".
+
+**Confirmado con SQL directo**: el % que cada una de las 7 ciudades representa del total nacional de
+`produccion_kg` es **exactamente idéntico los 14 años reales** (2011-2024), sin variar ni 0,01 punto
+porcentual — Apóstoles siempre 52,20%, Colonia Liebig siempre 6,89%, Gobernador Virasoro siempre
+6,11%, Montecarlo siempre 13,05%, Oberá siempre 6,09%, Otros siempre 6,96%, Santo Pipó siempre 8,70%.
+Matemáticamente imposible como medición independiente (la producción real de una ciudad no puede
+mantener una participación perfectamente constante 14 años seguidos, mucho menos con 4 decimales de
+precisión) — es el total nacional (real, validado en la auditoría original) repartido con un %
+fijo heredado del batch de scaffolding sin fuente documentada.
+
+Consecuencia detectada al cruzar contra `ym.superficie_productores` (real, 2010-2020): el
+"rendimiento" (kg/ha) calculado dividiendo este `produccion_kg` fabricado por la superficie real
+daba el mismo valor exacto para ciudades con superficies completamente distintas (Apóstoles
+103.140 ha vs. Oberá 12.033 ha, mismo rendimiento) — el artefacto que disparó la investigación.
+
+**Acción**: migración `014_produccion_ciudad_prorrateo_2026-07-28.sql` anula (NULL) `produccion_kg`
+en las filas por ciudad (`ciudad != '(nacional)'`); la fila `(nacional)` no se toca, sigue siendo
+real. `consumo_interno_kg`/`exportaciones_kg`/`valor_fob_usd` por ciudad en esta misma tabla **no**
+se verificaron todavía — mismo patrón sospechoso posible, queda pendiente de una revisión futura,
+no se asume que estén bien ni que estén mal.
+
+**Frontend afectado**: la vista "Burbujas" y "Flujo" del mapa de Producción (`/produccion?vista=mapa`)
+y el KPI "Ciudad líder"/ranking del panel lateral usaban este dato -- reemplazados por superficie
+cultivada real por ciudad (`ym.superficie_productores`, real 2010-2020) en el mismo commit. El rango
+de años disponible en esas 2 vistas se redujo de 2011-2024 a 2010-2020 como consecuencia directa (no
+hay superficie real por ciudad más allá de 2020, ver §7.11 arriba).
+
 ---
 
 ## 8. Sobre `backend/etl/audit_datos.py`
