@@ -27,6 +27,14 @@ const COBERTURA_LABELS: Record<string, string> = {
   parcial: "dato parcial, sin ranking completo",
 };
 
+/** "2021, 2024 y 2025" en vez de "2021 y 2024 y 2025" -- Array.join(" y ")
+ * solo se veía bien con 2 elementos, dejó de andar cuando se cargó un
+ * 3er año real. */
+function listaEnEspanol(items: (string | number)[]): string {
+  if (items.length <= 1) return items.join("");
+  return `${items.slice(0, -1).join(", ")} y ${items[items.length - 1]}`;
+}
+
 export default async function CompetenciaPage({
   searchParams,
 }: {
@@ -107,6 +115,14 @@ export default async function CompetenciaPage({
   const aniosExcluidosDelChart = anios.length - dataChart.length;
 
   const lider = conDatoUltimoAnio[0];
+  const segundo = conDatoUltimoAnio[1];
+  // Margen del 1° sobre el 2° -- solo tiene sentido mostrarlo cuando el año
+  // tiene cobertura real de ranking (top20_de_65), no con 1-2 empresas
+  // sueltas donde "2°" podría ni ser el verdadero segundo del mercado.
+  const margenSobreSegundo =
+    lider && segundo && filasUltimoAnio.find((f) => f.cobertura_ranking)?.cobertura_ranking === "top20_de_65"
+      ? lider.cuota_mercado_pct! - segundo.cuota_mercado_pct!
+      : null;
   const cuotaTop4 = topEmpresas.reduce(
     (acc, empresa) => acc + (conDatoUltimoAnio.find((f) => f.empresa === empresa)?.cuota_mercado_pct ?? 0),
     0
@@ -163,15 +179,18 @@ export default async function CompetenciaPage({
         <AlertTriangle size={18} className="text-accent shrink-0 mt-0.5" aria-hidden="true" />
         <p className="text-xs text-muted-foreground">
           <strong className="text-card-foreground">Auditoría 2026-07-04:</strong> el histórico 2011-2024 que se mostraba antes era relleno
-          sintético sin fuente real (ver <code>docs/fuentes_competencia.md</code>). Solo se cargaron{" "}
-          {aniosConDatoReal.join(" y ")} con ranking publicado y citado. 2022-2024 quedan sin dato (no inventado) — coincide con la
-          desregulación del sector (DNU 70/2023, dic-2023); no se puede graficar ese quiebre hasta conseguir los rankings de esos años.
+          sintético sin fuente real (ver <code>docs/fuentes_competencia.md</code>). Solo hay dato real y citado para{" "}
+          {listaEnEspanol(aniosConDatoReal)} — el resto de 2011-2024 queda sin dato (no inventado), no porque no exista el
+          mercado sino porque no se encontró todavía un ranking publicado citable para esos años.
         </p>
       </div>
 
       {lider && (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4 mb-6">
           <KpiCard label={`Líder de mercado ${ultimoAnio}`} value={`${lider.empresa} (${formatPct(lider.cuota_mercado_pct!)})`} icon={Crown} destacado />
+          {margenSobreSegundo != null && segundo && (
+            <KpiCard label={`Margen sobre ${segundo.empresa}`} value={`+${formatPct(margenSobreSegundo)}`} icon={Crown} />
+          )}
           <GaugeCard label={`Concentración top ${TOP_N}`} valorPct={cuotaTop4} icon={Building2} color="var(--color-accent)" />
           <KpiCard
             label={`HHI ${ultimoAnio}`}
