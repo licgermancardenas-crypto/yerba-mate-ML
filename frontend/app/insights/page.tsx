@@ -39,7 +39,7 @@ import {
   calcularVarPct,
 } from "@/lib/agregaciones";
 import { calcularConcentracion } from "@/lib/metricas-competencia";
-import { ZONAS, etiquetaZona } from "@/lib/zonas";
+import { ZONAS, ZONA_RAW_A_LIMPIA, etiquetaZona } from "@/lib/zonas";
 
 const CHAPTERS: InsightTocItem[] = [
   { id: "panorama", numero: "01", label: "Panorama" },
@@ -150,6 +150,54 @@ export default async function InsightsPage() {
   }
   const volatilidadPre = desviacionEstandar(variacionesMensuales(serieRealConMes.filter((f) => esAntesDeDesregulacion(f.anio, f.mes))));
   const volatilidadPost = desviacionEstandar(variacionesMensuales(serieRealConMes.filter((f) => !esAntesDeDesregulacion(f.anio, f.mes))));
+
+  // Producción por zona, antes/después del DNU 70/23 -- nivel + amplitud
+  // estacional. La volatilidad mes-a-mes (mismo método que precio, arriba)
+  // rompe acá: producción tiene meses de valle casi en cero (oct-nov,
+  // herencia de la veda histórica) -- dividir por un mes previo cercano a
+  // cero da variaciones de miles de %, verificado con SQL directo antes de
+  // usar esto (probado y descartado). En su lugar, índice estacional
+  // (valor_mes / promedio_del_año * 100), mismo criterio ya validado en
+  // "estacionalidad de precio real" (jul 2026).
+  function indiceEstacionalPorAnio(puntos: { anio: number; mes: number; valor: number }[]) {
+    const porAnio = new Map<number, number[]>();
+    for (const p of puntos) {
+      const arr = porAnio.get(p.anio) ?? [];
+      arr.push(p.valor);
+      porAnio.set(p.anio, arr);
+    }
+    const promedios = new Map<number, number>();
+    for (const [anio, valores] of porAnio) {
+      if (valores.length >= 10) promedios.set(anio, valores.reduce((a, b) => a + b, 0) / valores.length);
+    }
+    return puntos
+      .filter((p) => promedios.has(p.anio) && promedios.get(p.anio)! > 0)
+      .map((p) => ({ anio: p.anio, mes: p.mes, indice: (p.valor / promedios.get(p.anio)!) * 100 }));
+  }
+  const produccionPorZonaDesregulacion = ZONAS.map((zona) => {
+    const puntos = hojaVerdeCompleta
+      .filter((f) => (ZONA_RAW_A_LIMPIA[f.zona] ?? f.zona) === zona)
+      .map((f) => ({ anio: f.anio, mes: f.mes, valor: f.hoja_verde_kg }));
+    const antes = puntos.filter((p) => esAntesDeDesregulacion(p.anio, p.mes)).map((p) => p.valor);
+    const despues = puntos.filter((p) => !esAntesDeDesregulacion(p.anio, p.mes)).map((p) => p.valor);
+    const promedioAntes = antes.length ? antes.reduce((a, b) => a + b, 0) / antes.length : null;
+    const promedioDespues = despues.length ? despues.reduce((a, b) => a + b, 0) / despues.length : null;
+    const cambioPct = promedioAntes && promedioDespues ? ((promedioDespues - promedioAntes) / promedioAntes) * 100 : null;
+
+    const indices = indiceEstacionalPorAnio(puntos);
+    const indicesAntes = indices.filter((p) => esAntesDeDesregulacion(p.anio, p.mes)).map((p) => p.indice);
+    const indicesDespues = indices.filter((p) => !esAntesDeDesregulacion(p.anio, p.mes)).map((p) => p.indice);
+    const amplitudAntes = indicesAntes.length >= 12 ? desviacionEstandar(indicesAntes) : null;
+    const amplitudDespues = indicesDespues.length >= 12 ? desviacionEstandar(indicesDespues) : null;
+
+    return { zona, cambioPct, amplitudAntes, amplitudDespues };
+  });
+  const corrientesDesregulacion = produccionPorZonaDesregulacion.find((z) => z.zona === "CORRIENTES");
+  const noresteDesregulacion = produccionPorZonaDesregulacion.find((z) => z.zona === "NORESTE");
+  const zonasConAmplitudComparable = produccionPorZonaDesregulacion.filter(
+    (z) => z.amplitudAntes != null && z.amplitudDespues != null
+  );
+  const zonasConMasAmplitud = zonasConAmplitudComparable.filter((z) => z.amplitudDespues! > z.amplitudAntes!).length;
 
   const corrientesOctubre2025 = hojaVerdeCompleta.find((f) => f.zona === "CORRIENTES" && f.anio === 2025 && f.mes === 10);
   const corrientesOctubreHistorico = hojaVerdeCompleta.filter(
@@ -366,6 +414,25 @@ export default async function InsightsPage() {
                 (es un solo dato, la zona volvió a valores normales en noviembre).
               </p>
             )}
+            <p>
+              Comparando las 6 zonas completas antes vs. después del DNU 70/23 (no solo ese mes puntual), el
+              panorama es mixto, no un cambio parejo: Corrientes y Noreste crecieron con fuerza en producción
+              promedio mensual, mientras Centro y Sur se mantuvieron estables o cayeron levemente. La amplitud
+              estacional (qué tan marcado es el pico-valle dentro del año) subió en{" "}
+              {zonasConMasAmplitud} de {zonasConAmplitudComparable.length} zonas comparables — tampoco un patrón único.
+            </p>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 not-prose my-4">
+              <KpiCard
+                label="Producción Corrientes, antes → después DNU 70/23"
+                value={corrientesDesregulacion?.cambioPct != null ? `${corrientesDesregulacion.cambioPct >= 0 ? "+" : ""}${formatNumero(corrientesDesregulacion.cambioPct, 1)}%` : "s/d"}
+                icon={Sprout}
+              />
+              <KpiCard
+                label="Producción Noreste, antes → después DNU 70/23"
+                value={noresteDesregulacion?.cambioPct != null ? `${noresteDesregulacion.cambioPct >= 0 ? "+" : ""}${formatNumero(noresteDesregulacion.cambioPct, 1)}%` : "s/d"}
+                icon={Sprout}
+              />
+            </div>
             <p>
               La volatilidad del precio real de la hoja verde subió tras el DNU 70/23:{" "}
               <strong>{volatilidadPre != null ? `±${formatNumero(volatilidadPre, 1)} p.p./mes` : "s/d"}</strong> antes
