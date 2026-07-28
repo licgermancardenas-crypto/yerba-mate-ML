@@ -513,6 +513,53 @@ cultivada real por ciudad (`ym.superficie_productores`, real 2010-2020) en el mi
 de años disponible en esas 2 vistas se redujo de 2011-2024 a 2010-2020 como consecuencia directa (no
 hay superficie real por ciudad más allá de 2020, ver §7.11 arriba).
 
+### 7.13 — `consumo_interno_kg`/`exportaciones_kg`/`valor_fob_usd` por ciudad: mismo prorrateo, + una regresión real causada al arreglar §7.12 (2026-07-28)
+
+A pedido explícito del usuario ("check si consumo_interno_kg y exportaciones_kg tienen el mismo
+problema"), tras cerrar §7.12. Confirmado con el mismo método: el % de cada ciudad es **idéntico a
+4 decimales los 14 años** (2011-2024) para las 3 columnas, exactamente los mismos 7 porcentajes que
+`produccion_kg` (52,20% / 6,89% / 6,11% / 13,05% / 6,09% / 6,96% / 8,70%) -- mismo prorrateo fijo,
+mismo origen sin fuente documentada.
+
+**Bug real detectado antes de repetir el error de §7.12**: al revisar cómo el frontend arma el total
+NACIONAL para años sin fila `(nacional)` explícita (`agregarProduccionAnualNacional` en
+`lib/agregaciones.ts`), se encontró que la migración 014 (§7.12) había roto el KPI/tabla/chart de
+"Producción" para **2011-2024 en el sitio en vivo** -- la función sumaba las 7 filas por ciudad
+cuando no había fila nacional explícita (solo 2025 la tenía), y al anular `produccion_kg` por ciudad
+esa suma pasó a dar `NULL` para los 14 años. Confirmado el impacto real contra el backend en
+producción antes de arreglar (no asumido).
+
+**Fix (migración `015`)**: en vez de repetir el mismo error para estas 3 columnas, se armó la
+migración en el orden correcto -- primero SE CAPTURA la suma real de las 7 ciudades (ya validada
+como total nacional real desde julio) para `consumo_interno_kg`/`exportaciones_kg`/`valor_fob_usd`,
+se inserta como fila `(nacional)` explícita para 2011-2024 (antes solo existía para 2025), y RECIÉN
+DESPUÉS se anula el desglose por ciudad. Mismo tratamiento retroactivo para `produccion_kg`
+(ya anulado por la 014 sin guardar el total primero): recuperado para **2012-2024** desde
+`ym.inym_hoja_verde_zona` zona=`'TOTAL'` (fuente real independiente, ya usada en otras partes de la
+plataforma) -- coincide casi exacto con los totales que sumaban las 7 ciudades antes de anularse
+(diferencia de un dígito la mayoría de los años; 2012 es la excepción real, con ~2,3% de diferencia,
+sin explicación adicional investigada, ambas cifras igual de reales). **2011 queda con
+`produccion_kg` nacional en `NULL`** -- no existe esa fuente para 2011 (el PDF anual de ese año dio
+0 filas usables en el scraping de Fase 3c) y el valor original ya se había perdido en la 014 --
+nunca se inventa un número para taparlo.
+
+`precio_usd_kg_promedio` no forma parte de este prorrateo (las 7 ciudades ya tenían el MISMO valor
+cada una -- consistente con ser un precio nacional único aplicado a cada fila, no una variación
+inventada por ciudad) pero las filas `(nacional)` nuevas no lo traían -- completado con el promedio
+real de las filas por ciudad (matemáticamente equivalente, todas valen lo mismo).
+
+**Con esto, `ym.dataset_principal_anual` tiene fila `(nacional)` explícita para los 15 años
+completos (2011-2025)** -- el fallback de sumar filas por ciudad en el frontend queda sin uso real
+de ahora en más, pero no se removió el código (documentado para que no vuelva a fallar en silencio
+si en el futuro se anula algo más de esta tabla sin agregar la fila nacional primero).
+
+**Why (lección para el futuro):** antes de anular cualquier columna que el frontend pueda estar
+sumando como fallback quedan 2 pasos obligatorios, en este orden -- (1) capturar/guardar el total
+agregado real ANTES de anular nada, (2) verificar en el código frontend si hay alguna lógica de
+"sumar si no hay fila nacional" que dependa de esa columna. La migración 014 saltó el paso 1 y no
+verificó el paso 2 -- rompió el sitio en producción durante ~1 hora hasta que el propio pedido de
+seguimiento del usuario lo destapó.
+
 ---
 
 ## 8. Sobre `backend/etl/audit_datos.py`
