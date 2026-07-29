@@ -13,7 +13,7 @@ import { HeatmapTable, type HeatmapTableSerie } from "@/components/heatmap-table
 import { ExportacionesFlowMapLoader } from "@/components/exportaciones-flow-map-loader";
 import type { ColumnaTabla } from "@/components/data-table";
 import { formatMasa, formatMasaCompacta, formatNumero, formatPct, formatUsd, type UnidadMasa } from "@/lib/format";
-import { getExportacionesAnualReal, getExportacionesIndec } from "@/lib/api";
+import { getExportacionesAnualReal, getExportacionesIndec, getRemExportaciones } from "@/lib/api";
 import {
   agregarExportacionesAnualNacional,
   agregarComexIndecAnualNacional,
@@ -53,7 +53,17 @@ export default async function ExportacionesPage({
   const sufijoUnidad = unidad === "t" ? " t" : " kg";
   const factorUnidad = unidad === "t" ? 1 / 1000 : 1;
 
-  const [anualRealCompleta, indecCompleta] = await Promise.all([getExportacionesAnualReal(), getExportacionesIndec()]);
+  const [anualRealCompleta, indecCompleta, remExportaciones] = await Promise.all([
+    getExportacionesAnualReal(),
+    getExportacionesIndec(),
+    getRemExportaciones(),
+  ]);
+  const remExportacionesSerie = remExportaciones.map((r) => ({
+    anio: r.anio,
+    etiqueta: `${String(r.mes).padStart(2, "0")}/${r.anio}`,
+    valor: r.rem_exportaciones_musd,
+  }));
+  const remExportacionesUltimo = remExportaciones[remExportaciones.length - 1];
   const todosLosAnios = Array.from(new Set(anualRealCompleta.map((f) => f.anio))).sort((a, b) => a - b);
   const todosLosDestinos = Array.from(new Set(indecCompleta.map((f) => f.pais_nombre))).filter((n) => n !== "Confidencial").sort();
 
@@ -351,7 +361,33 @@ export default async function ExportacionesPage({
         </>
       )}
 
-      <FooterFuentes tablas={["ym.exportaciones_anual", "ym.exportaciones_indec"]} />
+      {remExportacionesSerie.length > 0 && (
+        <>
+          <div className="mt-8 mb-4">
+            <h2 className="text-lg font-semibold text-foreground">Contexto macro: expectativa REM de exportaciones</h2>
+            <p className="text-sm text-muted-foreground mt-0.5">
+              Expectativa del REM (BCRA) para las exportaciones TOTALES de Argentina, no específica de yerba mate — la
+              yerba es una fracción mínima del total exportado por el país. Se muestra como contexto del sector externo
+              argentino, sin relación mecánica con las cifras de arriba (a diferencia del tipo de cambio, que sí es un
+              supuesto real de los modelos de Fase 5).
+            </p>
+          </div>
+          {remExportacionesUltimo && (
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
+              <KpiCard
+                label={`Expectativa REM ${String(remExportacionesUltimo.mes).padStart(2, "0")}/${remExportacionesUltimo.anio}`}
+                value={formatUsd(remExportacionesUltimo.rem_exportaciones_musd * 1_000_000)}
+                icon={Globe2}
+              />
+            </div>
+          )}
+          <ChartCard title="Exportaciones totales de Argentina — expectativa REM" description="Millones de USD, mediana del panel completo">
+            <SerieChartConFiltro data={remExportacionesSerie} color="var(--color-muted-foreground)" numberFormat={{ maximumFractionDigits: 0 }} suffix=" M USD" />
+          </ChartCard>
+        </>
+      )}
+
+      <FooterFuentes tablas={["ym.exportaciones_anual", "ym.exportaciones_indec", "ym.bcra_rem"]} />
     </main>
   );
 }

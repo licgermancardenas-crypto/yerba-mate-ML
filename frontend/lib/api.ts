@@ -13,7 +13,10 @@ import type {
   PrecioGondolaRow,
   PrecioRow,
   RemInflacionRow,
+  RemInflacionNucleoRow,
   RemTipoCambioRow,
+  RemExportacionesRow,
+  RemImportacionesRow,
   PrediccionRow,
   ProduccionAnualRealRow,
   ProduccionRow,
@@ -97,6 +100,10 @@ export function getExportaciones(params?: { anioDesde?: number; anioHasta?: numb
   return apiFetch<ExportacionRow[]>(`/exportaciones${query ? `?${query}` : ""}`);
 }
 
+export function getRemExportaciones() {
+  return apiFetch<RemExportacionesRow[]>("/exportaciones/rem-exportaciones");
+}
+
 /** Exportaciones reales por país, mensual (INDEC) -- ver docs/fuentes_exportaciones_indec.md. */
 export function getExportacionesIndec(params?: { anioDesde?: number; anioHasta?: number; paisIso2?: string }) {
   const qs = new URLSearchParams();
@@ -132,6 +139,10 @@ export function getRemInflacion() {
   return apiFetch<RemInflacionRow[]>("/precios/rem-inflacion");
 }
 
+export function getRemInflacionNucleo() {
+  return apiFetch<RemInflacionNucleoRow[]>("/precios/rem-inflacion-nucleo");
+}
+
 export function getCompetencia(params?: { anioDesde?: number; anioHasta?: number; empresa?: string }) {
   const qs = new URLSearchParams();
   if (params?.anioDesde) qs.set("anio_desde", String(params.anioDesde));
@@ -147,6 +158,10 @@ export function getImportaciones(params?: { anioDesde?: number; anioHasta?: numb
   if (params?.anioHasta) qs.set("anio_hasta", String(params.anioHasta));
   const query = qs.toString();
   return apiFetch<ImportacionRow[]>(`/importaciones${query ? `?${query}` : ""}`);
+}
+
+export function getRemImportaciones() {
+  return apiFetch<RemImportacionesRow[]>("/importaciones/rem-importaciones");
 }
 
 /** Importaciones reales por país de origen (INDEC) -- ver docs/fuentes_exportaciones_indec.md. */

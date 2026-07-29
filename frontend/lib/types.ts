@@ -166,6 +166,14 @@ export interface RemInflacionRow {
   rem_ipc_general_pct: number;
 }
 
+/** Igual que RemInflacionRow pero IPC núcleo -- ver GET /precios/rem-inflacion-nucleo. */
+export interface RemInflacionNucleoRow {
+  anio: number;
+  mes: number;
+  fecha_informe: string;
+  rem_ipc_nucleo_pct: number;
+}
+
 /** Expectativa REM del tipo de cambio anual del año que proyecta el Modelo
  * 3, encuesta a encuesta -- ver GET /predicciones/rem-tipo-cambio. Cada fila
  * repite `anio_proyeccion`/`tc_congelado_modelo`/`tc_real_parcial` (mismos
@@ -178,6 +186,23 @@ export interface RemTipoCambioRow {
   tc_real_parcial: number | null;
   fecha_encuesta: string;
   rem_tc_esperado: number;
+}
+
+/** Expectativa REM (BCRA) de exportaciones totales de Argentina, mensual --
+ * ver GET /exportaciones/rem-exportaciones. Contexto macro (país entero,
+ * no yerba específicamente), sin relación mecánica con el resto de la página. */
+export interface RemExportacionesRow {
+  anio: number;
+  mes: number;
+  rem_exportaciones_musd: number;
+}
+
+/** Igual que RemExportacionesRow pero de importaciones -- ver
+ * GET /importaciones/rem-importaciones. */
+export interface RemImportacionesRow {
+  anio: number;
+  mes: number;
+  rem_importaciones_musd: number;
 }
 
 export interface CompetenciaRow {

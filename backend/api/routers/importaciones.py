@@ -28,6 +28,31 @@ async def listar_importaciones(
     return [dict(row._mapping) for row in result]
 
 
+@router.get("/rem-importaciones")
+async def listar_rem_importaciones(session: AsyncSession = Depends(get_session)):
+    """Expectativa REM (BCRA) de importaciones TOTALES de Argentina, mensual
+    (millones de USD, todo el país -- no específico de yerba mate). Mismo
+    criterio que /exportaciones/rem-exportaciones -- contexto macro, sin
+    relación mecánica directa con yerba.
+    """
+    stmt = text(
+        """
+        SELECT
+            EXTRACT(YEAR FROM periodo_desde)::int AS anio,
+            EXTRACT(MONTH FROM periodo_desde)::int AS mes,
+            mediana AS rem_importaciones_musd
+        FROM ym.bcra_rem
+        WHERE indicador = 'Importaciones'
+          AND muestra = 'todos'
+          AND periodo_tipo = 'mensual'
+          AND periodo_desde = (date_trunc('month', fecha) + interval '1 month')::date
+        ORDER BY periodo_desde
+        """
+    )
+    result = await session.execute(stmt)
+    return [dict(row._mapping) for row in result]
+
+
 @router.get("/indec")
 async def listar_importaciones_indec(
     anio_desde: int | None = Query(default=None),

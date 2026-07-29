@@ -65,3 +65,27 @@ async def listar_rem_inflacion(session: AsyncSession = Depends(get_session)):
     )
     result = await session.execute(stmt)
     return [dict(row._mapping) for row in result]
+
+
+@router.get("/rem-inflacion-nucleo")
+async def listar_rem_inflacion_nucleo(session: AsyncSession = Depends(get_session)):
+    """Igual que /rem-inflacion pero con el IPC NÚCLEO del REM (excluye
+    estacionales y regulados) en vez del nivel general -- ver docs/bcra_rem.md.
+    """
+    stmt = text(
+        """
+        SELECT
+            EXTRACT(YEAR FROM periodo_desde)::int AS anio,
+            EXTRACT(MONTH FROM periodo_desde)::int AS mes,
+            fecha AS fecha_informe,
+            mediana AS rem_ipc_nucleo_pct
+        FROM ym.bcra_rem
+        WHERE indicador = 'Precios minoristas (IPC núcleo-Nacional; INDEC)'
+          AND muestra = 'todos'
+          AND periodo_tipo = 'mensual'
+          AND periodo_desde = (date_trunc('month', fecha) + interval '1 month')::date
+        ORDER BY periodo_desde
+        """
+    )
+    result = await session.execute(stmt)
+    return [dict(row._mapping) for row in result]

@@ -12,8 +12,8 @@ import { CHART_BLUE } from "@/components/charts/chart-theme";
 import { HistoricalTable } from "@/components/historical-table";
 import { HeatmapTable, type HeatmapTableSerie } from "@/components/heatmap-table";
 import type { ColumnaTabla } from "@/components/data-table";
-import { esAnioCompleto, formatMasa, formatMasaCompacta, formatNumero, formatPct, type UnidadMasa } from "@/lib/format";
-import { getExportacionesAnualReal, getExportacionesIndec, getImportacionesIndec } from "@/lib/api";
+import { esAnioCompleto, formatMasa, formatMasaCompacta, formatNumero, formatPct, formatUsd, type UnidadMasa } from "@/lib/format";
+import { getExportacionesAnualReal, getExportacionesIndec, getImportacionesIndec, getRemImportaciones } from "@/lib/api";
 import {
   agregarComexIndecAnualNacional,
   agregarComexIndecMensualNacional,
@@ -69,11 +69,18 @@ export default async function ImportacionesPage({
   const sufijoUnidad = unidad === "t" ? " t" : " kg";
   const factorUnidad = unidad === "t" ? 1 / 1000 : 1;
 
-  const [indecCompleta, exportacionesAnualReal, exportacionesIndecCompleta] = await Promise.all([
+  const [indecCompleta, exportacionesAnualReal, exportacionesIndecCompleta, remImportaciones] = await Promise.all([
     getImportacionesIndec(),
     getExportacionesAnualReal(),
     getExportacionesIndec(),
+    getRemImportaciones(),
   ]);
+  const remImportacionesSerie = remImportaciones.map((r) => ({
+    anio: r.anio,
+    etiqueta: `${String(r.mes).padStart(2, "0")}/${r.anio}`,
+    valor: r.rem_importaciones_musd,
+  }));
+  const remImportacionesUltimo = remImportaciones[remImportaciones.length - 1];
   const todosLosAnios = Array.from(new Set(indecCompleta.map((f) => f.anio))).sort((a, b) => a - b);
   const todosLosOrigenes = Array.from(new Set(indecCompleta.map((f) => f.pais_nombre))).filter((n) => n !== "Confidencial").sort();
 
@@ -320,7 +327,31 @@ export default async function ImportacionesPage({
         />
       </ChartCard>
 
-      <FooterFuentes tablas={["ym.importaciones_indec", "ym.exportaciones_anual"]} />
+      {remImportacionesSerie.length > 0 && (
+        <>
+          <div className="mt-8 mb-4">
+            <h2 className="text-lg font-semibold text-foreground">Contexto macro: expectativa REM de importaciones</h2>
+            <p className="text-sm text-muted-foreground mt-0.5">
+              Expectativa del REM (BCRA) para las importaciones TOTALES de Argentina, no específica de yerba mate — se
+              muestra como contexto del sector externo argentino, sin relación mecánica con las cifras de arriba.
+            </p>
+          </div>
+          {remImportacionesUltimo && (
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
+              <KpiCard
+                label={`Expectativa REM ${String(remImportacionesUltimo.mes).padStart(2, "0")}/${remImportacionesUltimo.anio}`}
+                value={formatUsd(remImportacionesUltimo.rem_importaciones_musd * 1_000_000)}
+                icon={Globe2}
+              />
+            </div>
+          )}
+          <ChartCard title="Importaciones totales de Argentina — expectativa REM" description="Millones de USD, mediana del panel completo">
+            <SerieChartConFiltro data={remImportacionesSerie} color={CHART_BLUE} numberFormat={{ maximumFractionDigits: 0 }} suffix=" M USD" />
+          </ChartCard>
+        </>
+      )}
+
+      <FooterFuentes tablas={["ym.importaciones_indec", "ym.exportaciones_anual", "ym.bcra_rem"]} />
     </main>
   );
 }

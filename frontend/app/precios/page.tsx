@@ -13,7 +13,7 @@ import { EstacionalidadPrecioChart } from "@/components/charts/estacionalidad-pr
 import { GroupedBarChart, type GroupedBarPunto } from "@/components/charts/grouped-bar-chart";
 import type { ColumnaTabla } from "@/components/data-table";
 import { formatNumero, formatPct } from "@/lib/format";
-import { getPrecios, getPreciosGondola, getRemInflacion } from "@/lib/api";
+import { getPrecios, getPreciosGondola, getRemInflacion, getRemInflacionNucleo } from "@/lib/api";
 import { agregarPreciosAnual, calcularVarPct, type PrecioAnualRow } from "@/lib/agregaciones";
 import type { PrecioRow } from "@/lib/types";
 
@@ -48,7 +48,12 @@ export default async function PreciosPage({
   const anioDesde = Number(sp.anio_desde) || undefined;
   const anioHasta = Number(sp.anio_hasta) || undefined;
 
-  const [filasCompletas, gondola, remInflacion] = await Promise.all([getPrecios(), getPreciosGondola(), getRemInflacion()]);
+  const [filasCompletas, gondola, remInflacion, remInflacionNucleo] = await Promise.all([
+    getPrecios(),
+    getPreciosGondola(),
+    getRemInflacion(),
+    getRemInflacionNucleo(),
+  ]);
   const todosLosAnios = Array.from(new Set(filasCompletas.map((f) => f.anio))).sort((a, b) => a - b);
   const gondolaOrdenada = [...gondola].sort(
     (a, b) => (a.empresa_ym ?? a.marca_gondola).localeCompare(b.empresa_ym ?? b.marca_gondola) || a.presentacion_kg - b.presentacion_kg
@@ -231,6 +236,23 @@ export default async function PreciosPage({
   const pctMesesPorDebajo = sorpresaInflacionaria.length ? (mesesPorDebajo / sorpresaInflacionaria.length) * 100 : null;
   const sorpresaChartData: GroupedBarPunto[] = sorpresaInflacionaria.map((s) => s.punto);
 
+  // Mismo cruce que arriba pero contra el IPC NÚCLEO del REM (excluye
+  // estacionales/regulados) -- el núcleo suele ser la referencia que más
+  // mira el mercado para la inercia inflacionaria real, a diferencia del
+  // nivel general (más ruidoso mes a mes). Solo un KPI de resumen, no
+  // duplica el chart completo de arriba para no saturar la página.
+  const sorpresasNucleo: number[] = [];
+  for (const r of remInflacionNucleo) {
+    const clave = `${r.anio}-${r.mes}`;
+    const claveAnterior = r.mes === 1 ? `${r.anio - 1}-12` : `${r.anio}-${r.mes - 1}`;
+    const varYerbaReal = calcularVarPct(ipcYerbaPorPeriodo.get(clave), ipcYerbaPorPeriodo.get(claveAnterior));
+    if (varYerbaReal === null) continue;
+    sorpresasNucleo.push(varYerbaReal - r.rem_ipc_nucleo_pct);
+  }
+  const promedioSorpresaNucleo = sorpresasNucleo.length
+    ? sorpresasNucleo.reduce((a, b) => a + b, 0) / sorpresasNucleo.length
+    : null;
+
   const conAmbosIpc = ordenadas.filter((f) => f.ipc_nacional != null && f.ipc_yerba_mate != null);
   const ultimoConAmbosIpc = conAmbosIpc[conAmbosIpc.length - 1];
   const indiceRelativoYerba = ultimoConAmbosIpc
@@ -408,7 +430,7 @@ export default async function PreciosPage({
 
       {promedioSorpresa != null && pctMesesPorDebajo != null ? (
         <>
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-4">
             <KpiCard
               label="Sorpresa promedio (yerba real − REM esperado)"
               value={`${promedioSorpresa > 0 ? "+" : ""}${formatNumero(promedioSorpresa, 1)} p.p.`}
@@ -419,6 +441,18 @@ export default async function PreciosPage({
               value={formatPct(pctMesesPorDebajo)}
               secundario={`${mesesPorDebajo} de ${sorpresaInflacionaria.length} meses`}
               icon={Activity}
+            />
+            <KpiCard
+              label="Sorpresa promedio vs. IPC núcleo (REM)"
+              value={
+                promedioSorpresaNucleo != null ? (
+                  `${promedioSorpresaNucleo > 0 ? "+" : ""}${formatNumero(promedioSorpresaNucleo, 1)} p.p.`
+                ) : (
+                  <NoData variant="kpi" />
+                )
+              }
+              secundario="Núcleo excluye estacionales/regulados"
+              icon={promedioSorpresaNucleo != null && promedioSorpresaNucleo < 0 ? TrendingDown : TrendingUp}
             />
           </div>
           <ChartCard
