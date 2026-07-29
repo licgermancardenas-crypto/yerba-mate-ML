@@ -186,6 +186,7 @@ def transformar_competencia(df: pd.DataFrame) -> list[tuple]:
 def transformar_superficie_productores(df: pd.DataFrame) -> list[tuple]:
     filas = []
     for _, r in df.iterrows():
+        productores = parse_numero_ar(r["Productores"])
         filas.append(
             (
                 int(r["Año"]),
@@ -193,7 +194,7 @@ def transformar_superficie_productores(df: pd.DataFrame) -> list[tuple]:
                 r["Mes"].strip(),
                 r["Provincia"].strip(),
                 r["Ciudad"].strip(),
-                int(parse_numero_ar(r["Productores"])),
+                int(productores) if productores is not None else None,
                 parse_numero_ar(r["Superficie (ha)"]),
             )
         )
