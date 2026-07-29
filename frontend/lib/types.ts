@@ -39,6 +39,16 @@ export interface ClimaZonaRow {
   temperatura_media_c: number;
 }
 
+/** Anclajes históricos reales de superficie por zona (2010, 2020) -- ver
+ * GET /produccion/superficie-zona-historico. Solo 2 puntos, no serie
+ * completa; para superficie ACTUAL usar la capa GIS view_superficie_por_zonas. */
+export interface SuperficieZonaHistoricoRow {
+  anio: number;
+  zona: string;
+  superficie_ha: number;
+  es_derivado: boolean;
+}
+
 /** Totales anuales reales -- GET /produccion/anual-real (ym.dataset_principal_anual). */
 export interface ProduccionAnualRealRow {
   anio: number;

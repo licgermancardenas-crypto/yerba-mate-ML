@@ -21,6 +21,7 @@ import type {
   ClimaZonaRow,
   SalidaMolinoRow,
   SuperficieRow,
+  SuperficieZonaHistoricoRow,
 } from "@/lib/types";
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000";
@@ -55,6 +56,10 @@ export function getNdviZona() {
 
 export function getClimaZona() {
   return apiFetch<ClimaZonaRow[]>("/produccion/clima-zona");
+}
+
+export function getSuperficieZonaHistorico() {
+  return apiFetch<SuperficieZonaHistoricoRow[]>("/produccion/superficie-zona-historico");
 }
 
 /** Totales anuales reales -- ver docs/auditoria_datos.md. Fuente correcta para vistas anuales/nacionales. */

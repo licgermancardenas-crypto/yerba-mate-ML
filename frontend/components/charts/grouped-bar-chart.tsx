@@ -20,13 +20,22 @@ export function GroupedBarChart({
   data,
   serieA,
   serieB,
-  formatter = formatPct,
+  numberFormat,
+  suffix = "",
 }: {
   data: GroupedBarPunto[];
   serieA: { label: string; color?: string };
   serieB: { label: string; color?: string };
-  formatter?: (v: number) => string;
+  // Objeto serializable (no función) -- se pasa de un Server Component, ver
+  // AGENTS.md/CLAUDE.md del repo raíz sobre por qué las funciones no cruzan
+  // ese límite. Default (sin numberFormat) sigue siendo % para no romper
+  // los 2 consumidores existentes (EMAE/consumo, REM/IPC yerba).
+  numberFormat?: Intl.NumberFormatOptions;
+  suffix?: string;
 }) {
+  const formatter = numberFormat
+    ? (v: number) => `${new Intl.NumberFormat("es-AR", numberFormat).format(v)}${suffix}`
+    : formatPct;
   return (
     <ResponsiveContainer width="100%" height={260}>
       <BarChart data={data} margin={{ top: 8, right: 12, bottom: 0, left: 0 }}>

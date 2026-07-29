@@ -95,6 +95,20 @@ async def listar_ndvi_zona(session: AsyncSession = Depends(get_session)):
     return [dict(row._mapping) for row in result]
 
 
+@router.get("/superficie-zona-historico")
+async def listar_superficie_zona_historico(session: AsyncSession = Depends(get_session)):
+    """Anclajes históricos reales de superficie por zona (2010, 2020) -- ver
+    ym.superficie_zona_historico y docs/auditoria_datos.md §7.12. Solo 2
+    puntos, no serie completa; para la superficie ACTUAL usar la capa GIS
+    view_superficie_por_zonas (más reciente, fuente independiente).
+    """
+    stmt = text(
+        "SELECT anio, zona, superficie_ha, es_derivado FROM ym.superficie_zona_historico ORDER BY anio, zona"
+    )
+    result = await session.execute(stmt)
+    return [dict(row._mapping) for row in result]
+
+
 @router.get("/clima-zona")
 async def listar_clima_zona(session: AsyncSession = Depends(get_session)):
     """Clima mensual real (NASA POWER) en el centroide ponderado por

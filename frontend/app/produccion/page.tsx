@@ -9,12 +9,21 @@ import { FooterFuentes } from "@/components/footer-fuentes";
 import { SerieChartConFiltro } from "@/components/charts/serie-chart-con-filtro";
 import { SerieMensualChart } from "@/components/charts/serie-mensual-chart";
 import { AnnualChartConFiltro } from "@/components/charts/annual-chart-con-filtro";
+import { GroupedBarChart } from "@/components/charts/grouped-bar-chart";
 import { HistoricalTable } from "@/components/historical-table";
 import { HeatmapTable, type HeatmapTableSerie } from "@/components/heatmap-table";
 import { ProduccionMapaLoader } from "@/components/produccion-mapa-loader";
 import type { ColumnaTabla } from "@/components/data-table";
 import { formatMasa, formatMasaCompacta, formatNumero, formatPct, formatUsd, type UnidadMasa } from "@/lib/format";
-import { getProduccionAnualReal, getSuperficie, getHojaVerde, getGeoLayerAtributos, getNdviZona, getClimaZona } from "@/lib/api";
+import {
+  getProduccionAnualReal,
+  getSuperficie,
+  getHojaVerde,
+  getGeoLayerAtributos,
+  getNdviZona,
+  getClimaZona,
+  getSuperficieZonaHistorico,
+} from "@/lib/api";
 import { tituloCase } from "@/lib/texto";
 import { ZONAS, ZONA_RAW_A_LIMPIA, etiquetaZona } from "@/lib/zonas";
 import {
@@ -81,6 +90,7 @@ export default async function ProduccionPage({
     superficieZonaAtributos,
     ndviCompleto,
     climaCompleto,
+    superficieZonaHistorico,
   ] = await Promise.all([
     getProduccionAnualReal(),
     getSuperficie(),
@@ -91,7 +101,22 @@ export default async function ProduccionPage({
     getGeoLayerAtributos<{ zona: string; sup_ym: number }>("view_superficie_por_zonas"),
     getNdviZona(),
     getClimaZona(),
+    getSuperficieZonaHistorico(),
   ]);
+  // Cohorte real de crecimiento de superficie por zona: único anclaje
+  // histórico citable encontrado (2010, prensa que cita al INYM) contra la
+  // superficie ACTUAL de la capa GIS (más reciente que cualquier anclaje de
+  // superficieZonaHistorico) -- ver docs/auditoria_datos.md §7.12 y migración
+  // 017. Reemplaza el pedido original "por ciudad" (bloqueado, produccion_kg
+  // por ciudad es fabricado, sin reemplazo real) por la geografía real del
+  // INYM (zona), que sí tiene ambos extremos verificables.
+  const supActualPorZona = new Map(superficieZonaAtributos.map((z) => [z.zona, z.sup_ym]));
+  const supHistoricoPorZona = new Map(superficieZonaHistorico.filter((z) => z.anio === 2010).map((z) => [z.zona, z.superficie_ha]));
+  const cohorteSuperficieZona = ZONAS.map((zona) => ({
+    etiqueta: etiquetaZona(zona),
+    "2010": supHistoricoPorZona.get(zona) ?? 0,
+    Actual: supActualPorZona.get(zona) ?? 0,
+  })).filter((f) => f["2010"] > 0 || f.Actual > 0);
   // Superficie cultivada real por departamento (19 unidades geográficas
   // reales del INYM, no las 6-7 zonas de reporte de producción) -- NO hay
   // producción en kg a este nivel de detalle en ninguna fuente encontrada,
@@ -487,6 +512,33 @@ export default async function ProduccionPage({
               </>
             )}
 
+            {cohorteSuperficieZona.length > 0 && (
+              <>
+                <div className="mt-8 mb-4">
+                  <h2 className="text-lg font-semibold text-foreground">Superficie por zona: 2010 → actual</h2>
+                  <p className="text-sm text-muted-foreground mt-0.5">
+                    Cohorte real de crecimiento/caída de superficie cultivada, 2010 (prensa que cita al INYM) vs. la foto
+                    actual (capa GIS del INYM). Reemplaza el pedido original de &quot;producción por ciudad&quot; — esa serie
+                    resultó fabricada (prorrateo fijo, sin fuente real, ver Integridad de los datos) y la geografía real
+                    del INYM es por zona, no por ciudad.
+                  </p>
+                </div>
+                <ChartCard
+                  className="mb-4"
+                  title="Superficie cultivada por zona (ha)"
+                  description="2010 vs. actual — Centro (Misiones) es la única zona derivada (total provincial menos el resto de zonas citadas), el resto son cifras directas de la fuente."
+                >
+                  <GroupedBarChart
+                    data={cohorteSuperficieZona}
+                    serieA={{ label: "2010", color: "var(--color-muted-foreground)" }}
+                    serieB={{ label: "Actual", color: "var(--color-primary)" }}
+                    numberFormat={{ maximumFractionDigits: 0 }}
+                    suffix=" ha"
+                  />
+                </ChartCard>
+              </>
+            )}
+
             <div className="mt-8 mb-4">
               <h2 className="text-lg font-semibold text-foreground">Rendimiento por zona</h2>
               <p className="text-sm text-muted-foreground mt-0.5">
@@ -671,6 +723,7 @@ export default async function ProduccionPage({
           "inym_gis.raw_features",
           "ym.ndvi_mensual",
           "ym.clima_zona_mensual",
+          "ym.superficie_zona_historico",
         ]}
       />
     </main>
