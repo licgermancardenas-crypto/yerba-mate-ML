@@ -480,6 +480,19 @@ de prensa del total nacional actual (2024: 9.709 productores, Misiones 9.112 + C
 Nuestra suma de las 7 "ciudades" en 2024 da 9.334 (Δ 3,9%), orden de magnitud razonable pero sin
 fuente citable por partida. Se deja como está (categoría B débil, sin cambios en la DB).
 
+**Addendum 2026-07-29 — provenance mejorada, mismos hallazgos**: se encontró que el mismo dato del
+PDF confidencial de arriba está publicado SIN restricción en 2 fuentes de prensa que citan al INYM
+directamente ("declaraciones juradas presentadas ante el INYM"): [inym.org.ar, 2021-05-11](https://inym.org.ar/noticias/produccion-sustentable/79571-pequenos-productores-de-yerba-mate.html)
+confirma productores 2010=7.360 y 2021=9.334 (coincide EXACTO con la suma de las 7 "ciudades" ya
+cargadas en esos años) y superficie 2020=177.534,92 ha (Corrientes 23.085,76 + Misiones 154.449,1);
+[economis.com.ar, 2026-07-29](https://economis.com.ar/la-superficie-plantada-de-yerba-mate-crecio-18-en-dos-anos/)
+confirma superficie 2022=209.277 ha (+18% vs. 2020), consistente con el PDF confidencial de §7.11
+(209.276,9 ha). Migración `016_provenance_superficie_productores_2026-07-29.sql` reemplaza el
+`fuente_id` genérico (`csv_semilla_validado`) por esta fuente real y citable para los anclajes
+nacionales — **no cambia ningún dato**, los 2 problemas de fondo de §7.11 (columna `ciudad` no
+mapea a departamento real; sin informe histórico de `productores` por partida) siguen sin resolver,
+no hay fuente pública que los resuelva.
+
 ### 7.12 — `dataset_principal_anual.produccion_kg` por ciudad: prorrateo fijo, no medición real (2026-07-28)
 
 Encontrado investigando un pedido de gráfico de "rendimiento por ciudad" (producción/superficie).
