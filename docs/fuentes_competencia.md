@@ -1,5 +1,52 @@
 # Fuentes de datos — `ym.competencia`
 
+## Actualización 2026-07-29 — `noticiasdelmate.com` volvió a estar disponible
+
+El timeout DNS persistente documentado en julio (bloqueaba 2+ sesiones distintas) se resolvió solo, sin cambios de nuestro lado — confirmado accediendo al sitio directamente. Esto permitió encontrar 3 fuentes nuevas con desglose real por empresa que no existían en el research anterior (2019, 2021 ampliado a top 10, 2022). Detalle en las secciones correspondientes más abajo. **2022 y 2023 siguen sin desglose por empresa a nivel año calendario completo** — ver sección "2022, 2023" actualizada.
+
+**Denominadores usados para calcular `cuota_mercado_pct` en esta ronda**: en vez de usar el total de mercado que cita cada nota de prensa (que varía ligeramente entre fuentes), se usó `ym.dataset_principal_anual.consumo_interno_kg` (ciudad='(nacional)') ya cargado y auditado en este proyecto — 2019: 277.332.013 kg; 2021: 282.849.996 kg; 2022: 275.809.501 kg. Se cruzó contra los totales que citan las fuentes de prensa (277M, 282,85M/282.989.915, 275.807.989 respectivamente) — coinciden dentro de ±0,05%, confirmando que ambas fuentes miden lo mismo (despacho a mercado interno).
+
+### 2019 — 6 de ~15 empresas (año calendario completo)
+
+Fuente: [Ranking Yerbatero 2019: Un año verde marcado por el "regreso" de Las Marías, la confirmación de Playadito, y el desempeño de La Tranquera](https://economis.com.ar/ranking-yerbatero-2019-un-ano-verde-marcado-por-el-regreso-de-las-marias-la-confirmacion-de-playadito-y-el-desempeno-de-la-tranquera/) — Economis. El artículo confirma explícitamente que cubre el cierre del año calendario 2019 ("277 millones de kilos" vendidos en el mercado interno ese año — coincide con el total ya auditado en `ym.dataset_principal_anual`). **Fecha de publicación exacta no confirmada** (la página solo muestra "6 años atrás" relativo a la fecha de acceso) — se cargó `2020-02-01` como aproximación, consistente con el patrón de publicación de este tipo de nota (enero-marzo del año siguiente). El artículo no cita a INYM explícitamente en el texto, a diferencia de otros artículos de la misma serie.
+
+| Empresa | Kg | % (sobre 277.332.013 kg) |
+|---|---|---|
+| Las Marías | 50.600.000 | 18,25% |
+| Playadito | 35.600.000 | 12,84% |
+| La Cachuera (Amanda) | 21.700.000 | 7,82% |
+| J. Llorente y Cía (La Tranquera) | 10.800.000 | 3,89% |
+| Andresito | 8.300.000 | 2,99% |
+| Gerula (Romance) | 7.700.000 | 2,78% |
+
+### 2021 — ampliado a top 10 (antes solo 2 de ~14 empresas)
+
+Fuente nueva: [Las marcas de yerba mate más vendidas en la Argentina en el 2021](https://noticiasdelmate.com/las-marcas-de-yerba-mate-mas-vendidas-en-la-argentina-en-el-2021/) — Noticias del Mate, 2022-01-14, cita a `www.economis.com.ar` como fuente de los datos. Confirma "mercado interno acumuló 282,85 millones de kilos" en 2021 — coincide con el total ya auditado. Se agregaron 7 empresas nuevas (Playadito y J. Llorente ya estaban cargados desde el research de julio con fuente propia — Plan B Misiones/Agrofy — y **no se tocaron** para no mezclar 2 fuentes en la misma fila; los valores de esta fuente nueva para esas 2 empresas — Playadito 40M kg/14,14%, Llorente 7,9M kg/2,79% — son consistentes con lo ya cargado, ligera diferencia de redondeo).
+
+| Empresa | Kg | % (sobre 282.849.996 kg) |
+|---|---|---|
+| Las Marías (Taragüí) | 54.000.000 | 19,09% |
+| CBSé | 22.000.000 | 7,78% |
+| La Cachuera (Amanda) | 18.000.000 | 6,36% |
+| Rosamonte | 15.600.000 | 5,52% |
+| Verdeflor | 11.800.000 | 4,17% |
+| Andresito | 10.200.000 | 3,61% |
+| Cachamai/Cachamal ⚠️ (misma ambigüedad de nombre ya documentada para 2025) | 9.500.000 | 3,36% |
+
+No se cargó "Cruz de Malta (Yerbatera Misiones)" de esta fuente — el artículo la menciona como "15+ millones de kg" sin cifra exacta, no alcanza el estándar de precisión del resto de las filas.
+
+### 2022 — 3 de ~65 empresas (año calendario completo, primer dato real para este año)
+
+Fuente: [Yerba: ¿Qué marcas dominaron el mercado en un año top?](https://economis.com.ar/yerba-que-marcas-dominaron-el-mercado-en-un-ano-top/) — Economis. El foco del artículo es 2023 (parcial, enero-octubre, no cargado — no califica como año calendario completo), pero cita 3 cifras de 2022 completo como comparación interanual, con lenguaje explícito ("vendió 41 millones **en todo el año pasado**", "56,7 millones de kilos vendidos **en 2022**", "**en 2022** había ocupado el puesto catorce, con 6.393.280 kilos"). **Fecha de publicación exacta no confirmada** (misma limitación que el artículo de 2019) — se cargó `2023-11-01` como aproximación (coherente con datos "hasta octubre" de 2023 ya cerrados en el texto).
+
+| Empresa | Kg | % (sobre 275.809.501 kg) |
+|---|---|---|
+| Las Marías | 56.700.000 | 20,56% |
+| Playadito | 41.000.000 | 14,87% |
+| Andresito | 6.393.280 | 2,32% |
+
+Este mismo artículo también confirma el total de mercado interno 2022 (**275.807.989 kg**, casi idéntico a los 275.809.501 kg ya auditados en `ym.dataset_principal_anual` — diferencia de 1.512 kg, redondeo) — primera vez que se documenta una cifra real de cierre para este año (antes solo había un acumulado enero-noviembre sin cerrar, ver sección "2022, 2023" abajo).
+
 ## Contexto (auditoría 2026-07-04, Fase 8)
 
 El `data/raw/competencia.csv` original (presente desde el commit de scaffolding inicial, antes de cualquier sesión documentada) tenía **relleno sintético** en 13 de 15 años: 2011-2021 con el mismo valor exacto repetido, y 2022-2024 interpolados linealmente hacia un valor de 2025 — sin ninguna fuente real. Ver diagnóstico completo en `TODO.md` (Fase 8).
@@ -66,9 +113,11 @@ Estos dos valores aparecen como base de comparación interanual dentro de la not
 
 Resto de las ~63 empresas restantes de 2024: sin fuente con desglose verificado — quedan `NULL`.
 
-### 2022, 2023 — research cerrada 2026-07-04, sigue sin dato de empresa (NULL)
+### 2022, 2023 — research cerrada 2026-07-04, ampliada 2026-07-29
 
-Se reintentó `noticiasdelmate.com` (fuente con artículos dedicados a "marcas más vendidas" 2021/2023/2024) — sigue devolviendo timeout DNS, igual que en la auditoría original. Se verificó Wayback Machine (`archive.org/wayback/available`): la URL de 2023 no tiene snapshot; la de 2024 sí (`web.archive.org/web/20240904014253/...`) pero el snapshot es de **septiembre de 2024**, es decir el artículo "más vendidas en 2024" fue capturado a mitad de año — no puede ser el cierre de año calendario completo, descartado como fuente de 2024 anual.
+**Actualización 2026-07-29**: 2022 ya no está 100% vacío — ver sección nueva arriba (3 empresas + denominador real confirmado). 2023 sigue sin ningún dato de empresa cargado: se encontró un artículo dedicado ("Las marcas de yerba mate Argentina más vendidas en 2023", `noticiasdelmate.com`, mirror en `regionlitoral.net` porque la URL original da 404) pero, pese al título, el texto confirma que es un corte parcial enero-octubre 2023 ("Verdeflor en agosto creció...", publicado 2023-10-09) — no un cierre de año calendario, y tampoco da cifras exactas en kg/%, solo el ranking de posiciones. No calificaba para cargar bajo el mismo criterio que 2022, 2019, 2021.
+
+(Histórico, ya no vigente) Se había reintentado `noticiasdelmate.com` (fuente con artículos dedicados a "marcas más vendidas" 2021/2023/2024) sin éxito — timeout DNS persistente en 2+ sesiones. **El sitio volvió a estar disponible el 2026-07-29** (ver sección nueva arriba) sin cambios de nuestro lado. El artículo de 2023 del sitio SÍ se pudo leer esta vez (vía mirror, la URL original da 404) — confirmado corte parcial, no sirve como cierre anual (ver arriba). Se verificó también Wayback Machine (`archive.org/wayback/available`) en la auditoría original: la URL de 2023 no tenía snapshot en ese momento; la de 2024 sí (`web.archive.org/web/20240904014253/...`) pero el snapshot es de **septiembre de 2024** — no puede ser el cierre de año calendario completo, descartado como fuente de 2024 anual.
 
 Se revisaron además 3 notas de Plan B Misiones que por su fecha de publicación parecían candidatas a ranking anual cerrado, y las 3 resultaron ser cortes mensuales/YTD al leer el texto completo (no alcanza con la fecha de publicación para inferir el período, hay que verificar el texto):
 - `2024/08/13` ("Misiones retrocedió en el top 10") → datos de **junio de 2024** únicamente.
@@ -77,9 +126,9 @@ Se revisaron además 3 notas de Plan B Misiones que por su fecha de publicación
 
 Totales agregados de mercado interno SÍ confirmados para contexto/denominador futuro, aunque sin desglose por empresa:
 - **2023**: 285.430.373 kg (INYM, cierre de año, cifra récord — vía economis.com.ar).
-- **2022**: ronda los 256 millones de kg, pero la nota disponible (ambito.com, noviembre 2022) aclara que el INYM todavía no tenía cerrados los datos de diciembre al momento de publicarse — no hay una cifra de cierre anual confirmada, solo el acumulado enero-noviembre.
+- **2022**: cifra de cierre CONFIRMADA 2026-07-29 (antes solo se conocía el acumulado enero-noviembre, ~256M, sin cierre) — **275.807.989 kg**, ver sección nueva arriba.
 
-**No se cargó ningún valor de empresa para 2022/2023** — quedan `NULL` en las ~15-65 empresas, siguiendo la regla "sin fuente confirmada = NULL, nunca inventado". Si `noticiasdelmate.com` vuelve a estar disponible, ahí están los artículos dedicados a 2021/2023/2024 con desglose por marca — revisar el texto completo (no solo el título) para confirmar si cada uno es año calendario o corte parcial antes de cargar.
+**Sigue sin cargarse ningún valor de empresa para 2023** — queda `NULL` en las ~65 empresas, siguiendo la regla "sin fuente confirmada = NULL, nunca inventado". `noticiasdelmate.com` volvió a estar disponible 2026-07-29 (ver arriba) pero su artículo de 2023 resultó ser corte parcial, no cierre anual — si en el futuro aparece una fuente nueva con cierre de año calendario completo para 2023, cargar siguiendo el mismo criterio ya usado para 2019/2021/2022.
 
 ### Nota sobre el denominador de 2025 (revalidado 2026-07-04)
 
