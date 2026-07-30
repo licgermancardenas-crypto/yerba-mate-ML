@@ -1,6 +1,9 @@
 import styles from "./landing.module.css";
 import { LandingNav } from "./_components/landing-nav";
 import { LandingHero, type HeroStat } from "./_components/landing-hero";
+import { LandingModules } from "./_components/landing-modules";
+import { LandingPhotoCards } from "./_components/landing-photo-cards";
+import { LandingFeatureSpotlight } from "./_components/landing-feature-spotlight";
 import { getProduccionAnualReal, getGeoLayerAtributos } from "@/lib/api";
 
 const ANIO_STATS = 2025;
@@ -51,6 +54,23 @@ export default async function LandingPage() {
     <div className={styles.landing}>
       <LandingNav />
       <LandingHero stats={stats} statsSonFallback={esFallback} />
+
+      <section id="modulos">
+        <div className={styles.sectionInner}>
+          <div className={styles.sectionHead}>
+            <span className={styles.eyebrow}>La plataforma</span>
+            <h2>Un módulo por cada eslabón de la cadena de valor.</h2>
+            <p>
+              De la chacra al puerto: cada etapa de la industria yerbatera, con su propia serie histórica, sus
+              fuentes documentadas y sus visualizaciones específicas.
+            </p>
+          </div>
+
+          <LandingModules />
+          <LandingPhotoCards />
+          <LandingFeatureSpotlight />
+        </div>
+      </section>
     </div>
   );
 }
