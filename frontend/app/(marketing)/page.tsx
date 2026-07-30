@@ -4,6 +4,9 @@ import { LandingHero, type HeroStat } from "./_components/landing-hero";
 import { LandingModules } from "./_components/landing-modules";
 import { LandingPhotoCards } from "./_components/landing-photo-cards";
 import { LandingFeatureSpotlight } from "./_components/landing-feature-spotlight";
+import { LandingIntegrity } from "./_components/landing-integrity";
+import { LandingFinalCta } from "./_components/landing-final-cta";
+import { LandingFooter } from "./_components/landing-footer";
 import { getProduccionAnualReal, getGeoLayerAtributos } from "@/lib/api";
 
 const ANIO_STATS = 2025;
@@ -71,6 +74,10 @@ export default async function LandingPage() {
           <LandingFeatureSpotlight />
         </div>
       </section>
+
+      <LandingIntegrity />
+      <LandingFinalCta />
+      <LandingFooter />
     </div>
   );
 }

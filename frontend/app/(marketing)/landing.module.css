@@ -544,6 +544,9 @@
 }
 
 /* ===== INTEGRITY SECTION ===== */
+.datosSection {
+  padding: 0;
+}
 .integrity {
   background: var(--forest);
   color: var(--cream);
