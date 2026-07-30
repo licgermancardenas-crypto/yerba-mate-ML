@@ -22,7 +22,7 @@ import {
 import { ThemeToggle } from "@/components/theme-toggle";
 
 const NAV_ITEMS = [
-  { href: "/", label: "Resumen", icon: LayoutDashboard },
+  { href: "/dashboard", label: "Resumen", icon: LayoutDashboard },
   { href: "/insights", label: "Hallazgos", icon: Lightbulb },
   { href: "/produccion", label: "Producción", icon: Sprout },
   { href: "/consumo", label: "Consumo", icon: Coffee },
@@ -39,7 +39,7 @@ function NavLinks({ pathname, onNavigate }: { pathname: string; onNavigate?: () 
   return (
     <nav className="flex flex-col gap-1 px-3">
       {NAV_ITEMS.map(({ href, label, icon: Icon }) => {
-        const active = href === "/" ? pathname === "/" : pathname.startsWith(href);
+        const active = href === "/dashboard" ? pathname === "/dashboard" : pathname.startsWith(href);
         return (
           <Link
             key={href}

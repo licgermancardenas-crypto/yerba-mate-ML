@@ -1,7 +1,6 @@
 import type { Metadata } from "next";
 import { Fira_Sans, Fira_Code } from "next/font/google";
 import "./globals.css";
-import { Sidebar } from "@/components/sidebar";
 import { ThemeProvider } from "@/components/theme-provider";
 
 const firaSans = Fira_Sans({
@@ -32,10 +31,9 @@ export default function RootLayout({
       className={`${firaSans.variable} ${firaCode.variable} h-full antialiased`}
       suppressHydrationWarning
     >
-      <body className="min-h-full flex">
+      <body className="min-h-full">
         <ThemeProvider attribute="data-theme" defaultTheme="system" enableSystem>
-          <Sidebar />
-          <div className="flex-1 min-w-0 pt-14 md:pt-0">{children}</div>
+          {children}
         </ThemeProvider>
       </body>
     </html>
