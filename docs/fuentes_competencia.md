@@ -47,6 +47,62 @@ Fuente: [Yerba: ¿Qué marcas dominaron el mercado en un año top?](https://econ
 
 Este mismo artículo también confirma el total de mercado interno 2022 (**275.807.989 kg**, casi idéntico a los 275.809.501 kg ya auditados en `ym.dataset_principal_anual` — diferencia de 1.512 kg, redondeo) — primera vez que se documenta una cifra real de cierre para este año (antes solo había un acumulado enero-noviembre sin cerrar, ver sección "2022, 2023" abajo).
 
+## Actualización 2026-07-29 (continuación) — 2016 y 2017 encontrados
+
+Retomando el pendiente de 2011-2018 (quedaba 100% vacío tras la ronda anterior del mismo día).
+Fuente: [La pelea por el mercado de la yerba mate: Las Marías lidera, pero Liebig no para de crecer y Rosamonte relegó a Molinos](https://economis.com.ar/la-pelea-por-el-mercado-de-la-yerba-mate-las-marias-lidera-pero-liebig-no-para-de-crecer-y-rosamonte-relego-a-molinos/)
+— Economis, cita explícita al INYM ("despachos a salida de molino"). Fecha de publicación exacta no
+confirmada (misma limitación que otros artículos de esta serie) — se cargó `2018-02-01` como
+aproximación. Total de mercado citado ("casi 260 millones de kg") coincide con el real ya auditado
+en `ym.dataset_principal_anual` para 2017 (259.904.609 kg) — confirma que el artículo mide lo mismo
+que nuestro denominador.
+
+**2017 — top 10 completo**, verificado con 2 lecturas literales del texto original antes de cargar
+(mismo método de toda la sesión):
+
+| Empresa | % | Kg |
+|---|---|---|
+| Las Marías | 19,5% | 50.681.398 (derivado, ver nota) |
+| Playadito (Liebig) | 11,7% | 30.400.000 (directo del texto) |
+| Rosamonte | 9,0% | 23.391.415 (derivado) |
+| Molinos | 8,5% | 22.091.892 (derivado) |
+| La Cachuera | 7,9% | 20.532.464 (derivado) |
+| Establecimiento Santa Ana (CBSé) | 6,2% | 16.114.086 (derivado) |
+| Llorente | 3,9% | 10.136.280 (derivado) |
+| Cooperativa de Santo Pipó (Piporé) | 3,4% | 8.836.757 (derivado) |
+| Cooperativa de Monte Carlo (Aguantadora) | 3,4% | 8.836.757 (derivado) |
+| Gerula (Romance) | 3,1% | 8.100.000 (directo del texto) |
+
+**Kg "derivado"** = % × 259.904.609 kg (mercado interno real 2017, ya validado en `ym.dataset_principal_anual`),
+usado para las empresas donde el texto solo da % sin kg. **Discrepancia real encontrada y resuelta**:
+el texto dice explícitamente "La empresa de Gobernador Virasoro [Las Marías] vendió 55 millones de
+kilos" — pero 55M/259,9M = 21,16%, no 19,5% (el % que el mismo texto atribuye a Las Marías). Verificado
+que Playadito (30,4M/259,9M = 11,70%) y Gerula (8,1M/259,9M = 3,12%) SÍ cruzan casi exacto entre su %
+y su kg citados — así que se descartó la cifra de "55 millones" para Las Marías como error puntual del
+artículo (probable errata) y se usó el kg derivado del % en su lugar, igual que el resto de las filas
+sin kg propio.
+
+**2016 — parcial (4 de ~14 empresas)**, citadas como comparación interanual dentro del mismo artículo
+(denominador real 2016: 252.138.365 kg, `ym.dataset_principal_anual`):
+
+| Empresa | % | Kg (derivado) |
+|---|---|---|
+| Las Marías | 21,1% | 53.201.196 |
+| Playadito | 10,3% | 25.970.251 |
+| Molinos | 9,4% | 23.701.006 |
+| La Cachuera | 8,2% | 20.675.346 |
+
+La Cachuera 2016 es derivado en 2 pasos: el texto no da el % de 2016 directo, dice "conservó [el 5°
+lugar] con el 7,9% del mercado [2017], **un 0,3 punto porcentual menos que el año anterior**" → 2016 = 7,9 + 0,3 = 8,2%.
+
+**Coincidencia real, no error de carga**: Monte Carlo y Santo Pipó reportan la MISMA cuota (3,4%) en
+2017 — confirmado con 2 lecturas literales del artículo, es un redondeo real de la fuente entre 2
+empresas de participación similar. Documentado en `backend/etl/audit_datos.py` (T6, `permite_repeticion_anual`)
+para que no dispare una alerta de CI sin contexto.
+
+**Con esto, el hueco 2011-2018 se reduce a 2011-2015** (6 años, sigue sin fuente encontrada) — 2016 y
+2017 quedan con dato real.
+
 ## Contexto (auditoría 2026-07-04, Fase 8)
 
 El `data/raw/competencia.csv` original (presente desde el commit de scaffolding inicial, antes de cualquier sesión documentada) tenía **relleno sintético** en 13 de 15 años: 2011-2021 con el mismo valor exacto repetido, y 2022-2024 interpolados linealmente hacia un valor de 2025 — sin ninguna fuente real. Ver diagnóstico completo en `TODO.md` (Fase 8).

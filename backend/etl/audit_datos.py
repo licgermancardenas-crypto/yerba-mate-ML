@@ -230,7 +230,16 @@ SERIES: list[Serie] = [
         entity_cols=["empresa"],
         value_cols=["valor"],
         mensual=False,
-        nota="Ya auditado y saneado en Fase 8 -- se espera que pase limpio, sirve de control negativo.",
+        permite_repeticion_anual=True,
+        nota="Ya auditado y saneado en Fase 8 -- se espera que pase limpio, sirve de control negativo. "
+        "T6=1 desde 2026-07-29 (nuevo dato real de 2017, ver docs/fuentes_competencia.md): Cooperativa "
+        "de Monte Carlo (Aguantadora) y Cooperativa de Santo Pipó (Piporé) reportan la MISMA cuota "
+        "(3,4%) en la misma fuente de prensa (economis.com.ar, cita INYM) -- confirmado con 2 lecturas "
+        "literales del texto original, es un redondeo real coincidente de la fuente entre 2 empresas "
+        "chicas de participación similar, no una duplicación de carga. `permite_repeticion_anual` acá "
+        "cubre este caso puntual de T6 (cruce entre entidades), no el uso original de T2 que describe "
+        "el docstring de la clase -- si en el futuro aparece un T2 real y no documentado en esta serie, "
+        "no asumir que este flag lo tapa sin revisar cuál test disparó.",
     ),
 ]
 
