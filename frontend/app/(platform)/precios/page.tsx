@@ -11,7 +11,7 @@ import { HistoricalTable } from "@/components/historical-table";
 import { HeatmapTable, type HeatmapTableSerie } from "@/components/heatmap-table";
 import { EstacionalidadPrecioChart } from "@/components/charts/estacionalidad-precio-chart";
 import { GroupedBarChart, type GroupedBarPunto } from "@/components/charts/grouped-bar-chart";
-import type { ColumnaTabla } from "@/components/data-table";
+import { DataTable, type ColumnaTabla } from "@/components/data-table";
 import { formatNumero, formatPct } from "@/lib/format";
 import { getPrecios, getPreciosGondola, getRemInflacion, getRemInflacionNucleo } from "@/lib/api";
 import { agregarPreciosAnual, calcularVarPct, type PrecioAnualRow } from "@/lib/agregaciones";
@@ -151,6 +151,15 @@ export default async function PreciosPage({
       mes: f.mes,
       valor: (f.precio_hoja_verde_ars as number) * ((ipcNacionalUltimo as number) / (f.ipc_nacional as number)),
     }));
+  // Igual que arriba pero canchada -- antes solo hoja verde tenía volatilidad
+  // calculada, canchada quedaba afuera pese a que la página la muestra igual.
+  const serieCanchadaConMes = conIpcNacional
+    .filter((f) => f.precio_canchada_ars != null)
+    .map((f) => ({
+      anio: f.anio,
+      mes: f.mes,
+      valor: (f.precio_canchada_ars as number) * ((ipcNacionalUltimo as number) / (f.ipc_nacional as number)),
+    }));
   function variacionesMensuales(serie: typeof serieRealConMes): number[] {
     const out: number[] = [];
     for (let i = 1; i < serie.length; i++) {
@@ -174,6 +183,103 @@ export default async function PreciosPage({
   const variacionesPost = variacionesMensuales(serieRealConMes.filter((f) => !esAntesDeDesregulacion(f.anio, f.mes)));
   const volatilidadPre = desviacionEstandar(variacionesPre);
   const volatilidadPost = desviacionEstandar(variacionesPost);
+  const variacionesPreCanchada = variacionesMensuales(serieCanchadaConMes.filter((f) => esAntesDeDesregulacion(f.anio, f.mes)));
+  const variacionesPostCanchada = variacionesMensuales(serieCanchadaConMes.filter((f) => !esAntesDeDesregulacion(f.anio, f.mes)));
+  const volatilidadPreCanchada = desviacionEstandar(variacionesPreCanchada);
+  const volatilidadPostCanchada = desviacionEstandar(variacionesPostCanchada);
+
+  // Estadística descriptiva de NIVEL (no de variación mes a mes como arriba)
+  // -- media/mediana/desvío/mínimo/máximo del precio REAL (deflactado IPC,
+  // mismo criterio que todo el resto de la página) por serie y período
+  // pre/post DNU 70/23. El coeficiente de variación (desvío/media, %) es el
+  // que realmente permite comparar "cuánto varía" entre hoja verde y
+  // canchada pese a que canchada vale ~3x más en pesos -- un desvío ARS más
+  // grande en canchada no implica mayor variabilidad relativa.
+  function media(valores: number[]): number | null {
+    return valores.length ? valores.reduce((a, b) => a + b, 0) / valores.length : null;
+  }
+  function mediana(valores: number[]): number | null {
+    if (!valores.length) return null;
+    const ord = [...valores].sort((a, b) => a - b);
+    const mid = Math.floor(ord.length / 2);
+    return ord.length % 2 ? ord[mid] : (ord[mid - 1] + ord[mid]) / 2;
+  }
+  interface FilaStat {
+    estadistico: string;
+    hojaVerdePre: string;
+    hojaVerdePost: string;
+    canchadaPre: string;
+    canchadaPost: string;
+  }
+  function statsNivel(valores: number[]) {
+    const m = media(valores);
+    const d = desviacionEstandar(valores);
+    return {
+      media: m,
+      mediana: mediana(valores),
+      desvio: d,
+      cv: m && d != null && m !== 0 ? (d / m) * 100 : null,
+      minimo: valores.length ? Math.min(...valores) : null,
+      maximo: valores.length ? Math.max(...valores) : null,
+    };
+  }
+  const nivelHvPre = statsNivel(serieRealConMes.filter((f) => esAntesDeDesregulacion(f.anio, f.mes)).map((f) => f.valor));
+  const nivelHvPost = statsNivel(serieRealConMes.filter((f) => !esAntesDeDesregulacion(f.anio, f.mes)).map((f) => f.valor));
+  const nivelCanPre = statsNivel(serieCanchadaConMes.filter((f) => esAntesDeDesregulacion(f.anio, f.mes)).map((f) => f.valor));
+  const nivelCanPost = statsNivel(serieCanchadaConMes.filter((f) => !esAntesDeDesregulacion(f.anio, f.mes)).map((f) => f.valor));
+  const arsOrND = (v: number | null) => (v != null ? formatArsKg(v) : "s/d");
+  const pctOrND = (v: number | null) => (v != null ? formatPct(v) : "s/d");
+  const FILAS_ESTADISTICA: FilaStat[] = [
+    {
+      estadistico: "Media",
+      hojaVerdePre: arsOrND(nivelHvPre.media),
+      hojaVerdePost: arsOrND(nivelHvPost.media),
+      canchadaPre: arsOrND(nivelCanPre.media),
+      canchadaPost: arsOrND(nivelCanPost.media),
+    },
+    {
+      estadistico: "Mediana",
+      hojaVerdePre: arsOrND(nivelHvPre.mediana),
+      hojaVerdePost: arsOrND(nivelHvPost.mediana),
+      canchadaPre: arsOrND(nivelCanPre.mediana),
+      canchadaPost: arsOrND(nivelCanPost.mediana),
+    },
+    {
+      estadistico: "Desvío estándar",
+      hojaVerdePre: arsOrND(nivelHvPre.desvio),
+      hojaVerdePost: arsOrND(nivelHvPost.desvio),
+      canchadaPre: arsOrND(nivelCanPre.desvio),
+      canchadaPost: arsOrND(nivelCanPost.desvio),
+    },
+    {
+      estadistico: "Coef. de variación",
+      hojaVerdePre: pctOrND(nivelHvPre.cv),
+      hojaVerdePost: pctOrND(nivelHvPost.cv),
+      canchadaPre: pctOrND(nivelCanPre.cv),
+      canchadaPost: pctOrND(nivelCanPost.cv),
+    },
+    {
+      estadistico: "Mínimo",
+      hojaVerdePre: arsOrND(nivelHvPre.minimo),
+      hojaVerdePost: arsOrND(nivelHvPost.minimo),
+      canchadaPre: arsOrND(nivelCanPre.minimo),
+      canchadaPost: arsOrND(nivelCanPost.minimo),
+    },
+    {
+      estadistico: "Máximo",
+      hojaVerdePre: arsOrND(nivelHvPre.maximo),
+      hojaVerdePost: arsOrND(nivelHvPost.maximo),
+      canchadaPre: arsOrND(nivelCanPre.maximo),
+      canchadaPost: arsOrND(nivelCanPost.maximo),
+    },
+  ];
+  const COLUMNAS_ESTADISTICA: ColumnaTabla<FilaStat>[] = [
+    { key: "estadistico", label: "", align: "left" },
+    { key: "hojaVerdePre", label: "Hoja verde (pre-DNU)", align: "right" },
+    { key: "hojaVerdePost", label: "Hoja verde (post-DNU)", align: "right" },
+    { key: "canchadaPre", label: "Canchada (pre-DNU)", align: "right" },
+    { key: "canchadaPost", label: "Canchada (post-DNU)", align: "right" },
+  ];
 
   // Estacionalidad del precio real -- índice de cada mes calendario contra
   // el promedio DE SU PROPIO año (nunca cruzar años sin normalizar así,
@@ -366,25 +472,53 @@ export default async function PreciosPage({
       <div className="mt-8 mb-4">
         <h2 className="text-lg font-semibold text-foreground">Volatilidad del precio real</h2>
         <p className="text-sm text-muted-foreground mt-0.5">
-          Desvío estándar de la variación mes a mes del precio real de hoja verde, antes vs. después del DNU 70/23 (dic-2023 —
-          le sacó al INYM la potestad de fijar precios). {variacionesPost.length < 24 && "Muestra post-desregulación todavía chica, tomar como indicativo."}
+          Desvío estándar de la variación mes a mes del precio real, hoja verde y canchada, antes vs. después del DNU 70/23
+          (dic-2023 — le sacó al INYM la potestad de fijar precios). {variacionesPost.length < 24 && "Muestra post-desregulación todavía chica, tomar como indicativo."}
         </p>
       </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
         <KpiCard
-          label={`Volatilidad pre-DNU 70/23 (${variacionesPre.length} meses)`}
+          label={`Hoja verde — pre-DNU 70/23 (${variacionesPre.length} meses)`}
           value={volatilidadPre != null ? `±${formatNumero(volatilidadPre, 1)} p.p./mes` : <NoData variant="kpi" />}
           icon={Activity}
         />
         <KpiCard
-          label={`Volatilidad post-DNU 70/23 (${variacionesPost.length} meses)`}
+          label={`Hoja verde — post-DNU 70/23 (${variacionesPost.length} meses)`}
           value={volatilidadPost != null ? `±${formatNumero(volatilidadPost, 1)} p.p./mes` : <NoData variant="kpi" />}
           icon={Activity}
           deltaPct={volatilidadPre && volatilidadPost ? ((volatilidadPost - volatilidadPre) / volatilidadPre) * 100 : undefined}
           deltaLabel="vs. pre-desregulación"
         />
+        <KpiCard
+          label={`Canchada — pre-DNU 70/23 (${variacionesPreCanchada.length} meses)`}
+          value={volatilidadPreCanchada != null ? `±${formatNumero(volatilidadPreCanchada, 1)} p.p./mes` : <NoData variant="kpi" />}
+          icon={Activity}
+        />
+        <KpiCard
+          label={`Canchada — post-DNU 70/23 (${variacionesPostCanchada.length} meses)`}
+          value={volatilidadPostCanchada != null ? `±${formatNumero(volatilidadPostCanchada, 1)} p.p./mes` : <NoData variant="kpi" />}
+          icon={Activity}
+          deltaPct={
+            volatilidadPreCanchada && volatilidadPostCanchada
+              ? ((volatilidadPostCanchada - volatilidadPreCanchada) / volatilidadPreCanchada) * 100
+              : undefined
+          }
+          deltaLabel="vs. pre-desregulación"
+        />
       </div>
+
+      <div className="mt-8 mb-4">
+        <h2 className="text-lg font-semibold text-foreground">Estadística descriptiva del precio real</h2>
+        <p className="text-sm text-muted-foreground mt-0.5">
+          Media, mediana, desvío estándar, coeficiente de variación, mínimo y máximo del nivel de precio real (ARS/kg,
+          deflactado por IPC), por serie y período. El coeficiente de variación (desvío/media, en %) es el que compara
+          variabilidad relativa entre hoja verde y canchada pese a que canchada vale ~3x más en pesos.
+        </p>
+      </div>
+      <ChartCard title="Precio real por período (ARS/kg)" className="mb-4">
+        <DataTable columnas={COLUMNAS_ESTADISTICA} filas={FILAS_ESTADISTICA} maxHeightPx={280} />
+      </ChartCard>
 
       <div className="mt-8 mb-4">
         <h2 className="text-lg font-semibold text-foreground">Estacionalidad del precio (real)</h2>
