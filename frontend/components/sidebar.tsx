@@ -18,6 +18,7 @@ import {
   Leaf,
   Factory,
   Lightbulb,
+  ArrowLeft,
 } from "lucide-react";
 import { ThemeToggle } from "@/components/theme-toggle";
 
@@ -62,6 +63,23 @@ function NavLinks({ pathname, onNavigate }: { pathname: string; onNavigate?: () 
 }
 
 const SIDEBAR_BG = "bg-gradient-to-b from-[#14532d] via-[#0d3d1f] to-[#052e16]";
+
+// Link explícito para salir de la plataforma -- el logo del header YA
+// linkeaba a "/" pero sin ninguna señal visual de ser clickeable, un
+// usuario real no lo detectó como forma de salir. Este sí se ve como link
+// (ícono + texto + hover), separado de la nav de secciones.
+function VolverAlSitio({ onNavigate }: { onNavigate?: () => void }) {
+  return (
+    <Link
+      href="/"
+      onClick={onNavigate}
+      className="flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium text-white/70 transition-all duration-150 hover:bg-white/10 hover:text-white"
+    >
+      <ArrowLeft size={18} strokeWidth={2} aria-hidden="true" />
+      <span>Volver al sitio</span>
+    </Link>
+  );
+}
 
 export function Sidebar() {
   const pathname = usePathname();
@@ -112,7 +130,8 @@ export function Sidebar() {
         <div className="flex-1 overflow-y-auto py-4">
           <NavLinks pathname={pathname} />
         </div>
-        <div className="px-3 py-3 border-t border-white/10">
+        <div className="px-3 py-3 border-t border-white/10 space-y-1">
+          <VolverAlSitio />
           <ThemeToggle />
         </div>
       </aside>
@@ -130,7 +149,8 @@ export function Sidebar() {
             <div className="flex-1">
               <NavLinks pathname={pathname} onNavigate={() => setOpen(false)} />
             </div>
-            <div className="px-3 py-3 border-t border-white/10">
+            <div className="px-3 py-3 border-t border-white/10 space-y-1">
+              <VolverAlSitio onNavigate={() => setOpen(false)} />
               <ThemeToggle />
             </div>
           </aside>
